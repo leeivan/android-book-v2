@@ -87,11 +87,36 @@ Jetpack 进一步解决的是一整组现代工程问题：生命周期与状态
 
 这个例子说明，Android 学习从第一天起就不是单一页面问题，而是“一个应用如何在平台能力之间协作”的问题。后续各章，其实就是在逐步拆解这个简单示例背后的系统性复杂度。
 
-### 10. 学习 Android 时最容易走偏的三条路线
+### 10. 为什么只看 Android 官网文档，内容会很像说明书
+
+Android Developers 对确认平台事实非常重要，但它的主要职责不是代替老师，而是告诉你“规则是什么”。它擅长回答这些问题：某个 API 何时可用、某个权限现在怎么申请、后台执行有哪些限制、某个 Jetpack 组件的官方推荐写法是什么。它不一定会像教材那样，一步一步带你建立直觉、做出最小练习、再把零散知识点拼成项目结构。
+
+这也是很多读者在入门阶段的真实感受：文档是准确的，但读起来像手册。它告诉你 Activity 生命周期有哪些回调，却不一定替你解释“为什么 Android 应用从来不是一个 main 函数”；它告诉你 Compose 的状态要可观察，却不一定先用一个足够小的练习帮你建立“状态驱动界面”的身体记忆。
+
+更适合教材化学习的路线，通常是把资料分成三层同时使用：
+
+- 规则层：Android Developers、Kotlin 文档、Material 3 文档、Play 文档，用来确认平台边界和当前推荐做法。
+- 教学层：官方 codelab、官方课程，用来建立从概念到最小实现的路径感。
+- 结构层：官方样例项目，用来理解真实项目如何把多个主题组织到一起。
+
+只要你把这三层资料结合起来，学习体验就会从“背 API”变成“知道为什么、知道怎么做、也知道真实项目长什么样”。
+
+### 11. 更像教材的 Android 入门资料该怎么组合
+
+如果你今天从零开始，更稳妥的顺序通常不是“先看完整套 API 文档”，而是下面这条路线：
+
+1. 先做一个官方入门练习，例如 “Build your first Android app” 这类 codelab，先把“创建项目、运行、修改界面、看到结果”这条最小链路跑通。
+2. 再回到 Android Developers 对照本章内容，确认 Activity、Manifest、`minSdk`、`targetSdk`、AndroidX 这些概念在平台里的正式含义。
+3. 然后把 Kotlin 官方文档作为语言主线资料，而不是把 Kotlin 知识完全混在 Android 文档里学。
+4. 等基础概念建立后，再去看 `android/architecture-samples` 或 `android/nowinandroid` 这类官方样例项目，观察真实工程怎样组织页面、状态、数据和模块。
+
+这条路线的好处是：你不会一开始就被大量术语淹没，也不会只停留在“跟着手册抄步骤”。你先看到结果，再理解规则，最后再阅读结构。教材真正需要的就是这种层层递进的节奏。
+
+### 12. 学习 Android 时最容易走偏的三条路线
 
 第一条偏路，是只记 API，不理解平台边界。这样学出来的人往往“会写很多例子”，但一到权限、生命周期、后台执行、通知或兼容性问题时就立刻失去判断力。第二条偏路，是先系统学习一整套旧写法，再试图补现代迁移。这样当然不是完全不能走，但成本很高，读者会把大量精力花在历史包袱上，而不是建立当前主线。第三条偏路，是只会搭界面，不会组织应用。Android 开发的真正难点，从来不只是把控件摆出来，而是能否在平台规则下把页面、状态、数据、权限和后台行为组织成稳定工程。
 
-### 11. 最小实践任务
+### 13. 最小实践任务
 
 起点条件：
 
@@ -103,12 +128,14 @@ Jetpack 进一步解决的是一整组现代工程问题：生命周期与状态
 1. 通读 `SUMMARY.md`，把章节粗分成“平台基础”“界面与交互”“数据与网络”“系统组件与工程实践”四类。
 2. 在纸上写出你当前理解的四大组件，并尝试为每一个组件各举一个现实应用场景。
 3. 记录目前还不理解的关键词，例如 `API Level`、`targetSdk`、`ViewModel`、`Room`、`WorkManager`。
-4. 用一句话总结：Android 和“普通界面程序”最不一样的地方是什么。
+4. 打开一个官方入门 codelab 和一个官方样例项目首页，分别记录它们解决的是“最小练习”还是“真实项目结构”问题。
+5. 用一句话总结：Android 和“普通界面程序”最不一样的地方是什么。
 
 预期结果：
 
 - 你对全书目录的知识分布有第一层认识。
 - 你能说出 Android 不只是 UI 框架，而是平台。
+- 你能区分：哪些资料适合确认规则，哪些资料适合跟练，哪些资料适合理解项目结构。
 - 你知道后续章节为什么会同时出现页面、数据、权限、后台和发布主题。
 
 自检方式：
@@ -116,18 +143,21 @@ Jetpack 进一步解决的是一整组现代工程问题：生命周期与状态
 - 当别人问“为什么 Android 不能只学界面”时，你能给出至少两个平台层面的理由。
 - 你能分清 `minSdk`、`targetSdk` 和 `compileSdk` 分别在回答什么问题。
 - 你能说出四大组件至少各自解决一类什么入口问题。
+- 你能解释：为什么 Android 官网文档很重要，但单独阅读时又容易像说明书。
 
 调试提示：
 
 - 如果你觉得本章信息很多，不要试图一次记住所有术语，先抓住“平台、组件、版本坐标、现代主线”这四个关键词。
 - 如果你对某个 Jetpack 组件完全陌生，先把它记成“后续会展开的工程问题解决方案”，不要急着查完所有 API。
+- 如果你刚打开 Android Developers 就感到信息过密，先回到 codelab 跑通一个最小练习，再回来看规则定义，理解会更稳。
 
-### 12. 常见误区
+### 14. 常见误区
 
 - 认为 Android 开发就是“会写 Activity 就够了”。
 - 先完整学一套旧 Java 教程，再考虑现代化。
 - 把版本宣传名看得比 `API Level` 更重要。
 - 把 Android 学习理解成“会摆控件就会做应用”。
+- 以为 Android 官网文档可以直接替代课程、练习和样例项目。
 
 ## 小结
 
@@ -142,3 +172,8 @@ Jetpack 进一步解决的是一整组现代工程问题：生命周期与状态
 - Android for Kotlin：<https://developer.android.com/kotlin>
 - Android Jetpack：<https://developer.android.com/jetpack>
 - AndroidX 迁移与说明：<https://developer.android.com/jetpack/androidx/migrate>
+- Build your first Android app：<https://developer.android.com/codelabs/build-your-first-android-app-kotlin>
+- Android Codelabs 总入口：<https://developer.android.com/get-started/codelabs>
+- Kotlin Documentation：<https://kotlinlang.org/docs/home.html>
+- Architecture Samples：<https://github.com/android/architecture-samples>
+- Now in Android：<https://github.com/android/nowinandroid>

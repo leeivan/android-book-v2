@@ -76,13 +76,60 @@ fun CounterScreen() {
 
 这一步对阅读真实项目非常重要。因为现代 Compose 项目里，很多 composable 并不自己保存所有状态，而是接收来自 ViewModel、状态持有者或父级 composable 的参数，然后通过 `onClick`、`onValueChange` 等事件把意图往上发。只要这条数据流看清楚，Compose 代码就不会再像“层层嵌套的函数迷宫”。
 
+下面这个例子把“本地状态”改成了“父级持有、子级展示”的写法：
+
+```kotlin
+@Composable
+fun CounterRoute() {
+    var count by rememberSaveable { mutableStateOf(0) }
+
+    CounterContent(
+        count = count,
+        onIncrement = { count++ }
+    )
+}
+
+@Composable
+fun CounterContent(
+    count: Int,
+    onIncrement: () -> Unit
+) {
+    Column {
+        Text(text = "当前计数：$count")
+        Button(onClick = onIncrement) {
+            Text("增加")
+        }
+    }
+}
+```
+
+这个版本的关键不是代码更多了，而是角色更清楚了：`CounterRoute` 负责持有状态，`CounterContent` 负责根据状态渲染并把事件抛回去。很多官方样例项目，包括 `Now in Android`，都会把屏幕拆成 route 层和 content 层，本质上就是在贯彻这种“状态上提、展示下沉”的结构思路。
+
 ### 8. 为什么 Compose 和 Material 3 往往一起出现
 
 在现代 Android 项目中，Compose 往往会和 Material 3 一起出现。原因很简单：Compose 提供声明式 UI 组织方式，Material 3 提供现代设计语言和组件体系。两者结合后，界面结构、状态驱动和设计系统更容易统一。Android 官方的 Material Design for Android 页面也直接指出：如果应用使用 Compose，可以使用 Compose Material 3 library。
 
 这也是为什么理解 Compose 时，不要把它当成孤立 UI 技术。它和前一章的 Material 设计系统、和后续章节的状态管理、ViewModel、单向数据流都紧密相关。
 
-### 9. 实践任务
+### 9. 只看 API 文档为什么学不透 Compose
+
+Compose 是特别容易被“文档式学习”误导的主题之一。因为如果你只是按 API 页面逐个去看 `Text`、`Button`、`Modifier`、`LazyColumn`，你会感觉自己认识了很多组件，却依然说不清声明式 UI 到底改变了什么。真正有教学价值的，不是先背组件表，而是先经历一条渐进路径：先做静态界面，再让界面接住状态，再把状态往上提，最后再进入真实项目结构。
+
+这也是为什么 Compose 官方 codelab 的价值很大。像 `Jetpack Compose basics` 会先带你跑通最小页面和状态更新，再用布局类 codelab 帮你建立 `Modifier`、组合结构和布局约束的直觉。等这两步走完，再回头看 API 文档，你看到的就不再是一堆零散函数，而是一套能够支撑 UI 建模的工具。
+
+### 10. 更适合 Compose 入门的资料组合
+
+如果你想把 Compose 学得更像教材，而不是像查表，可以按这个顺序用资料：
+
+1. `Thinking in Compose`，先建立声明式思维模型。
+2. `State and Jetpack Compose`，理解为什么状态是 Compose 的中心。
+3. `Jetpack Compose basics` codelab，亲手做一个最小状态驱动页面。
+4. `Basic layouts in Compose` codelab，补足布局和 `Modifier` 的直觉。
+5. `Now in Android` 这类官方样例项目，观察 Compose 在真实工程中的屏幕拆分、状态持有和设计系统接入方式。
+
+这样组合的好处是：思维模型、最小练习、布局直觉和真实项目结构都能各就各位，不会变成只记零散 API。
+
+### 11. 实践任务
 
 起点条件：
 
@@ -95,12 +142,14 @@ fun CounterScreen() {
 2. 把页面拆成显示区和操作区两个 composable，体验组合式结构。
 3. 尝试把状态从子组件提升到父组件，观察数据流是否更清晰。
 4. 再把局部状态从 `remember` 改成 `rememberSaveable`，体验它在配置变化后的区别。
-5. 用自己的话解释 Compose 与 View/XML 最大的思维差异是什么。
+5. 打开 `Jetpack Compose basics` 或 `Basic layouts in Compose` codelab，对照你自己的实现检查命名、结构和状态组织方式。
+6. 用自己的话解释 Compose 与 View/XML 最大的思维差异是什么。
 
 预期结果：
 
 - 你能感受到 Compose 的核心不是“控件语法变化”，而是“状态驱动 UI”。
 - 你能区分局部本地状态、可保存状态和应提升的状态。
+- 你能看懂：为什么真实项目会把 route 层和 content 层拆开。
 - 你开始习惯从“状态和事件”角度理解界面，而不是从“对象和 setter”角度理解界面。
 
 自检方式：
@@ -108,19 +157,22 @@ fun CounterScreen() {
 - 你能解释：为什么 Compose 是声明式 UI。
 - 你能说出：`remember` 和 `rememberSaveable` 各自解决什么问题。
 - 你能判断：某个状态应该留在本地，还是应该被提升或交给 ViewModel。
+- 你能解释：为什么只刷 Compose 组件 API 仍然可能学不会 Compose。
 
 调试提示：
 
 - 如果状态一变页面却没更新，先检查这个值是不是 Compose 可观察的状态。
 - 如果每次重组状态都重置，先检查是否忘了使用 `remember` 或把状态放在了错误位置。
 - 如果 composable 里开始出现大量逻辑判断和状态修改，通常说明该考虑状态提升或引入状态持有者了。
+- 如果你写了很多 Compose 组件却仍然觉得“思路不清”，先回头做一遍官方 codelab，而不是继续堆新组件。
 
-### 10. 常见误区
+### 12. 常见误区
 
 - 把 Compose 当成一套“新的控件表”。
 - 只看语法糖，不理解状态驱动思想。
 - 状态随意分散在多个组件里，导致数据流不清晰。
 - 以为学了 Compose 就不需要理解 Android 平台基础。
+- 只刷 API 或组件目录，却不做 codelab 和样例项目拆读。
 
 ## 小结
 
@@ -134,3 +186,6 @@ Compose 是现代 Android UI 的重要方向，但它不是平台基础的替代
 - State and Jetpack Compose：<https://developer.android.com/develop/ui/compose/state>
 - Compose UI Architecture：<https://developer.android.com/develop/ui/compose/architecture>
 - Jetpack Compose basics codelab：<https://developer.android.com/codelabs/jetpack-compose-basics>
+- Basic layouts in Compose codelab：<https://developer.android.com/codelabs/jetpack-compose-layouts>
+- Material 3：<https://m3.material.io/>
+- Now in Android：<https://github.com/android/nowinandroid>
