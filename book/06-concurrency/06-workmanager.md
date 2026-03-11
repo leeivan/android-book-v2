@@ -181,6 +181,16 @@ WorkManager.getInstance(context).enqueueUniqueWork(
 
 WorkManager 是现代 Android 后台工作的主线之一。理解它的关键，不是会不会写 Worker，而是知道它最适合哪类任务，以及为什么这类任务交给系统感知的调度模型会比手工维持更稳定。只要任务分类正确，它会成为后台可靠性设计中非常稳的一块基础。
 
+### 教材化延伸：为什么 WorkManager 不能只读成“后台任务 API”
+
+WorkManager 的价值并不只是“提供一个能跑在后台的类”，而是把可延迟、可约束、可恢复的任务组织成可维护系统。教材里更重要的是让读者知道：什么时候该选 WorkManager，什么时候不该选；约束、重试和唯一工作这些特性分别在解决什么实际问题。只看 API 页很容易失去这种任务决策视角。
+
+### 资料路线
+
+- 先用本章任务类型判断 WorkManager 的适用边界。
+- 再对照官方 WorkManager 文档与 codelab，确认约束、重试、链式工作和唯一工作。
+- 最后阅读样例项目中的同步任务，观察后台工作如何和通知、数据层、启动时机协作。
+
 ## 参考资料
 
 - WorkManager overview：<https://developer.android.com/topic/libraries/architecture/workmanager>

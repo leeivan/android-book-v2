@@ -189,6 +189,16 @@ class ArticleListViewModel(
 
 ViewModel 的真正价值，在于让页面级状态和 UI 层业务逻辑获得一个比页面实例更稳定的承载点。只要作用域、状态边界和异步协作都清楚，它就会成为整个 Android 架构里最稳的一块基础。
 
+### 教材化延伸：为什么 ViewModel 不能只读成“跨旋转保存对象”
+
+早期很多资料会把 ViewModel 介绍成“旋转屏幕后不丢数据”的工具，这个说法没有错，但远远不够。ViewModel 在现代 Android 中更重要的价值，是让页面状态、异步任务和数据流拥有一个比 Fragment 或 Activity 更稳定的持有者。只把它理解成“防重建”技巧，会严重低估它在架构中的位置。
+
+### 资料路线
+
+- 先用本章页面状态示例理解 ViewModel 为什么适合承接 UI state。
+- 再对照官方 ViewModel 与状态持有者文档，确认生命周期和作用域边界。
+- 最后阅读样例项目中的 screen route 层，观察 ViewModel 如何和 Repository、Flow、Compose/UI 结合。
+
 ## 参考资料
 
 - ViewModel overview：<https://developer.android.com/topic/libraries/architecture/viewmodel>

@@ -129,6 +129,16 @@ class TaskRepository(
 
 到这里，数据篇的主线已经基本连起来了：配置、文件、SQLite、Room 和数据层不再是孤立工具，而是一套围绕边界和来源组织起来的完整数据体系。后续进入网络、架构和并发章节时，这条线会继续向外延伸。
 
+### 教材化延伸：为什么数据层设计不能只看架构名词
+
+`Repository`、`Single Source of Truth`、offline-first 这些词如果只放在定义层面，很容易变成架构口号。教材真正需要解释的是：为什么页面不该直接碰 DAO 和网络接口、为什么多个数据源一定会带来同步和解释问题、为什么“数据层”其实是在替上层吸收不确定性。只有这层工程原因被讲清楚，名词才有意义。
+
+### 资料路线
+
+- 先用本章的数据流图梳理 UI、ViewModel、Repository 和 data source 的职责。
+- 再查 Android 架构与 offline-first 文档，确认官方推荐的数据层边界。
+- 最后对照 `Now in Android` 或 `architecture-samples`，观察这些原则如何真正落到项目结构里。
+
 ## 参考资料
 
 - Data layer：<https://developer.android.com/topic/architecture/data-layer>

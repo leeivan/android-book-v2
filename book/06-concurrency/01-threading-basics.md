@@ -140,6 +140,16 @@ Android 项目中的线程问题很少是纯计算问题。你几乎总会同时
 
 线程基础章节真正要建立的，不是底层 API 列表，而是一条基本底线：保护主线程、识别耗时工作、明确任务归属，并承认并发设计从一开始就离不开生命周期和架构边界。后面的 Handler、协程和 WorkManager，都会建立在这层认知之上。
 
+### 教材化延伸：为什么线程基础不能只背“主线程不能阻塞”
+
+这条规则大家很快都能记住，但教材更需要进一步解释：UI 线程为什么敏感，阻塞会怎样演化成卡顿和 ANR，为什么“把工作扔到后台”还远远不够。只有把线程模型和用户体验联系起来，后面的 Handler、Coroutines、Flow 和 WorkManager 才不会显得像彼此无关的工具集合。
+
+### 资料路线
+
+- 先用本章案例感受主线程阻塞和界面反馈之间的直接关系。
+- 再对照 Android threading 与性能文档，确认 ANR、消息循环和线程边界。
+- 最后进入协程和 Flow 章节，观察现代项目如何在此基础上组织异步代码。
+
 ## 参考资料
 
 - Processes and threads overview：<https://developer.android.com/guide/components/processes-and-threads>

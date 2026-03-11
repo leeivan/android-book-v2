@@ -98,6 +98,16 @@ Android 官方的数据与文件存储总览，也正是按“应用私有文件
 
 下一章我们会先处理最轻量的一类数据，也就是设置项与偏好配置，并把 DataStore 作为现代 Android 的默认主线来展开。
 
+### 教材化延伸：为什么存储总览不能只记“有哪些方案”
+
+官方文档会清楚告诉你 SharedPreferences、DataStore、文件、Room、MediaStore、SAF 各自是什么，但教材更需要回答“什么数据该放哪一层、为什么不能只按技术名选方案”。如果没有先建立数据边界视角，读者很容易把所有问题都变成“哪个 API 更方便”，而不是“这个数据的生命周期、共享边界和一致性要求是什么”。
+
+### 资料路线
+
+- 先用本章的选择表从数据边界出发分类，而不是从 API 名字出发分类。
+- 再对照官方 data storage use cases 文档，确认不同存储方案的正式适用范围。
+- 最后阅读样例项目中配置数据、本地实体和媒体文件分别落在哪一层，理解真实工程里的拆分方式。
+
 ## 参考资料
 
 - Data and file storage overview：<https://developer.android.com/training/data-storage>

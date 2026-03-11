@@ -167,6 +167,16 @@ MVVM 在 Android 中成为主线，不是因为缩写更流行，而是因为它
 
 MVC、MVP、MVVM 的意义，不在于比较谁更高级，而在于理解面对复杂 UI、生命周期和数据来源时，复杂度应该被放到哪里。对现代 Android 来说，MVVM 更容易与官方推荐的状态驱动和分层架构主线对齐，因此也更适合作为后续学习的基础。
 
+### 教材化延伸：为什么架构模式不能只背定义
+
+`MVC`、`MVP`、`MVVM` 这类章节很容易被写成概念对照表：谁负责什么、优缺点是什么。这样读者能记住名词，却仍然不知道为什么 Android 项目最后更常落在 MVVM 或类似状态持有结构上。教材化写法更需要补上一层：这些模式为什么会在移动端场景里演化，为什么页面状态、生命周期和数据流会逼着结构发生变化。
+
+### 资料路线
+
+- 先用本章的对比图理解三种模式分别在解决什么组织问题。
+- 再对照 Android 架构文档与 `architecture-samples`，观察这些模式在真实项目中的差异。
+- 最后回到后续 ViewModel、Repository 章节，把抽象模式落到 Android 组件边界上。
+
 ## 参考资料
 
 - Recommendations for Android architecture：<https://developer.android.com/topic/architecture/recommendations>

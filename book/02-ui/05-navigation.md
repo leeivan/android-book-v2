@@ -121,6 +121,16 @@ findNavController().navigate(action)
 
 下一章及后续相关章节里，我们会继续在这个导航基础上讨论列表、主从结构和更复杂的页面组织。导航一旦建立起结构感，后面的多页面工程才不会越来越乱。
 
+### 教材化延伸：为什么导航不该只学成一组 API
+
+导航文档能清楚说明 graph、destination、action 和 back stack，但教材更需要帮助读者建立流程感。你真正要学会的不是“某个按钮怎么跳转”，而是页面结构怎样映射到返回栈，参数怎样传递才不让页面耦合，流程变化时哪些问题该交给导航层解决。只背 API，很容易把导航写成分散的跳转语句。
+
+### 资料路线
+
+- 先用本章最小图和两到三个页面练习建立目的地与返回栈的基本直觉。
+- 再对照官方 Navigation graph、back stack 和参数传递文档，确认组件行为。
+- 最后阅读样例项目中的导航结构，观察复杂流程如何避免把跳转逻辑散落在每个页面里。
+
 ## 参考资料
 
 - Navigation and the back stack：<https://developer.android.com/guide/navigation/backstack>

@@ -136,6 +136,16 @@ fun pickPhoto() {
 
 下一章我们会把视角切到结构化存储，也就是 SQLite。到那时，问题会从“文件放哪里”转向“记录如何稳定增删改查、排序和查询”。
 
+### 教材化延伸：为什么文件存储不能只学路径和权限
+
+文件存储章节如果只围绕“路径在哪、权限怎么配”来写，很容易保留旧 Android 的思路。现代 Android 真正重要的是理解文件归属、共享边界和系统选择器在里面承担什么角色。教材化理解要把 app-specific storage、Photo Picker、SAF 和用户授权流程一起看，读者才能知道“为什么现在不鼓励直接碰公共路径”。
+
+### 资料路线
+
+- 先用本章练习明确这份文件是应用私有、用户共享还是媒体内容。
+- 再对照官方 documents/files 与 Photo Picker 文档，确认现代文件访问边界。
+- 最后在自己的练习项目中做一次文件选取、保存和回显，避免只停留在路径概念上。
+
 ## 参考资料
 
 - Data and file storage overview：<https://developer.android.com/training/data-storage>

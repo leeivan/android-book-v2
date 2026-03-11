@@ -134,6 +134,16 @@ class UserPreferencesRepository(
 
 下一章我们会把视角从轻量配置转到文件型数据，去看缓存文件、导出文档、图片附件和共享文件在现代 Android 中应该如何划分边界。
 
+### 教材化延伸：为什么 DataStore 不能只学成 API 替换题
+
+很多资料会把这一章写成“SharedPreferences 已过时，改用 DataStore”，但真正的教学重点不在换库，而在理解配置数据为什么适合键值模型、为什么异步读写和一致性比“会不会存一个布尔值”更重要。官方 codelab 在这里就很有价值，因为它会带着你真正经历迁移和状态联动，而不是只给出几个函数签名。
+
+### 资料路线
+
+- 先用本章最小示例理解配置数据和业务实体数据的边界。
+- 再完成官方 Preferences DataStore codelab，观察读写与页面状态如何串起来。
+- 最后回到样例项目，看看设置项、过滤条件和开关状态是如何进入数据层和 UI 层的。
+
 ## 参考资料
 
 - DataStore guide：<https://developer.android.com/topic/libraries/architecture/datastore>

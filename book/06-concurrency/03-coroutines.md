@@ -172,6 +172,16 @@ class ArticleListViewModel(
 
 协程是现代 Android 异步主线之一。理解它的关键，不是会不会写 `launch`，而是能否让异步任务真正融入生命周期、页面状态和数据层边界之中。只要这层结构立起来，协程就会成为你组织复杂异步流程时最稳定的工具。
 
+### 教材化延伸：为什么协程不能只学成关键字和作用域
+
+`launch`、`async`、`withContext` 很容易被学成一套“异步语法糖”，但教材真正要帮助读者建立的是结构化并发的思维：任务属于谁、取消由谁负责、异常如何传播、页面离开时工作该不该继续。只会写协程关键字并不等于已经会组织并发。
+
+### 资料路线
+
+- 先用本章最小示例建立“作用域决定生命周期”的直觉。
+- 再对照 Kotlin coroutines 与 Android coroutines 文档，确认取消、调度器和异常语义。
+- 最后阅读 ViewModel 和 WorkManager 相关章节，观察哪些任务适合协程，哪些应上升为后台工作。
+
 ## 参考资料
 
 - Kotlin coroutines on Android：<https://developer.android.com/kotlin/coroutines>

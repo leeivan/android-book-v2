@@ -168,6 +168,16 @@ class NewsViewModel(
 
 LiveData 与 Flow 章节真正要解决的，不是 API 对比，而是页面状态怎样稳定地从 ViewModel 流向 UI。对今天的新项目来说，StateFlow / Flow 更符合 Kotlin-first 和官方架构主线，但无论使用哪种工具，真正重要的始终是状态建模、事件边界和生命周期收集这三件事。
 
+### 教材化延伸：为什么 LiveData 和 Flow 不能只做 API 对比
+
+如果这一章只停在“哪个类型有什么函数”，读者很容易学成一张 API 对照表。教材更需要解释的是：状态流为什么会影响 UI 层组织，为什么 Flow 更自然地进入协程链路，为什么 LiveData 在现有项目里仍然需要识别和维护。只有把这些放回数据流和页面状态语境里，对比才有意义。
+
+### 资料路线
+
+- 先用本章示例理解“可观察数据”到底在解决什么 UI 同步问题。
+- 再对照 Kotlin Flow 文档和 Android UI state 文档，确认流式状态的正式用法。
+- 最后结合样例项目，观察 Flow 在 Repository、ViewModel 和 Compose/UI 中是怎样贯通的。
+
 ## 参考资料
 
 - Kotlin flows on Android：<https://developer.android.com/kotlin/flow>

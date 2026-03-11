@@ -164,6 +164,16 @@ class ArticleRepository(
 
 Repository 的真正价值，不在于目录里多一个名字，而在于它是否成为上层稳定依赖的数据入口。只要这层站稳，ViewModel 就能专注于页面状态，数据层也更容易承接缓存、离线和结果包装等复杂职责。
 
+### 教材化延伸：为什么 Repository 不能只看成“再包一层”
+
+Repository 最容易遭遇的误解，就是“只是把 DAO 和 API 再包装一下”。但真实工程里，它承担的是结果解释、来源整合、缓存协调和数据边界收束。教材化理解必须把它和多数据源、状态建模、错误处理放在同一个问题里讲，否则读者很容易觉得这一层只是多余样板。
+
+### 资料路线
+
+- 先用本章的数据流示例看清 Repository 在 UI 与 data source 之间的职责。
+- 再对照 Android data layer 文档，确认官方为什么强调单一可信来源和来源整合。
+- 最后阅读样例项目中的仓库实现，观察网络、本地和设置数据是怎样被统一暴露给上层的。
+
 ## 参考资料
 
 - Recommendations for Android architecture：<https://developer.android.com/topic/architecture/recommendations>

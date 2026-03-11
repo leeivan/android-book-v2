@@ -169,6 +169,16 @@ ViewModel 的重点应是：
 
 Android 中的 MVVM，本质上是一种围绕 ViewModel、Repository 和页面状态展开的职责组织方式。它真正想解决的，是页面实例不稳定、状态持续变化、数据来源复杂这三类现实问题。只要 View 聚焦展示，ViewModel 聚焦状态，数据层聚焦来源与规则，这条链路就会逐渐稳定下来。
 
+### 教材化延伸：为什么 MVVM 在 Android 里不能只看图示
+
+很多 MVVM 介绍会画出一张 View、ViewModel、Model 三层图，然后读者以为自己已经“懂了架构”。但 Android 里的 MVVM 真正难点不在图，而在页面生命周期、异步请求和页面状态如何真正交给 ViewModel 管理。教材写法必须把模式图、状态持有者和数据流示例绑在一起，否则 MVVM 很容易退化成“把逻辑从 Activity 挪到别处”。
+
+### 资料路线
+
+- 先用本章最小页面示例理解 View 与 ViewModel 的数据边界。
+- 再对照 Android ViewModel、state holders 和 architecture recommendations 文档，确认官方推荐的职责划分。
+- 最后阅读 `architecture-samples` 或 `Now in Android`，观察 MVVM 如何和 Repository、UI state 共同工作。
+
 ## 参考资料
 
 - Recommendations for Android architecture：<https://developer.android.com/topic/architecture/recommendations>

@@ -133,6 +133,16 @@ Handler 的问题不在于它失效了，而在于它本身并不解决更高层
 
 Handler 与 Looper 的核心价值，是帮助你理解 Android 的消息循环模型。今天的新项目不应再把它作为主要异步组织方式，但理解它，能让你对主线程、调度和旧代码迁移有更扎实的认识。
 
+### 教材化延伸：为什么 Handler/Looper 不能只当历史 API 来看
+
+虽然现代项目更常用协程，但 Handler 和 Looper 仍然是理解 Android 线程模型的关键。只把它们当作“老 API”会失去很重要的一层平台直觉：主线程为什么能分发 UI 事件、消息循环为什么会阻塞后续输入、很多更高层抽象背后又是在建立怎样的调度机制。
+
+### 资料路线
+
+- 先用本章消息队列示例理解 Handler、Looper、MessageQueue 的基本关系。
+- 再对照官方线程与消息循环文档，确认主线程调度模型。
+- 最后再回看协程章节，理解 `Dispatchers.Main` 等抽象为何能建立在这套机制之上。
+
 ## 参考资料
 
 - Processes and threads overview：<https://developer.android.com/guide/components/processes-and-threads>

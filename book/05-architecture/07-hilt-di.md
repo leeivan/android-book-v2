@@ -180,6 +180,16 @@ class ArticleViewModel @Inject constructor(
 
 依赖注入的核心，不是框架，而是对象关系的清晰治理。Hilt 在现代 Android 中之所以成为主线，是因为它把这种治理自然地和 Android 生命周期、ViewModel、Navigation、WorkManager 等生态接到了一起。只要边界本身清楚，Hilt 会显著降低对象创建和维护成本。
 
+### 教材化延伸：为什么依赖注入不能只当注解清单
+
+依赖注入章节如果只讲 `@Inject`、`@Module`、`@Provides`、`@HiltViewModel`，内容会非常像手册。教材更重要的是解释“为什么对象创建不能继续散落在页面里”“作用域为什么会影响资源复用和生命周期”“为什么外部库对象适合交给容器集中管理”。只有对象图和作用域直觉建立起来，注解才有意义。
+
+### 资料路线
+
+- 先用本章最小图理解页面、仓库、数据库和网络客户端之间的对象依赖。
+- 再对照 Hilt 官方文档，确认组件层级、作用域和提供方式。
+- 最后阅读 `Now in Android` 这类样例项目，观察 Hilt 如何与模块、Repository 和 ViewModel 配合。
+
 ## 参考资料
 
 - Dependency injection with Hilt：<https://developer.android.com/training/dependency-injection/hilt-android>

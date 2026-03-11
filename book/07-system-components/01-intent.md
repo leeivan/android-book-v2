@@ -161,6 +161,16 @@ startActivity(intent)
 
 Intent 的核心价值，不是让页面能跳起来，而是为 Android 组件之间的动作请求提供统一语义。理解了显式与隐式 Intent、Filter、Chooser 和最小参数原则之后，你对系统组件边界的把握会明显更稳。
 
+### 教材化延伸：为什么 Intent 不能只学成跳转语法
+
+Intent 文档会准确列出 action、category、data 和 extras，但教材更需要把它放回“应用能力如何被系统和其他应用协作调用”的语境里。只把 Intent 学成页面跳转代码，很容易忽略显式/隐式差异、匹配规则和安全边界，也看不清它在 Android 组件模型里的真正位置。
+
+### 资料路线
+
+- 先用本章最小示例区分显式 Intent、隐式 Intent 和分享场景。
+- 再对照官方 intents-filters 文档，确认匹配规则和清单声明边界。
+- 最后在系统组件章节后续案例中观察 Intent 如何与权限、结果回调和跨应用交互共同出现。
+
 ## 参考资料
 
 - Intents and intent filters：<https://developer.android.com/guide/components/intents-filters>

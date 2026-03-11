@@ -147,6 +147,16 @@ Flow 真正强大的地方，不只是能发值，而是能自然地做：
 
 Flow 的价值，不只是让异步代码看起来更现代，而是提供了一种更适合表达连续变化数据的建模方式。只要你开始从“数据如何流动”和“状态如何持续演化”的角度理解它，它就会成为现代 Android 架构中非常稳定的一条主线。
 
+### 教材化延伸：为什么 Flow 不能只看操作符
+
+很多 Flow 教程会迅速进入 `map`、`filter`、`combine`、`collectLatest` 等操作符，但教材更需要先让读者知道“为什么页面状态适合流式描述”“为什么冷流和热流会影响订阅者行为”“为什么取消和背压会影响 UI 更新体验”。没有这层直觉，操作符越多越容易混乱。
+
+### 资料路线
+
+- 先用本章最小状态流示例理解“值随时间变化”的意义。
+- 再对照 Kotlin Flow 与 Android state collection 文档，确认冷流、热流和收集边界。
+- 最后阅读样例项目中 Repository 到 ViewModel 的数据链路，观察 Flow 如何贯通数据层和 UI 层。
+
 ## 参考资料
 
 - Kotlin flows on Android：<https://developer.android.com/kotlin/flow>

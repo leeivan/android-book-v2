@@ -151,6 +151,16 @@ Android 官方明确区分了这两种注册方式。一个很实用的判断是
 
 BroadcastReceiver 仍然是 Android 中非常重要的系统事件入口，但它最适合做的是“轻量触发”，而不是“完整承载”。只要把广播放回正确位置，它就能和现代架构主线很好协作，而不会变成另一套混乱消息系统。
 
+### 教材化延伸：为什么 BroadcastReceiver 不能只背注册方式
+
+广播接收器如果只学静态注册、动态注册和 `onReceive()`，内容会非常像手册。教材更需要补的是事件传播和时机意识：为什么广播适合轻量响应、为什么长任务不该直接放进去、为什么现代 Android 会限制某些广播行为。只有这些边界被讲清楚，注册方式才不会变成死记硬背。
+
+### 资料路线
+
+- 先用本章最小示例理解广播更像“事件入口”而不是“任务执行器”。
+- 再对照官方 BroadcastReceiver 文档和平台行为限制说明，确认注册与执行边界。
+- 最后在系统组件案例中观察广播如何与通知、后台工作和应用状态协同。
+
 ## 参考资料
 
 - Broadcasts overview：<https://developer.android.com/develop/background-work/background-tasks/broadcasts>

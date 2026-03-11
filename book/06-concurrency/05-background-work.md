@@ -151,6 +151,16 @@ Android 对后台执行的限制并不是“故意为难开发者”，而是为
 
 后台任务设计的第一步，不是选 API，而是正确分类任务。只要把“页面内异步”“可延迟执行”“用户可感知持续运行”这三类边界先理清，后面的 Service、WorkManager 和通知选择就会自然很多。
 
+### 教材化延伸：为什么后台工作不能只靠“开线程”
+
+Android 后台执行的难点，从来不只是把代码放到主线程外面，而是平台会持续收紧何时允许长时执行、何时需要前台服务、何时适合延迟调度。教材化理解必须把平台约束、任务目标和用户可见性同时放在眼前，否则读者很容易继续沿用桌面程序式的直觉。
+
+### 资料路线
+
+- 先用本章任务分类判断：这是短时异步、前台感知工作，还是可延迟的后台任务。
+- 再对照 Android background work 与 foreground services 文档，确认平台边界。
+- 最后进入 WorkManager 章节，把这些规则落到更稳定的工程决策上。
+
 ## 参考资料
 
 - Background tasks overview：<https://developer.android.com/develop/background-work/background-tasks>
