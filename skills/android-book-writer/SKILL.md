@@ -38,6 +38,7 @@ Use this skill for Android book repositories where chapter structure is defined 
 - Convert most explanatory bullet lists into paragraphs
 - Keep lists only when the content is inherently list-shaped
 - If the chapter still reads like translated platform documentation, bring in examples, codelab-style teaching flow, migration context, counterexamples, or sample-project structure
+- Do not append meta sections such as "教材化延伸", "资料路线", or "为什么只看官方文档不够" after the chapter body. Integrate that material into the chapter's existing explanatory sections.
 
 3. Make the chapter teachable.
 - Add one minimal runnable example when the topic benefits from code

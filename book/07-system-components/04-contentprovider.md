@@ -1,4 +1,4 @@
-# ContentProvider
+﻿# ContentProvider
 
 ContentProvider 是 Android 中专门为“数据对外共享”设计的系统组件。它在日常业务开发里出现频率没有 Activity、ViewModel 或 Room 那么高，但一旦涉及跨应用数据访问、系统数据源接入或统一数据权限控制，它就会变得非常关键。理解它的最好方式，不是背 CRUD 方法，而是先回答：为什么 Android 专门为数据共享设计了这样一类组件。
 
@@ -137,15 +137,6 @@ URI 不是简单路径字符串，而是共享边界的一部分。URI 设计是
 
 ContentProvider 的真正价值，不在于 CRUD 模板，而在于它提供了一套受控数据共享边界。对大多数现代应用来说，更重要的是正确消费系统 Provider；只有当你确实需要跨应用共享数据时，自定义 Provider 才真正值得引入。
 
-### 教材化延伸：为什么 ContentProvider 不能只看 URI 规则
-
-Provider 最容易学成“URI、`query()`、`insert()` 的接口规范”，但教材更重要的是让读者先知道：真实项目里更常见的是使用系统 Provider，而不是从零写一个 Provider。只有先理解它在跨应用数据访问中的位置，URI 匹配、权限和契约接口这些内容才会真正有上下文。
-
-### 资料路线
-
-- 先用本章系统 Provider 示例理解“受控暴露数据”到底在解决什么问题。
-- 再对照官方 ContentResolver 和 Provider 文档，确认 URI、权限和 CRUD 协议边界。
-- 最后再评估自己项目是否真的需要自定义 Provider，而不是把它当默认数据层方案。
 
 ## 参考资料
 

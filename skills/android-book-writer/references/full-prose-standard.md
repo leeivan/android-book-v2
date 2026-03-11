@@ -46,6 +46,7 @@ Use this reference when a chapter is structurally correct but still reads like n
 - Add a short "what to observe" note after runnable steps
 - If the prose still sounds like translated platform docs, bring in a sample app, codelab flow, migration contrast, or counterexample
 - Combine rule-oriented sources with teaching-oriented sources so the chapter reads like a lesson, not an API sheet
+- Do not append meta sections like "教材化延伸" or "资料路线" after the chapter. Fold that teaching material back into the body.
 
 ## Done checklist
 
