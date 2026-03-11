@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android Book Writer"
+  short_description: "Rewrite Android chapters into full teaching prose"
+  default_prompt: "Use $android-book-writer to turn thin Android book chapters into publication-ready prose with runnable examples and practical exercises."
