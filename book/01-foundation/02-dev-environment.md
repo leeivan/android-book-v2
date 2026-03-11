@@ -98,7 +98,30 @@ adb devices
 
 这个示例的重点不在命令本身有多复杂，而在于它能帮你把“IDE 中的设备下拉框”还原成更可观察的底层事实。你应该先看到设备是否出现，再去判断设备状态是否正常；只有当这一步成立时，后面的安装和运行才有意义。把抽象的“运行按钮”拆回这条可观察链路，是环境章节最重要的实践意识之一。
 
-### 9. 最小实践任务
+### 9. 为什么环境章节不能只靠安装文档来学
+
+Android Studio 安装页、设备连接页和 ADB 文档都很重要，但它们的主要作用是告诉你“某一步怎么做”或者“某个工具是什么”。如果学习停留在这些页面，环境搭建很容易退化成机械点选：装 IDE、装 SDK、开模拟器、点 Run。只要中间某一步失败，读者就会立刻失去判断能力。
+
+更像教材的环境学习，需要同时吸收三类材料：
+
+- 规则材料：Android Studio 安装、SDK Manager、设备连接和 ADB 文档，用来确认每层工具的正式职责。
+- 跟练材料：官方 first app/codelab，用来把环境真正跑通，而不是只停留在“工具已安装”。
+- 经验材料：真实项目或后续章节中的重复实践，用来验证你的环境能否长期稳定支撑开发。
+
+环境章节真正要培养的，不是“截图记忆”，而是“定位问题在哪一层”的能力。
+
+### 10. 更适合环境搭建的资料组合
+
+如果你想把环境问题学得更稳，可以按这个顺序推进：
+
+1. 先按 Android Studio 安装文档和 Setup Wizard 完成最小安装。
+2. 再对照设备和 ADB 文档，把“模拟器可用”和“真机可识别”两条链路都打通。
+3. 之后立刻进入 “Build your first Android app” 这类官方入门练习，用真实运行结果验证环境，而不是停在安装完成页面。
+4. 后续每当你进入新章节，再用同一套环境反复运行小练习，让工具链从“一次性配置”变成“可持续工作流”。
+
+这样做的好处是：环境不会只在安装当天可用，而会在后续学习中不断被验证和加固。
+
+### 11. 最小实践任务
 
 起点条件：
 
@@ -112,12 +135,14 @@ adb devices
 3. 在 Device Manager 中创建一个模拟器，并成功进入系统桌面。
 4. 连接一台真机，开启开发者选项和 USB 调试，确认授权弹窗已经放行。
 5. 在终端运行 `adb devices`，确认至少有一个设备状态为可用。
-6. 新建一个最小 Android 工程，执行一次运行，确认应用已安装到目标设备。
+6. 打开官方 first app/codelab 页面，把其中“创建项目”和“运行到设备”两步在你自己的环境里完整复现。
+7. 新建一个最小 Android 工程，执行一次运行，确认应用已安装到目标设备。
 
 预期结果：
 
 - Android Studio 可以打开、同步并构建项目。
 - 至少一个模拟器或真机可以被识别并用于运行应用。
+- 你能区分：安装文档、设备文档和 first app 练习各自解决什么问题。
 - 你能在运行后看到应用界面，并在 Logcat 中定位到当前应用。
 
 自检方式：
@@ -125,19 +150,22 @@ adb devices
 - 运行 `adb devices` 时能看到设备，而不是空列表。
 - 点击 Run 后，应用能在设备上启动，不停留在“Deploying”或“Waiting for device”。
 - Logcat 里能筛选到自己应用的进程或日志。
+- 你能解释：为什么“软件装上了”不等于“环境已经通过验证”。
 
 调试提示：
 
 - 如果真机没有出现在设备列表里，先排查数据线、USB 调试、授权弹窗和 Windows 驱动。
 - 如果模拟器启动极慢或根本打不开，先检查虚拟化支持、磁盘空间和内存占用。
 - 如果构建前就失败，不要先怀疑设备，先回到 Sync 和 Build 输出。
+- 如果你已经把安装页看了很多遍却仍然跑不起来，立刻换成 first app 跟练路线，用一个具体项目来定位断点。
 
-### 10. 常见误区
+### 12. 常见误区
 
 - 把“能打开 Android Studio”误认为“环境已经搭好”。
 - 一出错就重装 IDE，而不是先判断问题发生在哪一层。
 - 只用模拟器，从不验证真机链路。
 - 看到 Gradle 报错就笼统归因于网络，不去分辨是仓库访问、脚本错误还是组件缺失。
+- 以为安装文档本身就等于完整的环境教学。
 
 ## 小结
 
@@ -152,3 +180,5 @@ adb devices
 - 构建与运行应用：<https://developer.android.com/studio/run/index.html>
 - 真机调试：<https://developer.android.com/studio/run/device.html>
 - Android Debug Bridge：<https://developer.android.com/guide/developing/tools/adb.html>
+- Build your first Android app：<https://developer.android.com/codelabs/build-your-first-android-app-kotlin>
+- Android Basics with Compose：<https://developer.android.com/courses/android-basics-compose/course>
