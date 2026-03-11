@@ -1,150 +1,187 @@
-﻿# UseCase / Domain 层
+# UseCase / Domain 层
 
-很多人接触 Clean Architecture 或领域层时，会陷入两个极端。一个极端是觉得这完全是“大项目专用”的高级架构，因此根本不必了解；另一个极端是刚建项目就给每个操作都套一层 UseCase，结果代码量翻倍，阅读成本也上升。更稳妥的做法，是先理解 Domain 层到底在解决什么复杂度，以及什么时候它真的能帮到你。
+当项目还比较小时，ViewModel 调 Repository 往往已经够用。但只要功能开始变复杂，你很快会遇到另一类问题: 一个动作不再只是“拿数据”，而是要跨多个 Repository 协作、做一串业务规则判断、决定失败时怎么退让、成功后怎么回写。到了这个阶段，如果所有流程都继续留在 ViewModel 里，页面状态层很快又会膨胀。
 
-Android 官方架构建议给出的定位很清楚：Domain layer is optional。它位于 UI 层和数据层之间，适合承载复杂业务逻辑，或者那些会被多个 ViewModel 复用的业务逻辑。这个“可选”非常重要，因为它提醒我们：Domain 层不是模板，而是复杂度治理工具。
+`UseCase` 或 `Domain` 层的价值，就在于把“业务动作本身”抽出来。它不是为了让项目看起来更“企业级”，也不是每个项目都必须有，而是在回答一个问题: 当某个操作已经超出单纯页面状态组织时，这段业务流程应该放在哪里，才能既不压垮 ViewModel，又不把 Repository 变成业务垃圾桶。
 
 ## 学习目标
 
-- 理解 Domain 层与 UseCase 在 Android 官方架构中的定位。
-- 理解它与 ViewModel、Repository 的边界关系。
-- 理解什么时候引入能降低复杂度，什么时候只会增加负担。
-- 学会识别“真正的业务动作”和“没有新增价值的伪 UseCase”。
+- 理解 UseCase / Domain 层要解决的是业务动作组织问题，而不是分层数量问题。
+- 理解它和 ViewModel、Repository 的职责边界。
+- 学会判断什么时候值得引入 UseCase，什么时候不用硬加。
+- 理解输入输出清晰的 UseCase 为什么有利于复用和测试。
 
 ## 前置知识
 
-- 已理解 ViewModel、Repository 和数据层职责。
-- 已知道页面和 ViewModel 不应无限堆叠复杂业务逻辑。
+- 已理解 ViewModel 的页面状态职责。
+- 已理解 Repository 负责数据入口和数据策略。
 
 ## 正文
 
-### 1. Domain 层出现，是因为某些逻辑既不属于 UI，也不止是数据访问
+### 1. 什么时候 ViewModel 开始显得太重
 
-随着项目增长，你很快会遇到一些逻辑，它们既不该留在页面层，也不适合塞进 Repository。例如：
+设想一个“加入稍后阅读”动作。用户点击按钮后，系统可能需要:
 
-- 一个操作要协调多个 Repository。
-- 同一条业务规则会被多个页面复用。
-- 一个动作包含较多校验、合并、过滤和决策步骤。
-- 页面状态组织本身已经很复杂，再加业务编排会彻底失控。
+- 先检查用户是否登录。
+- 再读取文章当前状态。
+- 如果本地没有文章详情，先同步一份。
+- 最后更新收藏状态并上报分析事件。
 
-这时，如果继续把所有逻辑都堆到 ViewModel 里，ViewModel 会越来越重；如果把这些逻辑全丢给 Repository，Repository 又会从“数据入口”变成“什么都做”的大类。Domain 层的价值，就是为这些业务编排和业务规则提供落点。
+如果这整条链路都写在 ViewModel 里，表面上没问题，但很快就会有三个后果:
 
-### 2. UseCase 的核心，不是多一个类，而是表达一个清晰业务动作
+- ViewModel 开始知道越来越多业务细节。
+- 同一动作如果在别的页面也要用，很难复用。
+- 测试页面状态时，不得不顺手测试整段业务流程。
 
-UseCase 可以理解成“一个明确业务意图的执行单元”。它不应该只是在 Repository 外面再套一层函数，而应该能够回答：
+UseCase 往往就是在这种时刻出现的。
 
-- 用户现在到底要完成什么动作。
-- 这个动作需要协调哪些数据和规则。
-- 结果对上层来说应以什么语义返回。
+### 2. UseCase 解决的是“一个动作怎么做”，不是“数据从哪来”
 
-例如，“同步收藏列表”“提交订单”“计算推荐结果”“批量刷新首页卡片”，这些都更像清晰的业务动作；而“读取一条本地配置”往往并不需要额外包一层 UseCase。
+这条边界特别重要。Repository 主要回答的是“数据从哪来、怎么同步、谁是可信来源”。UseCase 更关注“为了完成一个业务动作，需要怎样组织这些能力”。
 
-### 3. Repository 和 UseCase 的边界必须清楚
+也就是说:
 
-一个非常实用的判断方式是：
+- Repository 偏数据入口。
+- UseCase 偏业务动作。
 
-- Repository 更关心数据从哪里来、如何读写、如何协调来源。
-- UseCase 更关心为了完成某个业务动作，应该怎样组合这些数据能力和规则。
+例如“观察文章列表”更像 Repository 的职责；“同步收藏并刷新首页推荐”更像 UseCase 的职责。把这条线分清楚，很多“这段逻辑到底该放哪”的争论都会少很多。
 
-如果某个操作只是一次简单读取或写入，直接调用 Repository 通常就够了；如果它涉及多仓库协作、复杂规则判断、跨页面复用或需要更强的可测试性，UseCase 才会真正体现价值。
+### 3. 不是每个项目都必须有 Domain 层
 
-### 4. 官方为什么强调 Domain 层是可选的
+教材里必须把这件事讲清楚。UseCase / Domain 层不是默认必选项。如果你的项目很小，或者大部分页面动作都只是单个 Repository 调用再转成状态，那么强行加一层只会增加跳转成本。
 
-Android 官方架构建议里专门写到，只有当你需要在多个 ViewModel 之间复用业务逻辑，或希望简化某个 ViewModel 的业务复杂度时，才推荐引入 Domain 层。这条建议非常实用，因为它帮你避免两种常见错误：
+更适合引入 UseCase 的信号通常包括:
 
-- 为小项目过度分层。
-- 为了“架构看起来完整”而额外增加理解成本。
+- 一个动作需要跨多个 Repository 协作。
+- 同一业务动作会在多个页面或入口重复出现。
+- 业务规则本身比页面状态更复杂。
+- 你已经在 ViewModel 里看到了明显的流程膨胀。
 
-也就是说，Domain 层不是越早越好，而是当复杂度开始集中出现时，再作为治理工具引入。
+换句话说，UseCase 是为复杂业务动作服务的，而不是为“看起来标准”服务的。
 
-### 5. 什么情况下值得引入 UseCase
+### 4. 一个好的 UseCase 应该长什么样
 
-下面这些信号通常意味着 UseCase 已经能带来真实收益：
+一个健康的 UseCase 通常有三个特征:
 
-- 一个业务动作被多个页面复用。
-- 一次操作需要调用多个 Repository。
-- 业务规则比单纯数据访问复杂得多。
-- 你希望这部分逻辑更容易独立测试。
-- ViewModel 中开始堆积大量流程编排代码。
+- 输入清晰。
+- 输出清晰。
+- 内部只关心完成这个业务动作所需的规则和协作。
 
-如果这些信号都没有出现，而你却给每个按钮都写一个 `GetXxxUseCase`，大概率是在制造额外复杂度。
+它不应该直接持有页面控件，也不应该返回一堆和 UI 强绑定的细节。更理想的状态是，ViewModel 把页面意图交给 UseCase，UseCase 完成业务动作，再把结果返回给 ViewModel 去翻译成页面状态。
 
-### 6. 伪 UseCase 是怎样出现的
+### 5. 一个更接近真实项目的例子
 
-最常见的伪 UseCase 长这样：
+下面这个例子演示“同步待办提醒并安排通知”这种跨层动作该如何被抽成 UseCase:
 
-- 类名很正式，例如 `GetUserProfileUseCase`。
-- 内部只有一行代码，直接调用 `userRepository.getProfile()`。
-- 没有新增任何业务语义、流程编排或复用价值。
+```kotlin
+class ScheduleTodoReminderUseCase(
+    private val repository: TodoRepository,
+    private val reminderScheduler: ReminderScheduler
+) {
 
-这样的 UseCase 既没有减轻 ViewModel 复杂度，也没有提升业务可读性，只是把调用链拉长了。判断 UseCase 是否有价值，一个很直接的问题是：如果把它拿掉，项目会失去什么结构收益？
+    suspend operator fun invoke(todoId: String): Result<Unit> {
+        val todo = repository.getTodoById(todoId) ?: return Result.failure(
+            IllegalArgumentException("Todo not found")
+        )
 
-### 7. 一个更接近真实项目的例子
+        if (todo.remindAt == null) {
+            reminderScheduler.cancel(todoId)
+            return Result.success(Unit)
+        }
 
-以“同步收藏列表”为例，这个动作可能需要：
+        repository.markReminderScheduled(todoId)
+        reminderScheduler.schedule(todoId, todo.remindAt)
+        return Result.success(Unit)
+    }
+}
+```
 
-- 读取本地收藏。
-- 请求远程最新数据。
-- 根据更新时间或版本做合并。
-- 回写本地数据库。
-- 返回同步结果给页面状态层。
+这个例子里，UseCase 承接的是一个完整业务动作:
 
-这明显不再只是“读取某个数据源”，而是一个具有明确业务意图的完整动作。把它写成 `SyncFavoritesUseCase`，通常会比把所有步骤都塞进 ViewModel 或 Repository 更清晰。
+- 读当前任务数据。
+- 判断是否需要提醒。
+- 更新本地状态。
+- 调度系统提醒。
 
-### 8. Domain 层也要避免变成新的大杂烩
+如果这些逻辑全部塞在 ViewModel 里，页面层会很快和业务策略耦合得过深。
 
-UseCase 不是安全避风港。如果引入了 Domain 层，却把所有复杂逻辑、所有权限判断、所有导航分支、所有错误文案都往里面塞，它很快也会变得庞大而模糊。Domain 层依然需要清晰边界：
+### 6. Domain 层为什么会让“业务规则”更容易被看见
 
-- 它处理业务意图与规则。
-- 它不直接负责页面渲染。
-- 它通常依赖 Repository，而不是直接依赖 UI。
-- 它应让业务动作更清晰，而不是更绕。
+很多项目最大的问题不是没有业务规则，而是业务规则散落得让人看不见。今天写在页面里一点，明天写在 Repository 里一点，后天又在工具类里藏一点。等需求变更时，没有人知道到底要改哪几处。
+
+把动作抽成 UseCase，最大的收益之一就是规则显性化。你终于能直接看到:
+
+- 这个业务动作的输入是什么。
+- 它依赖哪些能力。
+- 失败和成功路径分别怎么走。
+
+这会让维护和测试都轻松很多。
+
+### 7. ViewModel、UseCase、Repository 的职责链路
+
+可以把它们先记成一条很实用的顺序:
+
+- ViewModel 负责页面状态和事件入口。
+- UseCase 负责较复杂的业务动作。
+- Repository 负责数据入口和来源策略。
+
+只要记住“页面状态 -> 业务动作 -> 数据策略”这条链路，很多复杂项目里的分工就能看懂。
+
+### 8. 不要把 Domain 层做成新的抽象迷宫
+
+UseCase 也很容易被过度设计。最常见的错误包括:
+
+- 每个 Repository 方法外面都再机械包一层 UseCase。
+- 一个极简单动作也要拆出好几个中间对象。
+- 为了“纯净”，让代码层层跳转却没有实际收益。
+
+如果一个动作只是 `repository.observeItems()`，那通常没有必要再包成 `ObserveItemsUseCase`。UseCase 真正值得出现，是因为它带来了额外业务组织价值。
 
 ### 9. 实践任务
 
-起点条件：
+起点条件:
 
-- 已有一个稍复杂的页面或功能流，例如登录、同步、搜索、结算或批量刷新。
+- 已有一个 ViewModel 中开始出现多步业务流程的页面。
 
-步骤：
+步骤:
 
-1. 找出当前项目里最复杂的一个用户动作。
-2. 判断它是纯数据访问，还是明显包含业务编排。
-3. 如果需要引入 UseCase，用一句话描述这个类代表的业务意图。
-4. 检查现有代码中是否有只是简单转发 Repository 的伪 UseCase。
-5. 选择一段复杂逻辑，尝试抽到一个真正有业务语义的 UseCase 中。
+1. 找出一段包含多个条件、多个数据来源或多个后续动作的逻辑。
+2. 判断它是否已经超出页面状态组织范围。
+3. 把它提炼成一个输入和输出清晰的 UseCase。
+4. 让 ViewModel 只负责调用 UseCase 并把结果映射成 `uiState`。
+5. 检查这个 UseCase 是否还有复用价值，或是否仍旧过度依赖页面细节。
 
-预期结果：
+预期结果:
 
-- 你能更清楚地区分“数据访问”和“业务动作”。
-- ViewModel 与 Repository 的职责边界会更稳定。
-- 你不会再机械地给所有操作都包一层 UseCase。
+- ViewModel 会比以前更聚焦于页面状态。
+- 复杂业务动作会有更明确的边界和命名。
+- 业务规则的可见性和可测试性都会提高。
 
-自检方式：
+自检方式:
 
-- 你能解释：为什么 Domain 层在 Android 官方指导里是可选层。
-- 你能判断：某个操作是否真的值得引入 UseCase。
-- 你能说出：一个 UseCase 如果只有单行转发，通常说明什么问题。
+- 你能解释 Repository 和 UseCase 的根本区别。
+- 你能判断某段逻辑为什么适合抽成 UseCase。
+- 你能说出什么时候不需要强行引入 Domain 层。
 
-调试提示：
+调试提示:
 
-- 如果 ViewModel 里的业务流程开始跨多个 Repository 且越来越长，优先考虑 UseCase。
-- 如果项目里充满 `GetXxxUseCase` 但每个都只是转发，说明抽象粒度出了问题。
-- 如果 Repository 里开始写大量规则编排，说明数据层和领域层边界可能混淆了。
+- 如果 ViewModel 里开始出现大量跨 Repository 编排，优先考虑 UseCase。
+- 如果每个简单调用都被机械包一层，说明 Domain 层过度了。
+- 如果 UseCase 里还在操作页面文案和导航，说明边界划错了。
 
 ### 10. 常见误区
 
-- 把 Domain 层当成所有项目都必须先搭好的模板。
-- 所有小操作都强行包成 UseCase。
-- UseCase 只是简单转发 Repository，没有新增业务语义。
-- Repository 与 UseCase 的边界完全不清。
+- 把 UseCase 当成所有方法都要套的一层模板。
+- 分不清业务动作和数据策略。
+- 为了“架构整齐”过度抽象。
+- 把页面细节继续带进 Domain 层。
 
 ## 小结
 
-UseCase / Domain 层的真正价值，在于为复杂业务逻辑提供更清晰、更可复用、更可测试的落点。它不是架构装饰，也不是模板崇拜对象，而是在复杂度真正出现时，帮助 ViewModel 和 Repository 保持边界稳定的一种可选增强。
-
+UseCase / Domain 层真正要解决的，是复杂业务动作应该放在哪里的问题。它让 ViewModel 不必承载过多流程编排，也让 Repository 不必吞下所有规则。只要引入时机合理、输入输出清晰、边界不过度，Domain 层就会成为复杂项目里非常有价值的一层；反过来，如果项目本身还很简单，克制地不加这层，往往也是更成熟的选择。
 
 ## 参考资料
 
-- Domain layer：<https://developer.android.com/topic/architecture/domain-layer>
-- Recommendations for Android architecture：<https://developer.android.com/topic/architecture/recommendations>
+- Domain layer guide: <https://developer.android.com/topic/architecture/domain-layer>
+- Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
+- Now in Android: <https://github.com/android/nowinandroid>
