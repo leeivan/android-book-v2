@@ -84,7 +84,7 @@
 * [ContentProvider](book/07-system-components/04-contentprovider.md)
 * [Notification](book/07-system-components/05-notification.md)
 * [权限管理](book/07-system-components/06-permission.md)
-* [桌面组件与快捷方式](book/07-system-components/07-app-widgets-and-shortcuts.md)
+* [桌面小组件与快捷方式](book/07-system-components/07-app-widgets-and-shortcuts.md)
 
 ---
 
