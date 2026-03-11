@@ -79,7 +79,7 @@ abstract class AppDatabase : RoomDatabase() {
 
 Room 很少孤立存在。它通常会和 ViewModel、Flow、Repository、Paging 等能力一起工作。原因很直接：本地数据库里的变化，本身就适合作为页面可观察的状态来源。Android 官方 Room 文档也明确把“离线浏览内容缓存”作为常见用例，这与现代 ViewModel 和状态流组织方式天然契合。
 
-也就是说，Room 不只是“把数据存一下”，而是成为稳定数据流的一部分。数据库变化通过 DAO 暴露给上层，Repository 决定本地与远程如何协作，ViewModel 再把结果组织成 UI state。只要这条链路清晰，页面就不再需要自己直接协调数据库细节。
+也就是说，Room 不只是“把数据存一下”，而是成为稳定数据流的一部分。数据库变化通过 DAO 暴露给上层，Repository 决定本地与远程如何协作，ViewModel 再把结果组织成页面状态。只要这条链路清晰，页面就不再需要自己直接协调数据库细节。
 
 ### 7. 查询设计和迁移，决定 Room 能不能撑住长期演进
 

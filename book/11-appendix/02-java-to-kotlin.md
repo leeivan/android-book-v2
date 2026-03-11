@@ -54,7 +54,7 @@ Kotlin 则把很多默认值反过来了：
 - 扩展函数。
 - 更明确的不可变状态表达。
 
-这些能力会直接影响你写 ViewModel、UI state、DTO 和 Flow 代码的方式，也是现代 Android 项目里最常见的 Kotlin 风格。
+这些能力会直接影响你写 ViewModel、页面状态对象、DTO 和 Flow 代码的方式，也是现代 Android 项目里最常见的 Kotlin 风格。
 
 ### 4. 互操作能力让渐进迁移成为可能
 

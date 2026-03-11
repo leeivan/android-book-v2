@@ -9,7 +9,7 @@
 - 理解新闻应用为什么是网络主线的理想练习案例。
 - 理解远程数据、本地缓存和页面状态如何协同。
 - 理解列表页、详情页、分类页在数据流和导航上的组织方式。
-- 学会把 Retrofit、Room、Repository、Flow 和 UI state 组合成完整项目。
+- 学会把 Retrofit、Room、Repository、Flow 和页面状态组合成完整项目。
 
 ## 前置知识
 

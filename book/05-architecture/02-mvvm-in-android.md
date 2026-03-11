@@ -2,12 +2,12 @@
 
 上一章解决的是“为什么现代 Android 更常采用 MVVM”，这一章开始解决“它在代码里到底怎样落地”。很多开发者知道 View、ViewModel、Model 这三个词，却很难把它们和 Activity、Fragment、Compose、Repository、Room、网络接口这些现实对象对应起来。结果往往是：概念上似乎已经在用 MVVM，代码上却仍然由页面类承担大部分复杂度。
 
-本章的目标，就是把 MVVM 从抽象缩写还原成 Android 项目中可执行的职责分工。你会看到它为什么总和单向数据流、UI state、ViewModel、Repository 一起出现，也会看到它并不是“所有逻辑都搬进 ViewModel”这么简单。
+本章的目标，就是把 MVVM 从抽象缩写还原成 Android 项目中可执行的职责分工。你会看到它为什么总和单向数据流、页面状态、ViewModel、Repository 一起出现，也会看到它并不是“所有逻辑都搬进 ViewModel”这么简单。
 
 ## 学习目标
 
 - 理解 MVVM 在 Android 项目中的具体职责分工。
-- 理解 View、ViewModel、Model 与 Repository、UI state 的关系。
+- 理解 View、ViewModel、Model 与 Repository、页面状态的关系。
 - 理解单向数据流为什么几乎总和 MVVM 一起出现。
 - 为后续 ViewModel、Flow、Repository 和 Hilt 打基础。
 
@@ -74,7 +74,7 @@ Android 官方架构建议强调 UI should be driven from data models and follow
 
 - 事件从 View 流向 ViewModel。
 - 状态从 ViewModel 流向 View。
-- 数据变化先进入数据层，再被 ViewModel 转换成 UI state。
+- 数据变化先进入数据层，再被 ViewModel 转换成页面状态。
 
 这样做的好处非常直接：
 
@@ -167,7 +167,7 @@ ViewModel 的重点应是：
 
 ## 小结
 
-Android 中的 MVVM，本质上是一种围绕 ViewModel、Repository 和 UI state 展开的职责组织方式。它真正想解决的，是页面实例不稳定、状态持续变化、数据来源复杂这三类现实问题。只要 View 聚焦展示，ViewModel 聚焦状态，数据层聚焦来源与规则，这条链路就会逐渐稳定下来。
+Android 中的 MVVM，本质上是一种围绕 ViewModel、Repository 和页面状态展开的职责组织方式。它真正想解决的，是页面实例不稳定、状态持续变化、数据来源复杂这三类现实问题。只要 View 聚焦展示，ViewModel 聚焦状态，数据层聚焦来源与规则，这条链路就会逐渐稳定下来。
 
 ## 参考资料
 

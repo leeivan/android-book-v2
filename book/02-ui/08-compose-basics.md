@@ -28,7 +28,7 @@ Android 官方的 Thinking in Compose 文档把 composable 函数描述为“接
 
 所谓声明式 UI，并不是“代码更短”这么简单。它的核心意思是：你描述的是结果，而不是一连串命令式操作步骤。在 View/XML 世界里，你往往会创建或找到某个 View，再调用 setter 去改变它的文本、可见性、启用状态和样式。在 Compose 世界里，你更关注的是：当前状态是什么，在这个状态下界面应该显示什么。
 
-Android 官方的 Compose state 文档也明确说明：Compose 是声明式的，更新 UI 的方式是再次用新的参数调用同一个 composable，而这些参数本身就是 UI state 的表示。也就是说，Compose 不期待你到处手工改对象，而是希望你把状态变化当成 UI 变化的唯一来源。
+Android 官方的 Compose state 文档也明确说明：Compose 是声明式的，更新 UI 的方式是再次用新的参数调用同一个 composable，而这些参数本身就是页面状态的表示。也就是说，Compose 不期待你到处手工改对象，而是希望你把状态变化当成 UI 变化的唯一来源。
 
 ### 3. 状态为什么成为 Compose 的中心
 
