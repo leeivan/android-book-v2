@@ -11,7 +11,7 @@
 
 * [Android 概述](book/01-foundation/01-android-overview.md)
 * [开发环境搭建](book/01-foundation/02-dev-environment.md)
-* [第一个 Android App](book/01-foundation/03-first-app.md)
+* [第一个 Android 应用](book/01-foundation/03-first-app.md)
 * [Android 项目结构](book/01-foundation/04-project-structure.md)
 * [Activity 生命周期](book/01-foundation/05-activity-lifecycle.md)
 
@@ -20,7 +20,7 @@
 # 第二部分 UI 开发
 
 * [布局基础](book/02-ui/01-layout-basics.md)
-* [常用 UI 组件](book/02-ui/02-common-widgets.md)
+* [常用控件](book/02-ui/02-common-widgets.md)
 * [事件处理](book/02-ui/03-event-handling.md)
 * [Fragment](book/02-ui/04-fragment.md)
 * [Navigation](book/02-ui/05-navigation.md)
@@ -48,7 +48,7 @@
 * [HTTP 与 REST](book/04-network/02-http-and-rest.md)
 * [OkHttp](book/04-network/03-okhttp.md)
 * [Retrofit](book/04-network/04-retrofit.md)
-* [API 结果封装](book/04-network/05-api-result-wrapping.md)
+* [API 结果包装](book/04-network/05-api-result-wrapping.md)
 * [离线缓存](book/04-network/06-offline-cache.md)
 
 ---
@@ -61,7 +61,7 @@
 * [LiveData 与 Flow](book/05-architecture/04-livedata-flow.md)
 * [Repository 模式](book/05-architecture/05-repository-pattern.md)
 * [UseCase / Domain 层](book/05-architecture/06-usecase-domain-layer.md)
-* [依赖注入 Hilt](book/05-architecture/07-hilt-di.md)
+* [Hilt 与依赖注入](book/05-architecture/07-hilt-di.md)
 
 ---
 
@@ -92,7 +92,7 @@
 
 * [Gradle 基础](book/08-engineering/01-gradle-basics.md)
 * [构建变体](book/08-engineering/02-build-variants.md)
-* [模块化开发](book/08-engineering/03-modularization.md)
+* [模块化](book/08-engineering/03-modularization.md)
 * [日志与调试](book/08-engineering/04-logging-and-debugging.md)
 * [测试](book/08-engineering/05-testing.md)
 * [CI/CD](book/08-engineering/06-ci-cd.md)
@@ -105,7 +105,7 @@
 
 * [应用签名](book/09-publish/01-signing.md)
 * [Release 构建](book/09-publish/02-release-build.md)
-* [Google Play 发布](book/09-publish/03-play-store.md)
+* [Google Play 上架](book/09-publish/03-play-store.md)
 * [版本管理与维护](book/09-publish/04-versioning-and-maintenance.md)
 
 ---
@@ -113,8 +113,8 @@
 # 第十部分 综合项目
 
 * [Todo App](book/10-projects/01-todo-app.md)
-* [新闻 App](book/10-projects/02-news-app.md)
-* [聊天 App](book/10-projects/03-chat-app.md)
+* [新闻应用](book/10-projects/02-news-app.md)
+* [聊天应用](book/10-projects/03-chat-app.md)
 * [Clean Architecture 示例](book/10-projects/04-clean-architecture-sample.md)
 
 ---
@@ -122,7 +122,7 @@
 # 附录
 
 * [Kotlin 快速入门](book/11-appendix/01-kotlin-quickstart.md)
-* [Java 转 Kotlin](book/11-appendix/02-java-to-kotlin.md)
-* [常见错误](book/11-appendix/03-common-errors.md)
-* [Android 面试题](book/11-appendix/04-interview-topics.md)
-* [参考资料](book/11-appendix/05-reference-resources.md)
+* [Java 到 Kotlin](book/11-appendix/02-java-to-kotlin.md)
+* [常见错误排查](book/11-appendix/03-common-errors.md)
+* [Android 面试主题](book/11-appendix/04-interview-topics.md)
+* [参考资料与后续学习路径](book/11-appendix/05-reference-resources.md)
