@@ -37,6 +37,7 @@ Use this skill for Android book repositories where chapter structure is defined 
 - Explain the model before the API
 - Convert most explanatory bullet lists into paragraphs
 - Keep lists only when the content is inherently list-shaped
+- If the chapter still reads like translated platform documentation, bring in examples, codelab-style teaching flow, migration context, counterexamples, or sample-project structure
 
 3. Make the chapter teachable.
 - Add one minimal runnable example when the topic benefits from code
@@ -66,6 +67,7 @@ If the chapter cannot answer those questions, it is still a note set rather than
 - Prefer Kotlin, AndroidX, Jetpack, and current recommended practice unless the repo explicitly chooses otherwise.
 - Mark outdated APIs as legacy or migration content instead of default solutions.
 - When a claim depends on current platform behavior, permissions, or Play policy, verify it before writing it as fact.
+- Do not rely on Android Developers API docs alone. When available, combine official docs with official codelabs, official sample apps, Kotlin/JetBrains docs, library primary docs, and other high-quality first-hand material to produce more textbook-like prose.
 
 ## Editing rules
 

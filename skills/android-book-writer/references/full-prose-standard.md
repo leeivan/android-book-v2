@@ -44,6 +44,8 @@ Use this reference when a chapter is structurally correct but still reads like n
 - Add one concrete scenario before abstract terminology
 - Turn "best practice" claims into scoped statements with reasons
 - Add a short "what to observe" note after runnable steps
+- If the prose still sounds like translated platform docs, bring in a sample app, codelab flow, migration contrast, or counterexample
+- Combine rule-oriented sources with teaching-oriented sources so the chapter reads like a lesson, not an API sheet
 
 ## Done checklist
 
