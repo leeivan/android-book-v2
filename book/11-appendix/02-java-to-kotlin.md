@@ -145,6 +145,12 @@ Java 开发者很容易习惯写很多 Bean、getter、setter。Kotlin 的 `data
 
 Java 到 Kotlin 的真正迁移，核心不在语法，而在默认思维。只要空安全、不可变状态和更轻量的模型表达真正进入你的 Android 代码，Kotlin 才会发挥出现代主线语言的优势。渐进迁移、边改边学，通常比一次性重写更现实，也更容易成功。
 
+## 练习题
+
+1. 概念理解题：为什么说 Java 到 Kotlin 的最大变化不是关键字，而是空安全、不可变状态和表达式风格带来的思维迁移？
+2. 编码实现题：找一段明显“写得像 Java”的 Kotlin 代码，至少完成一次 `var` 到 `val`、普通类到 `data class` 或多次 setter 到一次状态替换的重构。
+3. 扩展思考题：如果你的团队准备从 Java 逐步迁移到 Kotlin，你会如何安排模块优先级和迁移节奏，才能降低一次性重写的风险？
+
 ## 参考资料
 
 - 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 1、10-15 章。
