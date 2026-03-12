@@ -1,4 +1,0 @@
-interface:
-  display_name: "Android Reference Polisher"
-  short_description: "Polish Android chapters from local reference PDFs without quoting"
-  default_prompt: "Use $android-reference-polisher to synthesize the local Android reference PDFs into original textbook-style chapter prose, and do not quote or translate source wording."
