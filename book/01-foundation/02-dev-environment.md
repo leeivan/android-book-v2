@@ -1,4 +1,4 @@
-# 开发环境搭建
+﻿# 开发环境搭建
 
 Android 学习中，环境问题并不是“开始前随手处理一下的小事”，而是后面所有实践能否持续推进的前提。只要环境链路不稳定，读者很快就会把时间消耗在 Android Studio 无法同步、模拟器起不来、真机不识别、日志看不到、构建失败却不知道失败在哪一层这些问题上。表面上看，这些故障都发生在“工具”里；从学习效率上看，它们会直接阻断你对页面、数据、架构和系统行为的理解。
 
@@ -175,6 +175,10 @@ Android Studio 安装页、设备连接页和 ADB 文档都很重要，但它们
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 1-2 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 1-4 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+
 - Android Studio 安装：<https://developer.android.com/studio/install>
 - 创建项目：<https://developer.android.com/studio/projects/create-project>
 - 构建与运行应用：<https://developer.android.com/studio/run/index.html>
@@ -182,3 +186,4 @@ Android Studio 安装页、设备连接页和 ADB 文档都很重要，但它们
 - Android Debug Bridge：<https://developer.android.com/guide/developing/tools/adb.html>
 - Build your first Android app：<https://developer.android.com/codelabs/build-your-first-android-app-kotlin>
 - Android Basics with Compose：<https://developer.android.com/courses/android-basics-compose/course>
+

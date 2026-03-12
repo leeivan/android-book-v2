@@ -101,5 +101,10 @@ Android 官方的数据与文件存储总览，也正是按“应用私有文件
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 8 章。
+- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 6 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 11 章。
+
 - Data and file storage overview：<https://developer.android.com/training/data-storage>
 - Storage use cases and best practices：<https://developer.android.com/training/data-storage/use-cases>
+

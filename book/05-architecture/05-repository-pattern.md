@@ -1,4 +1,4 @@
-# Repository 模式
+﻿# Repository 模式
 
 当页面开始同时面对网络、数据库、缓存和用户本地操作时，最容易发生的一件事，就是数据入口失控。一个列表页从 Room 读缓存，刷新时直接打 Retrofit，收藏状态又自己改数据库，错误处理还散落在页面和 ViewModel 里。功能勉强能跑，但一旦需求继续增长，你会发现几乎没人能完整解释“这份数据到底从哪来、谁说了算、失败后应该怎么办”。
 
@@ -176,6 +176,12 @@ Repository 模式真正解决的是“数据入口和数据策略混乱”的问
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 5 章。
+- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 2、7-9、12 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 8 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+
 - Data layer guide: <https://developer.android.com/topic/architecture/data-layer>
 - Offline-first architecture: <https://developer.android.com/topic/architecture/data-layer/offline-first>
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
+

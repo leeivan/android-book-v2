@@ -1,4 +1,4 @@
-# 测试
+﻿# 测试
 
 很多团队在项目初期不做测试，并不是因为不知道测试重要，而是因为“现在先把功能做出来更紧急”。这种选择在早期往往看起来是对的，直到项目开始进入另一个阶段: 每次改动都害怕牵一发而动全身，重构几乎不敢做，线上回归越来越多，某些问题总靠手工点一遍才能确认。到了这个阶段，测试的价值才会一下子变得非常具体: 它不是为了增加流程，而是为了让你敢于继续演进代码。
 
@@ -152,6 +152,10 @@ Android 项目很多逻辑都依赖网络、数据库、时间、系统组件。
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 10-15 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
+
 - Test apps on Android: <https://developer.android.com/training/testing>
 - Test your app's architecture: <https://developer.android.com/topic/architecture/testing>
 - Espresso overview: <https://developer.android.com/training/testing/espresso>
+

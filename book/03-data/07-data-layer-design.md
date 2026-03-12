@@ -132,7 +132,12 @@ class TaskRepository(
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 8 章。
+- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 6 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 11 章。
+
 - Data layer：<https://developer.android.com/topic/architecture/data-layer>
 - Guide to app architecture：<https://developer.android.com/topic/architecture>
 - Recommendations for Android architecture：<https://developer.android.com/topic/architecture/recommendations>
 - Build an offline-first app：<https://developer.android.com/topic/architecture/data-layer/offline-first>
+

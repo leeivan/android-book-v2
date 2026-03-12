@@ -1,4 +1,4 @@
-# Flow
+﻿# Flow
 
 如果说协程解决的是“异步任务怎样被组织”，那么 `Flow` 更进一步解决的是“异步结果怎样以持续数据流的方式被表达和组合”。很多读者第一次接触 Flow 时，会把它当成“会连续返回值的 suspend 函数”或者“协程版本的观察者模式”。这两种理解都能抓住一点表面，但都不够深入。Flow 真正的价值，在于它把一连串随时间变化的数据，用一种可组合、可取消、可变换的方式表达出来。
 
@@ -186,6 +186,10 @@ Flow 在 Android 中真正提供的，是一种表达“持续变化数据关系
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 6、8 章。
+- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 4、11-12 章。
+
 - Kotlin flows on Android: <https://developer.android.com/kotlin/flow>
 - StateFlow and SharedFlow: <https://developer.android.com/kotlin/flow/stateflow-and-sharedflow>
 - Kotlin Flow guide: <https://kotlinlang.org/docs/flow.html>
+

@@ -124,7 +124,12 @@ findNavController().navigate(action)
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 3-4、7 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 2-5、9-12 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+
 - Navigation and the back stack：<https://developer.android.com/guide/navigation/backstack>
 - Pass data between destinations：<https://developer.android.com/guide/navigation/use-graph/pass-data>
 - Safe Args：<https://developer.android.com/guide/navigation/use-graph/safe-args>
 - Navigation Editor：<https://developer.android.com/guide/navigation/design/editor>
+

@@ -1,4 +1,4 @@
-# Kotlin Coroutines
+﻿# Kotlin Coroutines
 
 很多读者第一次认真使用协程，并不是因为想学一门新的并发理论，而是因为旧方式已经开始撑不住了。页面里嵌套回调越来越长，线程切换越来越乱，取消越来越难处理，网络请求和数据库读写一多，状态更新也开始互相覆盖。协程之所以成为现代 Android 异步主线，不是因为它“写起来更像同步代码”这么简单，而是因为它提供了一套更统一的方式来组织任务、取消、线程切换和结果归属。
 
@@ -193,6 +193,10 @@ class ArticleListViewModel(
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 6、8 章。
+- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 4、11-12 章。
+
 - Kotlin coroutines on Android: <https://developer.android.com/kotlin/coroutines>
 - Coroutines best practices: <https://developer.android.com/kotlin/coroutines/coroutines-best-practices>
 - Kotlin coroutines guide: <https://kotlinlang.org/docs/coroutines-overview.html>
+

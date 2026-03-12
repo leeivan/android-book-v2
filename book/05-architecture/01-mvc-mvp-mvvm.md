@@ -1,4 +1,4 @@
-# MVC / MVP / MVVM
+﻿# MVC / MVP / MVVM
 
 很多人第一次接触架构模式，是从三张缩写表开始的：`MVC`、`MVP`、`MVVM`。结果学完以后，脑子里多了几个名词，项目里却还是同样的问题: 页面越来越重，状态越来越散，谁在改数据说不清，改一个功能就要连带改很多地方。原因并不复杂，因为架构模式从来不是为了让类图更好看，而是为了回答一个非常现实的问题: 当页面、状态、数据来源和交互复杂度不断上升时，代码到底应该怎样分工，才能不失控。
 
@@ -172,6 +172,12 @@
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 5 章。
+- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 2、7-9、12 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 8 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
 - State holders and UI state: <https://developer.android.com/topic/architecture/ui-layer/stateholders>
 - Architecture Samples: <https://github.com/android/architecture-samples>
+

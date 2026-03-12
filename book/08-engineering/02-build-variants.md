@@ -1,4 +1,4 @@
-# 构建变体
+﻿# 构建变体
 
 很多 Android 项目在最初只有一个版本时，看起来并不需要复杂的构建设计。开发环境和生产环境用同一个域名常量，调试和发布只靠手工改几个开关，图标差异靠临时替换资源，团队一开始往往觉得这样更快。真正的问题通常要等到项目进入多人协作、多环境联调、多渠道发布阶段才暴露出来。那时你会发现：同一个仓库里其实同时住着很多“不同版本的应用”，而这些差异如果没有正式进入构建系统，后期维护几乎注定混乱。
 
@@ -208,7 +208,11 @@ android {
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 10-15 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
+
 - Configure build variants：<https://developer.android.com/build/build-variants>
 - Build variants in Android Studio：<https://developer.android.com/studio/build/build-variants>
 - Build your app from the command line：<https://developer.android.com/build/building-cmdline>
 - Gradle User Manual：<https://docs.gradle.org/current/userguide/userguide.html>
+

@@ -1,4 +1,4 @@
-# 线程基础
+﻿# 线程基础
 
 很多 Android 并发问题，第一次并不是以“线程模型”这种学术名词出现的，而是以很具体的故障出现: 点一下按钮页面卡住了，图片列表滚动不动了，数据库写入时界面掉帧了，两个异步结果互相覆盖了。读者往往会立刻去找“怎么开后台线程”，但真正的问题通常更早就已经出现了: 你还没有先把任务分清楚，哪些事情必须在主线程做，哪些事情不能在主线程做，哪些事情虽然放到了后台却仍然会把状态搞乱。
 
@@ -146,5 +146,9 @@ Android 的主线程承担着几乎所有用户直接能感知到的工作:
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 6、8 章。
+- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 4、11-12 章。
+
 - Processes and threads overview: <https://developer.android.com/guide/components/processes-and-threads>
 - Threading on Android: <https://developer.android.com/topic/performance/threads>
+

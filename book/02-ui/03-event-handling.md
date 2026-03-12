@@ -136,5 +136,10 @@ class ProfileViewModel : ViewModel() {
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 3-4、7 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 2-5、9-12 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+
 - UI events：<https://developer.android.com/topic/architecture/ui-layer/events>
 - 输入事件概览：<https://developer.android.com/develop/ui/views/touch-and-input/input-events>
+

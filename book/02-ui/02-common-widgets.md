@@ -171,8 +171,13 @@
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 3-4、7 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 2-5、9-12 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+
 - 按钮：<https://developer.android.com/develop/ui/views/components/button>
 - 切换控件：<https://developer.android.com/develop/ui/views/components/togglebutton>
 - 输入类型：<https://developer.android.com/training/keyboard-input/style>
 - TextInputLayout：<https://developer.android.com/reference/com/google/android/material/textfield/TextInputLayout>
 - TextInputEditText：<https://developer.android.com/reference/com/google/android/material/textfield/TextInputEditText>
+

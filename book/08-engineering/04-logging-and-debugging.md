@@ -1,4 +1,4 @@
-# 日志与调试
+﻿# 日志与调试
 
 很多初学者第一次调试问题，靠的是一种非常朴素的方法: 哪里不对，就在那附近 `Log.d()` 几行，看看值是不是自己想的那样。这种方式在小问题上常常有效，但只要项目开始变复杂，问题就会变成另一种形态: 某个状态只在部分机型复现，某个页面只在切后台再回来时出错，某个接口只有线上偶发超时，某个崩溃在你本地怎么都复现不了。到了这个阶段，日志和调试已经不是“插几行打印”那么简单，而是工程排障能力的一部分。
 
@@ -153,6 +153,10 @@
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 10-15 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
+
 - Debug your app: <https://developer.android.com/studio/debug>
 - Logcat guide: <https://developer.android.com/studio/debug/logcat>
 - Android Studio profilers: <https://developer.android.com/studio/profile>
+

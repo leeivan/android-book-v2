@@ -1,4 +1,4 @@
-# 安全基础
+﻿# 安全基础
 
 安全问题在 Android 项目里最容易被推迟，因为它在功能开发早期往往不直接影响“能不能跑”。很多团队直到出现真实风险才开始认真补安全，例如组件被意外导出、调试日志泄露 token、WebView 加载了不可信内容、文件共享边界太宽、明文传输被抓到、密钥直接写在仓库里。到了那个阶段，安全就不再是“再优化一下”，而是必须回头补基础。
 
@@ -160,6 +160,10 @@ Android 安全基础真正要建立的，不是几个零散技巧，而是一套
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 10-15 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
+
 - Android app security best practices: <https://developer.android.com/privacy-and-security/security-best-practices>
 - Security tips: <https://developer.android.com/privacy-and-security/security-tips>
 - Network security config: <https://developer.android.com/privacy-and-security/security-config>
+

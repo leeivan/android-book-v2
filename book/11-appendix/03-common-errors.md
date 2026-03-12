@@ -1,4 +1,4 @@
-# 常见错误排查
+﻿# 常见错误排查
 
 很多学习者在 Android 入门阶段最痛苦的体验，不是知识点太多，而是错误一出现就完全不知道该从哪里下手。构建失败、依赖冲突、页面白屏、权限被拒、崩溃堆栈看不懂、列表不更新、通知不弹、WorkManager 不执行，这些问题单独看都能解决，真正让人崩溃的是它们总像随机事件一样出现。这个附录的价值，不是给你列一张“常见报错大全”，而是帮你建立排查顺序。
 
@@ -153,5 +153,9 @@
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 1、10-15 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，全书项目练习部分。
+
 - Debug your app: <https://developer.android.com/studio/debug>
 - Test and troubleshoot background work: <https://developer.android.com/develop/background-work/background-tasks/testing/persistent/debug>
+

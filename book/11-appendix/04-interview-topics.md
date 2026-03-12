@@ -1,4 +1,4 @@
-# Android 面试主题
+﻿# Android 面试主题
 
 很多读者学到后期会开始关心面试，但一旦把“面试准备”理解成背题，就很容易走偏。因为 Android 面试真正考的，通常不是你能不能背出某个 API 名字，而是你能不能把概念、场景、权衡和工程判断串起来讲清楚。也就是说，面试题表面上是问答，实质上在看你是否真正理解这门技术在真实项目里的结构。
 
@@ -151,5 +151,9 @@ Android 面试准备真正要做的，不是收集更多题，而是把核心主
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 1、10-15 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，全书项目练习部分。
+
 - Android architecture recommendations: <https://developer.android.com/topic/architecture/recommendations>
 - Kotlin coroutines on Android: <https://developer.android.com/kotlin/coroutines>
+

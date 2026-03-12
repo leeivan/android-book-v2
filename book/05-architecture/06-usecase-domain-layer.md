@@ -1,4 +1,4 @@
-# UseCase / Domain 层
+﻿# UseCase / Domain 层
 
 当项目还比较小时，ViewModel 调 Repository 往往已经够用。但只要功能开始变复杂，你很快会遇到另一类问题: 一个动作不再只是“拿数据”，而是要跨多个 Repository 协作、做一串业务规则判断、决定失败时怎么退让、成功后怎么回写。到了这个阶段，如果所有流程都继续留在 ViewModel 里，页面状态层很快又会膨胀。
 
@@ -182,6 +182,12 @@ UseCase / Domain 层真正要解决的，是复杂业务动作应该放在哪里
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 5 章。
+- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 2、7-9、12 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 8 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+
 - Domain layer guide: <https://developer.android.com/topic/architecture/domain-layer>
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
 - Now in Android: <https://github.com/android/nowinandroid>
+

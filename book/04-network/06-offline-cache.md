@@ -192,6 +192,11 @@ class ArticleRepository(
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 6 章。
+- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 3-4 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 6 章。
+
 - Build an offline-first app：<https://developer.android.com/topic/architecture/data-layer/offline-first>
 - Recommendations for Android architecture：<https://developer.android.com/topic/architecture/recommendations>
 - Room：<https://developer.android.com/training/data-storage/room>
+

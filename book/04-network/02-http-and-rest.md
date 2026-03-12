@@ -113,5 +113,10 @@ HTTP 和 REST 提供的是网络交互的基本语义框架。理解了请求方
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 6 章。
+- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 3-4 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 6 章。
+
 - Connect to the network：<https://developer.android.com/develop/connectivity/network-ops/connecting>
 - RFC 9110: HTTP Semantics：<https://www.rfc-editor.org/rfc/rfc9110>
+

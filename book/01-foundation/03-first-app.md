@@ -1,4 +1,4 @@
-# 第一个 Android 应用
+﻿# 第一个 Android 应用
 
 环境搭好之后，最重要的不是立刻做复杂功能，而是用一个足够小、足够完整的应用把整个开发闭环走一遍。所谓“第一个 Android 应用”，真正要完成的不是界面本身，而是这条闭环：创建工程、理解最基础的项目骨架、运行到设备、修改界面、再次安装并观察变化。只要这条链路真正跑通，后面再学生命周期、布局、数据和网络，你都会更有抓手。
 
@@ -154,8 +154,13 @@ Text(text = "你好，Android")
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 1-2 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 1-4 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+
 - 创建第一个 Android 应用：<https://developer.android.com/training/basics/firstapp/creating-project.html>
 - 创建项目：<https://developer.android.com/studio/projects/create-project>
 - 构建与运行应用：<https://developer.android.com/studio/run/index.html>
 - Build your first Android app：<https://developer.android.com/codelabs/build-your-first-android-app-kotlin>
 - Android Basics with Compose：<https://developer.android.com/courses/android-basics-compose/course>
+

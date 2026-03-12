@@ -1,4 +1,4 @@
-# 性能优化
+﻿# 性能优化
 
 性能问题很少会以“请做性能优化”这样正式的需求出现。它更常见的形式是: 首页打开有点慢，长列表滑动掉帧，切页面时明显卡一下，电量掉得快，老设备上内存占用偏高，某个功能用户一直抱怨“用着发热”。性能之所以难，不只是因为指标多，而是因为它最终表现为用户感知，而用户不会关心你是 CPU、I/O、布局层级还是对象分配出了问题。
 
@@ -154,6 +154,10 @@
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 10-15 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
+
 - Performance overview: <https://developer.android.com/topic/performance>
 - Profileable apps and profilers: <https://developer.android.com/studio/profile>
 - Baseline Profiles overview: <https://developer.android.com/topic/performance/baselineprofiles/overview>
+

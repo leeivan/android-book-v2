@@ -1,4 +1,4 @@
-# Jetpack Compose 基础
+﻿# Jetpack Compose 基础
 
 即使本书前面的 UI 主线仍以 View/XML 为主，现代 Android 开发已经无法绕开 Compose。本章的目标不是立刻把整本书都切到 Compose，而是帮助你建立声明式 UI 的第一层认知：界面不再主要通过“拿到视图对象然后修改它”来组织，而是直接根据当前状态声明“界面此刻应该长成什么样”。理解这一点，比记住任何单个 Compose 组件都更重要。
 
@@ -182,6 +182,10 @@ Compose 是现代 Android UI 的重要方向，但它不是平台基础的替代
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 3-4、7 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 2-5、9-12 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+
 - Thinking in Compose：<https://developer.android.com/develop/ui/compose/mental-model>
 - State and Jetpack Compose：<https://developer.android.com/develop/ui/compose/state>
 - Compose UI Architecture：<https://developer.android.com/develop/ui/compose/architecture>
@@ -189,3 +193,4 @@ Compose 是现代 Android UI 的重要方向，但它不是平台基础的替代
 - Basic layouts in Compose codelab：<https://developer.android.com/codelabs/jetpack-compose-layouts>
 - Material 3：<https://m3.material.io/>
 - Now in Android：<https://github.com/android/nowinandroid>
+

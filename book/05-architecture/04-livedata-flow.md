@@ -1,4 +1,4 @@
-# LiveData 与 Flow
+﻿# LiveData 与 Flow
 
 很多开发者第一次学这一章时，脑子里只有一个问题：“`LiveData` 和 `Flow` 到底哪个更高级？”这个问题并不重要。真正决定页面质量的，不是你选了哪个名词，而是你有没有把“页面当前状态”“一次性事件”“生命周期收集”和“数据流方向”理顺。只要这四件事没有理顺，哪怕 API 用得再新，页面一样会出现重复加载、界面闪烁、旋转后重复弹消息、返回页面后状态错乱这些问题。
 
@@ -223,9 +223,15 @@ viewLifecycleOwner.lifecycleScope.launch {
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 5 章。
+- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 2、7-9、12 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 8 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+
 - Kotlin flows on Android：<https://developer.android.com/kotlin/flow>
 - StateFlow and SharedFlow：<https://developer.android.com/kotlin/flow/stateflow-and-sharedflow>
 - Collect flows safely in Android UI：<https://developer.android.com/kotlin/flow/stateflow-and-sharedflow#collect>
 - Recommendations for Android architecture：<https://developer.android.com/topic/architecture/recommendations>
 - State holders and UI state：<https://developer.android.com/topic/architecture/ui-layer/stateholders>
 - Kotlin Flow documentation：<https://kotlinlang.org/docs/flow.html>
+

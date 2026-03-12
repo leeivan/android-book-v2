@@ -1,4 +1,4 @@
-# 权限管理
+﻿# 权限管理
 
 权限往往是 Android 开发里最容易被“只学 API 不学判断”的主题之一。很多初学者一遇到拍照、定位、通知或文件访问，就马上去找“怎么申请权限”，却没有先问更重要的问题: 这项能力真的必须要这个权限吗？有没有更小、更现代的替代方案？用户为什么应该信任你现在发起这个请求？如果这些问题不先回答，权限代码即使写对了，体验和合规也很容易出问题。
 
@@ -147,6 +147,10 @@
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 7-10、15 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
+
 - Request app permissions: <https://developer.android.com/training/permissions/requesting>
 - App permission best practices: <https://developer.android.com/privacy-and-security/minimize-permission-requests>
 - Photo Picker: <https://developer.android.com/training/data-storage/shared/photopicker>
+

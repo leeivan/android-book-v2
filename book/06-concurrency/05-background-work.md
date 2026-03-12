@@ -1,4 +1,4 @@
-# 后台任务
+﻿# 后台任务
 
 很多团队第一次遇到后台任务问题，不是因为“想学一个新 API”，而是因为项目开始出现一些难回答的问题：用户把应用切到后台后，上传要不要继续；草稿同步失败了要不要重试；定位记录为什么一锁屏就断；明明只是一次页面请求，为什么却被做成了常驻服务。后台任务设计真正难的地方，从来不是类名，而是判断一件事到底属于哪一类工作。
 
@@ -181,8 +181,12 @@
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 6、8 章。
+- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 4、11-12 章。
+
 - Background tasks overview：<https://developer.android.com/develop/background-work/background-tasks>
 - Foreground services overview：<https://developer.android.com/develop/background-work/services/foreground-services>
 - Services overview：<https://developer.android.com/develop/background-work/services>
 - WorkManager overview：<https://developer.android.com/topic/libraries/architecture/workmanager>
 - Background work on Android guide：<https://developer.android.com/develop/background-work>
+

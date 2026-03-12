@@ -154,7 +154,12 @@
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 3-4、7 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 2-5、9-12 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+
 - 布局基础：<https://developer.android.com/guide/topics/ui/declaring-layout.html>
 - ConstraintLayout：<https://developer.android.com/develop/ui/views/layout/constraint-layout>
 - 自适应 View 布局：<https://developer.android.com/develop/ui/views/layout/responsive-adaptive-design-with-views>
 - 布局层级优化：<https://developer.android.com/develop/ui/views/layout/improving-layouts/optimizing-layouts>
+

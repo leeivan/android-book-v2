@@ -1,4 +1,4 @@
-# Gradle 基础
+﻿# Gradle 基础
 
 很多 Android 读者第一次真正注意到 Gradle，不是因为它“很重要”，而是因为它开始挡路。项目昨天还能运行，今天依赖一升级就构建失败；自己电脑上能跑，换到同事机器上就不行；明明只改了一个小文件，却要等很久才能重新安装。到这一步，Gradle 就不再是 Android Studio 背后的神秘按钮，而是整个工程能否稳定工作的基础设施。
 
@@ -139,6 +139,10 @@ Gradle 基础章节真正要建立的，是构建思维。你应该开始把 And
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 10-15 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
+
 - Android Build Overview：<https://developer.android.com/build>
 - Build for release：<https://developer.android.com/build/build-for-release>
 - Gradle User Manual：<https://docs.gradle.org/current/userguide/userguide.html>
+

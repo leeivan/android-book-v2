@@ -1,4 +1,4 @@
-# Service
+﻿# Service
 
 `Service` 可能是 Android 系统组件里最容易被误解的一个。很多开发者第一次接触它时，会自然地把它等同于“后台线程”或“让任务在后台一直跑的东西”。这种理解在现代 Android 里非常危险，因为 `Service` 从来不是线程，也不是后台执行万能解。它只是一个系统组件入口，用来承载某些不依赖界面但需要在组件边界上持续存在的工作。
 
@@ -149,6 +149,10 @@ Service 在 Android 中真正的角色，是承载某些脱离界面但仍需要
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 7-10、15 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
+
 - Services overview: <https://developer.android.com/develop/background-work/services>
 - Foreground services overview: <https://developer.android.com/develop/background-work/services/foreground-services>
 - Background work overview: <https://developer.android.com/develop/background-work>
+

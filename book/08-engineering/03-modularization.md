@@ -1,4 +1,4 @@
-# 模块化
+﻿# 模块化
 
 很多团队第一次认真谈模块化，往往不是因为“想做更高级的工程架构”，而是因为单体工程已经开始持续制造成本: 改一点代码要等很久才能重新构建，一个模块的依赖变动会波及整个项目，多个开发者经常在同一个大模块里互相踩改动，公共能力越积越多却没有边界。到了这个阶段，问题早就不是“目录够不够整齐”，而是工程结构已经撑不住协作和演进了。
 
@@ -170,5 +170,9 @@
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 10-15 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
+
 - Guide to Android app modularization: <https://developer.android.com/topic/modularization>
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
+

@@ -128,6 +128,11 @@ JSON 解析的重点，不是你会不会用某个库，而是你是否能把外
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 8 章。
+- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 6 章。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 11 章。
+
 - Kotlin Serialization：<https://kotlinlang.org/docs/serialization.html>
 - `Json` API：<https://kotlinlang.org/api/kotlinx.serialization/kotlinx-serialization-json/kotlinx.serialization.json/-json/>
 - `JSONTokener`：<https://developer.android.com/reference/kotlin/org/json/JSONTokener>
+

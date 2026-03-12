@@ -1,4 +1,4 @@
-# 桌面小组件与快捷方式
+﻿# 桌面小组件与快捷方式
 
 很多教程把桌面小组件和快捷方式放在系统组件的最后一章，读者很容易把它们理解成“附加功能”或“可有可无的系统彩蛋”。实际上，这两类能力真正有价值的地方，在于它们让应用不必等用户先打开自己，才能提供入口或状态。也就是说，它们不是“装饰 UI”，而是在系统桌面和启动器层面为应用扩展了新的触达方式。
 
@@ -159,5 +159,9 @@
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 7-10、15 章。
+- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
+
 - App widgets overview: <https://developer.android.com/develop/ui/views/appwidgets>
 - App shortcuts overview: <https://developer.android.com/develop/ui/views/launch/shortcuts>
+

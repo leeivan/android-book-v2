@@ -1,4 +1,4 @@
-# Handler 与 Looper
+﻿# Handler 与 Looper
 
 很多现代 Android 项目已经大量使用协程，结果不少读者会误以为 `Handler` 和 `Looper` 已经变成纯历史知识。真正写项目时，这种判断常常会让人看不懂旧代码，也看不懂 Android 主线程到底为什么能持续处理输入、绘制和回调。`Handler`、`Looper` 这一章真正的价值，不是鼓励你回到旧式异步写法，而是让你建立对 Android 消息循环模型的直觉。
 
@@ -164,6 +164,10 @@ fun scheduleHint() {
 
 ## 参考资料
 
+- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 6、8 章。
+- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 4、11-12 章。
+
 - Processes and threads overview: <https://developer.android.com/guide/components/processes-and-threads>
 - Handler reference: <https://developer.android.com/reference/android/os/Handler>
 - Looper reference: <https://developer.android.com/reference/android/os/Looper>
+
