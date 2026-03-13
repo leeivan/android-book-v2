@@ -102,6 +102,8 @@
 
 如果页面把权限结果只当作回调里的一次性事件，体验很容易破碎。权限本质上也是页面当前能力边界的一部分。
 
+这也是为什么现代权限设计越来越强调“被拒绝后仍然可解释”。如果用户拒绝了位置、通知或媒体访问权限，应用不应只剩下一句模糊报错，而应明确告诉用户当前缺少什么能力、还能做什么、如果愿意开启应去哪里重新授权。权限被拒绝不是异常分支，而是必须提前设计的常态路径。
+
 ### 9. 实践任务
 
 起点条件：
@@ -147,8 +149,9 @@
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 7-10、15 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
+- 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，权限请求、媒体访问与系统能力调用相关章节。
+- 参考并改写自：`Android Security - Attacks and Defenses`，权限边界、最小授权与平台安全模型相关章节。
+- 参考并改写自：`The Android Malware Handbook`，权限滥用、风险面与安全判断相关章节。
 
 - Request app permissions: <https://developer.android.com/training/permissions/requesting>
 - App permission best practices: <https://developer.android.com/privacy-and-security/minimize-permission-requests>

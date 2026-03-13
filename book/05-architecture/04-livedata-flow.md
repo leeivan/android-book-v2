@@ -149,6 +149,8 @@ class NewsViewModel(
 
 这件事说起来像编码技巧，实际上是教材里必须讲透的建模问题。因为很多 UI bug 不是出在语法，而是出在你把“状态”和“动作”当成了同一类东西。
 
+对应到实现上，一个很稳的实践是：对外暴露稳定状态时，优先使用只读 `StateFlow` / `LiveData`；对外暴露一次性 effect 时，使用单独的事件流或 effect 通道，而不是把 UI 动作伪装成状态字段。这样页面每次重建时，真正会被重新消费的只有“现在是什么状态”，而不是“刚刚做过什么动作”。
+
 ### 9. Flow 并不会自动替你解决生命周期问题
 
 不少开发者从 `LiveData` 迁移到 `Flow` 时，会误以为“现在换成协程了，生命周期问题自然没了”。这是很危险的误解。`Flow` 负责的是数据如何流动，不负责 UI 应该在什么时候开始、什么时候停止收集。
@@ -223,10 +225,9 @@ viewLifecycleOwner.lifecycleScope.launch {
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 5 章。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 2、7-9、12 章。
-- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 8 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+- 参考并改写自：`Clean Android Architecture`，LiveData、Flow 与状态边界相关章节。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，StateFlow、SharedFlow 与 UI effect 建模相关章节。
+- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，真实页面中的状态收集、事件分离与生命周期协作相关章节。
 
 - Kotlin flows on Android：<https://developer.android.com/kotlin/flow>
 - StateFlow and SharedFlow：<https://developer.android.com/kotlin/flow/stateflow-and-sharedflow>

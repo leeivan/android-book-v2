@@ -116,6 +116,8 @@
 
 这会让页面不再像一个同时接受多路信号的黑箱，而更像沿着一条清晰管线工作的状态终点。现代 Android 之所以把 `MVVM` 和单向数据流经常一起讲，就是因为它们在工程上互相支撑。
 
+也正因为如此，架构模式不应被机械翻译成文件夹模仿游戏。一个项目把目录命名成 `model/view/viewmodel`，并不代表职责真的已经拆开；真正关键的是状态是否有单一出口、页面是否仍然直接协调多个数据来源、以及某个类是否同时承担了不止一种生命周期和抽象层级的责任。模式名称只是提示，状态边界才是落地标准。
+
 ### 9. 不要把架构模式理解成模板答案
 
 这一章最容易产生的误解，是把三种模式当成“必须选一个照搬”的固定模板。真实项目里，架构模式更像一组取舍原则:
@@ -172,10 +174,9 @@
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 5 章。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 2、7-9、12 章。
-- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 8 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+- 参考并改写自：`Clean Android Architecture`，架构模式演进、职责边界与分层讨论相关章节。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，单向数据流、状态建模与屏幕结构相关章节。
+- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，真实项目中的 MVVM 组织与 UI 状态实践相关章节。
 
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
 - State holders and UI state: <https://developer.android.com/topic/architecture/ui-layer/stateholders>

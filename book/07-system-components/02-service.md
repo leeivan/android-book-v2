@@ -57,6 +57,8 @@ Service 更适合承载的是这类问题:
 
 所以，当你面对导航、媒体播放、持续定位这类需求时，真正要问的不是“能不能偷偷放后台跑”，而是“这件事是否值得以前台服务方式对用户公开”。
 
+这类判断还需要再多一步：公开了以后，用户是否真的能理解并控制它。现代 Android 对前台服务类型、启动条件和通知展示越来越强调明确性，本质上就是在要求开发者别把“持续运行”包装成隐形默认行为。Service 一旦进入前台服务语境，就不再只是技术实现，而是平台和用户之间的一份明示契约。
+
 ### 5. 绑定服务解决的是“长期连接”，不是“后台长跑”
 
 除了 started / foreground service，`bound service` 也常被提到。它更适合的不是“持续后台执行”，而是组件与服务之间存在长期交互连接的场景，例如某些播放控制、跨组件通信或本地服务接口暴露。
@@ -149,8 +151,9 @@ Service 在 Android 中真正的角色，是承载某些脱离界面但仍需要
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 7-10、15 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
+- 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，Service、前台服务与后台执行相关章节。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，系统组件与现代后台能力相关章节。
+- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，媒体与持续任务组织相关章节。
 
 - Services overview: <https://developer.android.com/develop/background-work/services>
 - Foreground services overview: <https://developer.android.com/develop/background-work/services/foreground-services>

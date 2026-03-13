@@ -68,6 +68,8 @@
 
 因此，小组件最核心的问题并不是 RemoteViews 或 Glance 语法，而是它和应用数据层、后台更新、入口跳转如何形成闭环。
 
+这也是为什么桌面能力必须对更新频率保持克制。小组件并不是一个随意高频刷新的迷你应用窗口，它受系统刷新预算、启动器行为和电量约束影响很大。真正稳妥的策略通常是：依赖已有可信数据源，在关键状态变化时做必要更新，而不是把桌面当成另一块可以任性轮询的前台页面。
+
 ### 5. 快捷方式的价值在于减少摩擦，而不在于数量
 
 动态快捷方式、静态快捷方式和固定快捷方式，看起来都像“多几个图标”。但真正应该问的是：它能不能替用户省掉足够多的路径成本？
@@ -151,8 +153,9 @@
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 7-10、15 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
+- 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，App Widgets、快捷方式与启动器集成相关章节。
+- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，高频入口、状态前移与真实项目 UI 组织相关章节。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，系统入口与应用交互边界相关内容。
 
 - App widgets overview: <https://developer.android.com/develop/ui/views/appwidgets>
 - App shortcuts overview: <https://developer.android.com/develop/ui/views/launch/shortcuts>
