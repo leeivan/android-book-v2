@@ -54,6 +54,8 @@ DataStore 的优势并不意味着它适合一切。官方同样明确指出：D
 
 只要命名、边界和来源不清，后面问题一样会堆起来。比如一个 `isDark`，它到底表示“用户手动开启深色模式”，还是“系统当前处于深色环境”，还是“某个页面临时使用深色主题”？如果这些含义混在一起，你换再好的 API 也解决不了维护问题。
 
+在工程实现上，还要再守住一条边界：被持久化的是“跨页面、跨会话后仍然有意义的配置”，不是所有瞬时 UI 状态。比如搜索框当前输入、一次性的 Snackbar 文案、某个面板此刻是否展开，往往更适合留在页面状态或 `SavedStateHandle`，而不是直接写进 DataStore。只有当一个值真正代表用户偏好、功能开关或跨会话配置时，它才值得进入长期键值存储。
+
 ### 7. 最小示例：用 Preferences DataStore 保存主题模式
 
 下面这个例子演示一个最小的 Preferences DataStore 用法，用来保存“是否使用深色主题”这类配置。它的重点不是覆盖所有 API，而是展示“读写都围绕状态流组织”的主线。
@@ -137,9 +139,9 @@ class UserPreferencesRepository(
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 8 章。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 6 章。
-- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 11 章。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 21 章及 DataStore 相关内容。
+- 参考并改写自：Neil Smyth，`Android Studio Narwhal Essentials`，SharedPreferences、DataStore 与设置项持久化相关章节。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，配置状态、单一事实来源与状态持有相关章节。
 
 - DataStore guide：<https://developer.android.com/topic/libraries/architecture/datastore>
 - SharedPreferences：<https://developer.android.com/training/data-storage/shared-preferences>

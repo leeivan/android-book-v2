@@ -42,6 +42,8 @@ Android 官方的数据与文件存储总览，也正是按“应用私有文件
 
 例如，“用户是否完成新手引导”显然更接近轻量配置；“待办列表”显然更接近结构化业务数据；“用户从相册中选的一张照片”则天然牵涉共享媒体与授权边界；“图片缓存缩略图”往往只是可重建缓存，而不应被当成长期业务资产。对真实项目来说，很多存储问题其实在这一步就已经决定了大方向。
 
+这四个判断问题背后，其实还对应三类后续成本：迁移成本、清理成本和授权成本。数据一旦在早期被放错层，后面就可能要从键值存储迁到数据库、从缓存目录迁到正式文件入口、从随手保存的路径迁到受控 URI。第一次实现通常最便宜，改正分类错误往往更贵，所以存储设计越早把归属、生命周期和共享边界说清楚，后面越不容易返工。
+
 ### 5. “缓存”和“持久化业务数据”为什么不能混为一谈
 
 这是数据设计里非常常见的混乱源。缓存的重点通常是可以重建、允许丢失、更关注速度和重复利用；而持久化业务数据的重点通常是不能随意丢失、需要明确数据结构和一致性、需要支持长期读取和修改。如果把两者混在一起，你很快就会发现数据清理、恢复和同步策略都变得模糊。
@@ -101,9 +103,9 @@ Android 官方的数据与文件存储总览，也正是按“应用私有文件
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 8 章。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 6 章。
-- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 11 章。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，DataStore、File Storage 与数据库相关章节。
+- 参考并改写自：Neil Smyth，`Android Studio Narwhal Essentials`，应用私有存储、共享文件访问与本地数据库相关章节。
+- 参考并改写自：`Android Security - Attacks And Defenses`，文件暴露、共享边界与安全存储相关章节。
 
 - Data and file storage overview：<https://developer.android.com/training/data-storage>
 - Storage use cases and best practices：<https://developer.android.com/training/data-storage/use-cases>

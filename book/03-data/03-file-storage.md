@@ -85,6 +85,8 @@ fun pickPhoto() {
 
 这个例子的教学点是：文件访问主入口已经不再总是“我自己拿路径去扫目录”，而是“由系统提供受控入口，用户明确选择，应用拿到一个可用的 URI”。这也是现代 Android 文件与媒体访问最需要建立的直觉。
 
+还要注意，应用拿到一个 `Uri` 并不等于拿到了一条可以永久依赖的真实文件路径。对很多现代入口来说，`Uri` 本身就是访问边界的一部分。若业务只是临时读取、显示或上传，直接围绕 `Uri` 处理通常更合适；若业务要求长期离线持有这份内容，则应在合适授权前提下把内容复制进应用私有目录，或在文档场景中明确处理持续访问策略，而不是假设原始位置会一直可读。
+
 ### 8. 文件命名和目录策略，也是设计问题
 
 很多文件系统问题，不是读写失败，而是随着项目增长逐渐失控。例如临时文件和正式导出文件放在一起，文件名无法表达来源和用途，清理策略没有分层。文件存储同样需要设计：哪些目录是缓存，哪些目录是长期保存，哪些内容可以重建，哪些内容必须谨慎删除。
@@ -139,9 +141,9 @@ fun pickPhoto() {
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 8 章。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 6 章。
-- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 11 章。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，File Storage、FileProvider 与共享文件相关章节。
+- 参考并改写自：Neil Smyth，`Android Studio Narwhal Essentials`，应用私有目录、共享存储与文件访问相关章节。
+- 参考并改写自：`Android Security - Attacks And Defenses`，文件暴露、URI 授权与内容共享边界相关章节。
 
 - Data and file storage overview：<https://developer.android.com/training/data-storage>
 - Storage use cases and best practices：<https://developer.android.com/training/data-storage/use-cases>
