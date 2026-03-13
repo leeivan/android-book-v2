@@ -86,6 +86,8 @@ Log.d(
 
 这类问题不能只靠本地 Logcat。你需要崩溃上报、错误聚合、版本关联和必要的埋点证据。换句话说，本地调试解决的是“我眼前能看到的问题”，线上监控解决的是“我暂时看不到，但用户已经遇到的问题”。
 
+一旦问题跨越多层，比如“点击后发起请求，Repository 落库，页面最后却显示旧值”，日志就更需要有链路关联信息，而不是每层各写一条彼此独立的打印。请求标识、页面入口、关键业务 ID 或版本号这类最小关联字段，往往比再多十条零散日志更有价值。它们能帮助你把 UI、数据层和后台响应重新串回同一条时间线。
+
 ### 6. 调试必须围绕假设，而不是围绕工具
 
 教材里最容易忽略的一点是：先选工具，再找问题，几乎总是低效的。更成熟的顺序应该是：
@@ -176,8 +178,9 @@ Log.d(
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 10-15 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
+- 参考并改写自：Neil Smyth，`Android Studio Narwhal Essentials`，Logcat、Debugger、Inspector 与 Profiler 相关章节。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，Profiler、Database Inspector 与运行时问题分析相关章节。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，结构化日志、状态排查与工程观测相关章节。
 
 - Debug your app: <https://developer.android.com/studio/debug>
 - Logcat guide: <https://developer.android.com/studio/debug/logcat>

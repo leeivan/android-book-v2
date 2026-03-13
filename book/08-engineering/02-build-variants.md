@@ -138,6 +138,8 @@ android {
 
 这就是为什么成熟团队不会盲目追求“什么都放 flavor”。构建变体不是越全越好，而是越有边界越好。能合并的维度尽量合并，能运行时决定的差异不要强行静态化，不需要存在的组合就不要让它生成。
 
+这里最值得提早建立的判断是：静态差异和运行时差异不要混着管。凡是会影响包名、签名、资源集、后端环境或打包行为的内容，更适合放在变体体系里；凡是需要远程开关、灰度、用户级实验或可动态调整的内容，则往往更适合留在运行时配置。把这两类问题混在一起，通常会得到一个既臃肿又不灵活的变体矩阵。
+
 ### 9. source set 在真实项目里怎样帮助你减噪
 
 假设 `staging` 版本需要一个测试环境专用的 `network_security_config.xml`，而 `prod` 不需要；或者 `debug` 版本需要一个只用于内部调试的入口页面，而 `release` 不应该包含。最差的做法，是在主代码中通过一堆条件判断来分叉这些逻辑。
@@ -208,8 +210,9 @@ android {
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 10-15 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
+- 参考并改写自：Neil Smyth，`Android Studio Narwhal Essentials`，build type、product flavor、source set 与多环境构建相关章节。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，多模块工程、配置收束与环境边界相关章节。
+- 参考并改写自：`Clean Android Architecture`，配置边界、环境差异与工程可维护性相关章节。
 
 - Configure build variants：<https://developer.android.com/build/build-variants>
 - Build variants in Android Studio：<https://developer.android.com/studio/build/build-variants>

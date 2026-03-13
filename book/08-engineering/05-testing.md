@@ -155,6 +155,8 @@ fun `article row shows title and supports click`() {
 
 测试少一点没关系，但必须值得信任。否则它不会成为工程支撑，只会成为新的噪音来源。
 
+这也是为什么很多现代 Android 项目会优先使用 fake 而不是到处堆 mock。只要边界足够清楚，一个简单、可预测的 fake repository 往往比大量基于调用顺序的 mock 断言更稳。它更接近真实数据流，也更不容易因为内部重构、协程调度或实现细节变化而让测试变脆。测试最终要保护的是行为，不是某一版实现的调用姿势。
+
 ### 8. 一个更适合真实项目的推进顺序
 
 如果你的项目现在几乎没有测试，最合理的推进方式通常不是先搭一套庞大体系，而是从一条最怕回归的链路开始。例如新闻应用里的“首次加载 -> 成功展示 -> 错误重试”，或者待办应用里的“创建 -> 勾选完成 -> 列表状态同步”。更现实的顺序通常是：
@@ -210,8 +212,9 @@ fun `article row shows title and supports click`() {
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，测试网络层、ViewModel 与 Compose UI 的相关章节。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，测试边界、fake 依赖与工程可测试性相关章节。
+- 参考并改写自：`Clean Android Architecture`，UseCase、Repository、状态层与测试设计相关章节。
+- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，网络层、ViewModel 与 Compose UI 测试相关章节。
 
 - Test apps on Android: <https://developer.android.com/training/testing>
 - Test your app's architecture: <https://developer.android.com/topic/architecture/testing>
