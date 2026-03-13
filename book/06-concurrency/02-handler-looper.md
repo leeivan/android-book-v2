@@ -108,6 +108,8 @@ fun scheduleHint() {
 
 所以教材里不能只教 `postDelayed`，还必须讲清楚取消和生命周期。
 
+还有一个很常见但不够显眼的误用，是把 `Handler` 当成跨层通信总线。页面、ViewModel、Repository 之间如果开始互相丢 `post {}` 或 message code 来维持流程，短期看似灵活，长期却会让数据关系和线程边界变得不可推理。`Handler` 更适合表达“这条消息循环上的调度动作”，而不是承担整个应用的异步架构。
+
 ### 8. 什么场景下不必优先选择 Handler
 
 现代 Android 中，很多原本能用 `Handler` 的场景，现在更适合交给:
@@ -164,8 +166,8 @@ fun scheduleHint() {
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 6、8 章。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 4、11-12 章。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 12 章异步基础部分。
+- 参考并改写自：`Kickstart Modern Android Development With Jetpack And Kotlin`，主线程调度、延迟执行与旧式异步模型过渡相关章节。
 
 - Processes and threads overview: <https://developer.android.com/guide/components/processes-and-threads>
 - Handler reference: <https://developer.android.com/reference/android/os/Handler>

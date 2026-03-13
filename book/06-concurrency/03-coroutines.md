@@ -86,6 +86,8 @@ Android 上的大量工作都具备两个共同特点:
 
 协程之所以比传统回调和裸线程更适合 Android，其中一个根本原因就是取消变得更自然、更可表达。
 
+但“可取消”不等于“所有代码都会自动正确取消”。只有当任务真正运行在合适作用域内，并且底层调用链也愿意响应取消时，这个能力才会落地。也就是说，协程让取消更容易表达，却不会代替你做作用域设计。很多表面像协程 bug 的问题，实际上仍然是任务归属和底层 I/O 协作边界没有理顺。
+
 ### 7. 协程最适合在哪一层启动
 
 一个很实用的判断标准是: 谁拥有这段任务的生命周期，谁就更适合启动它。
@@ -193,8 +195,9 @@ class ArticleListViewModel(
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 6、8 章。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 4、11-12 章。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 12 章。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，协程作用域、状态持有与现代架构相关章节。
+- 参考并改写自：`Kickstart Modern Android Development With Jetpack And Kotlin`，协程、取消与异步任务组织相关章节。
 
 - Kotlin coroutines on Android: <https://developer.android.com/kotlin/coroutines>
 - Coroutines best practices: <https://developer.android.com/kotlin/coroutines/coroutines-best-practices>

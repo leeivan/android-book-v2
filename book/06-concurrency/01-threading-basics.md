@@ -81,6 +81,8 @@ Android 的主线程承担着几乎所有用户直接能感知到的工作:
 
 只要共享可变状态没有被清楚约束，并发就会变成偶发、难复现、难调试的问题。现代 Android 越来越强调单向数据流和不可变状态对象，背后其实也有很强的并发原因。
 
+这也是为什么现代 Android 文档经常强调 main-safe 和 state ownership 这类观念。一个函数如果声称自己能在任意线程安全调用，就不应偷偷依赖调用方替它切线程；一份页面状态如果由多个执行路径同时随意改写，它最终几乎一定会走向不可预测。线程基础这章真正要建立的，不只是“谁在主线程”，还包括“谁拥有状态、谁负责切上下文”。
+
 ### 7. 一个典型误区: 把所有耗时工作都当成同一种后台任务
 
 例如:
@@ -146,8 +148,9 @@ Android 的主线程承担着几乎所有用户直接能感知到的工作:
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 6、8 章。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 4、11-12 章。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 12 章导论部分。
+- 参考并改写自：`Kickstart Modern Android Development With Jetpack And Kotlin`，协程、线程切换与现代异步组织相关章节。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，状态归属、并发边界与现代工程组织相关章节。
 
 - Processes and threads overview: <https://developer.android.com/guide/components/processes-and-threads>
 - Threading on Android: <https://developer.android.com/topic/performance/threads>

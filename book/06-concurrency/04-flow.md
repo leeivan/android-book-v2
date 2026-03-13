@@ -131,6 +131,8 @@ Flow 本身不是页面状态容器，但它很适合成为页面状态的上游
 
 这条链路非常重要，因为它让页面不需要直接面对很多原始流。页面最理想的状态，仍然是消费“已经整理好的当前状态”，而不是自己去拼一堆数据流关系。
 
+这也是 `StateFlow` 和 `SharedFlow` 需要被分开理解的原因。前者更适合承载“当前状态是什么”，强调始终有最新值；后者更适合表达“有一件事发生了”，例如一次性 effect、事件广播或多消费者信号。只要把这两类需求混在一起，页面就会很快陷入“状态像事件、事件又像状态”的混乱。
+
 ### 8. 什么情况下不必强行上 Flow
 
 Flow 很强，但不是所有异步问题都需要它。以下场景通常不必硬用 Flow:
@@ -186,8 +188,9 @@ Flow 在 Android 中真正提供的，是一种表达“持续变化数据关系
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 6、8 章。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 4、11-12 章。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 12 章中 `Flow` / `StateFlow` 与单向数据流相关部分。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，状态流、UI 状态组织与数据流建模相关章节。
+- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，搜索、状态转换与流式数据组织相关章节。
 
 - Kotlin flows on Android: <https://developer.android.com/kotlin/flow>
 - StateFlow and SharedFlow: <https://developer.android.com/kotlin/flow/stateflow-and-sharedflow>

@@ -83,6 +83,8 @@
 
 在教学里必须强调这一点：所谓“后台任务”，很多时候真正需要的不是“现在立刻后台长跑”，而是“最终可靠地完成”。这和前台持续运行完全不是一回事。
 
+这类任务还有一个很重要的工程要求：尽量做到幂等。也就是说，同一项同步或上传即使因为重试、重排队或进程恢复被执行多次，结果也不应该变得更糟。后台工作一旦离开页面、交给系统调度，重复执行就不再是例外情况，而是必须提前接受的现实。
+
 ### 7. 用户可感知的持续工作：重点是透明和可控
 
 第三类任务是最不能偷懒分类的。导航、音乐播放、运动记录、录音、长时间位置跟踪，这些任务一旦运行，用户通常会明显依赖它们持续存在。它们不是“有空再跑”，而是“用户正在指望它别停”。
@@ -181,8 +183,9 @@
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 6、8 章。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 4、11-12 章。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 22 章与后台任务分类相关内容。
+- 参考并改写自：`Kickstart Modern Android Development With Jetpack And Kotlin`，后台工作、服务边界与任务调度相关章节。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，可靠后台执行与工程边界相关章节。
 
 - Background tasks overview：<https://developer.android.com/develop/background-work/background-tasks>
 - Foreground services overview：<https://developer.android.com/develop/background-work/services/foreground-services>
