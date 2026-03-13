@@ -54,6 +54,8 @@
 
 这也是很多页面在早期看似没问题、后期却迅速变乱的原因之一。图像类控件如果没有明确尺寸和语义，很容易让列表项高度不稳定、图片比例失控、辅助功能读不出内容，甚至在加载失败时留下大片空白。图像不是点缀，它往往和信息结构本身绑定在一起。
 
+控件学习里还有一个经常被忽略的底线，就是可访问性语义。文本是否真的可读、图像是否有合适的 `contentDescription`、按钮和开关是否有足够大的触控区域、错误提示是否不仅靠颜色表达，这些都直接决定了“控件能不能被更多用户正确使用”。一旦把这些问题提前纳入控件选择，你做出的页面通常也会更稳定、更少歧义。
+
 ### 7. 为什么 Material 组件值得优先考虑
 
 现代 Android 项目里，很多基础控件的现实用法已经不再是最原始的系统控件，而是 Material 组件体系。原因不只是“看起来更现代”，更重要的是它提供了更稳定的视觉规范、状态反馈和主题集成能力。以输入区为例，`TextInputLayout` 已经把标签、错误、辅助信息等常见需求整合成更成熟的组件模型；以开关为例，`SwitchMaterial` 能更自然地融入 Material 风格页面。
@@ -171,9 +173,9 @@
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 3-4、7 章。
-- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 2-5、9-12 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 1-2 章中关于 View、资源与交互的部分。
+- 参考并改写自：Gonda V.，《Android Accessibility by Tutorials, 2nd Edition》(2022)，表单、控件语义与可访问性优化相关章节。
+- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，真实页面中的常用组件组合与表单组织相关章节。
 
 - 按钮：<https://developer.android.com/develop/ui/views/components/button>
 - 切换控件：<https://developer.android.com/develop/ui/views/components/togglebutton>

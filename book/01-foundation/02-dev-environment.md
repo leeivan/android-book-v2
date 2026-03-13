@@ -36,6 +36,8 @@ Android 学习中，环境问题并不是“开始前随手处理一下的小事
 
 这五层工具既相互配合，又各有边界。举例来说，如果 `adb devices` 看不到设备，那通常不是 Kotlin 代码的问题；如果依赖下载失败，那更可能是网络、代理、仓库配置或构建脚本问题；如果应用装上了却一运行就崩溃，那你该去看 Logcat，而不是继续反复同步项目。环境排查的第一原则，就是先定位出错的层。
 
+在这五层之外，还值得补一个经常被忽略的事实：Android Studio 只是工作台，真正完成构建的是 JDK、Gradle Wrapper 和 Android Gradle Plugin 这一组底层组合。也就是说，“IDE 能打开”和“工程能同步、能编译”不是同一回事。很多环境问题表面看发生在 Studio 里，本质上却是 JDK 版本、Gradle 版本或插件兼容关系没有理顺。越早知道这一点，越不容易把所有问题都笼统归因到 IDE。
+
 ### 3. 按什么顺序把环境搭起来
 
 更稳妥的搭建顺序，通常不是“看到什么装什么”，而是先把基础工作台装好，再补开发组件，最后做运行验证。
@@ -175,9 +177,8 @@ Android Studio 安装页、设备连接页和 ADB 文档都很重要，但它们
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 1-2 章。
-- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 1-4 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，“The Necessary Tools”、第 1 章与设备运行相关部分。
+- 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，安装 Android Studio、SDK Manager、AVD 与设备调试相关章节。
 
 - Android Studio 安装：<https://developer.android.com/studio/install>
 - 创建项目：<https://developer.android.com/studio/projects/create-project>

@@ -48,6 +48,8 @@ Android 官方关于 UI events 的指导也强调，UI 事件应当在 UI 层被
 
 这一点也和 UI 层职责有关。某些反馈本来就属于 UI 行为逻辑，例如弹出 Snackbar、聚焦输入框、滚动到错误位置、执行导航。把所有这类反馈都强行塞进状态层，并不会让架构更纯净，反而会让职责变得扭曲。真正需要的是清楚区分：哪些变化要体现在 UI 状态中，哪些只是 UI 在当前时刻需要执行的一次行为。
 
+这里尤其要小心“一次性事件”和“持久状态”被混写。比如“保存成功后弹一个 Snackbar”或“校验通过后导航离开”更像一次即时效果，如果把它们长期存成一个不会清除的布尔值，页面重建后就可能重复消费，产生重复弹窗或重复导航。更稳妥的设计，是把这类内容明确当成一次性 UI effect 来处理，或者在消费后及时重置，使它不要伪装成长期状态。
+
 ### 6. 最小示例：把按钮点击拆成事件、状态和反馈
 
 下面这个例子用一个极简表单演示事件如何从 UI 进入 ViewModel，再由 UI 根据状态做反馈。重点不是表单本身，而是责任边界。
@@ -136,9 +138,9 @@ class ProfileViewModel : ViewModel() {
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 3-4、7 章。
-- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 2-5、9-12 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 1-2 章中关于视图绑定、监听与交互界面的部分。
+- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，页面事件、状态反馈与界面组织相关章节。
+- 参考并改写自：Gonda V.，《Android Accessibility by Tutorials, 2nd Edition》(2022)，交互反馈与可访问性提示相关章节。
 
 - UI events：<https://developer.android.com/topic/architecture/ui-layer/events>
 - 输入事件概览：<https://developer.android.com/develop/ui/views/touch-and-input/input-events>

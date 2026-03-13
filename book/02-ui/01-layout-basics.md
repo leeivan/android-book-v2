@@ -54,6 +54,8 @@
 
 读者只要开始把尺寸、颜色和文本直接硬编码进布局文件，很快就会在迭代中感受到失控：改一处要找很多地方，深浅色或大屏适配很难补，设计规范一调整就要到处搜。布局基础不只是会写属性，更是从一开始就养成可维护的资源组织习惯。
 
+同样值得尽早分清的，还有 `wrap_content`、`match_parent` 和约束布局里常见的 `0dp`。`wrap_content` 更像“按内容自然包裹”，`match_parent` 更像“直接吃满父容器”，而 `0dp` 在 `ConstraintLayout` 里通常不是“没有尺寸”，而是“让尺寸由约束关系决定”。很多布局问题表面上像 margin 没调好，实际根源却是尺寸语义一开始就选错了。
+
 ### 7. 一个健康页面结构通常长什么样
 
 无论设计稿多复杂，一个健康页面通常都能拆成几个稳定层次：顶部区域负责标题、筛选、导航入口或状态信息；主内容区负责表单、列表、卡片或正文；辅助操作区负责按钮、浮动操作或底部栏。这个分区思维非常重要，因为它会直接影响你后面如何组织 Fragment 容器、RecyclerView、工具栏和操作按钮。
@@ -154,9 +156,9 @@
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 3-4、7 章。
-- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 2-5、9-12 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 1-2 章中关于 UI、资源与交互界面的部分。
+- 参考并改写自：Gonda V.，《Android Accessibility by Tutorials, 2nd Edition》(2022)，布局语义、触控区域与可访问性检查相关章节。
+- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，页面结构与真实项目 UI 组织相关章节。
 
 - 布局基础：<https://developer.android.com/guide/topics/ui/declaring-layout.html>
 - ConstraintLayout：<https://developer.android.com/develop/ui/views/layout/constraint-layout>

@@ -44,6 +44,8 @@
 
 理解这条链路非常重要，因为后面无论项目复杂到什么程度，本质上都还是同一条流程在工作。今天你运行的是一个只有一屏内容的最小应用，未来你运行的是包含多个模块、多个页面和网络依赖的项目，构建、安装、启动和验证这几个阶段都不会消失。第一个应用的意义，就在于先把这条主链路走熟。
 
+第一次运行往往也会明显比后续慢，这是正常现象。因为首轮构建通常伴随依赖解析、Gradle 配置、代码编译、资源处理、模拟器冷启动或首次安装。初学者很容易把“第一次比较慢”误判成“工程出了问题”，于是反复重新创建项目。更稳妥的做法是先看 Build 输出和设备状态，分清它是在正常构建，还是确实卡在某个失败点。
+
 ### 5. 第一轮改动，应该改什么最有价值
 
 第一次修改应用时，最有价值的改动不是“新增功能”，而是做一组能帮助你认识工程边界的最小变化。通常来说，第一轮改动最好同时覆盖文本、界面和日志这三个入口。
@@ -154,9 +156,8 @@ Text(text = "你好，Android")
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 1-2 章。
-- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 1-4 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 1 章。
+- 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，创建首个项目、运行应用与 Android Studio 工具窗口相关章节。
 
 - 创建第一个 Android 应用：<https://developer.android.com/training/basics/firstapp/creating-project.html>
 - 创建项目：<https://developer.android.com/studio/projects/create-project>
