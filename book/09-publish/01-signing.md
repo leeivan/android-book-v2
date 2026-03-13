@@ -141,6 +141,7 @@ keytool -export -rfc \
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 13 章。
+- 参考并改写自本地 PDF：Neil Smyth，《Android Studio Narwhal Essentials: Java Edition》(2025)，签名、发布准备与 Google Play 发布流程相关章节。
+- 参考并整理自本地 EPUB：`Android Security - Attacks and Defenses`，密钥、凭证与发布链路中的敏感资产管理相关内容。
 - Sign your app: <https://developer.android.com/studio/publish/app-signing>
 - Prepare your app for release: <https://developer.android.com/studio/publish/preparing>

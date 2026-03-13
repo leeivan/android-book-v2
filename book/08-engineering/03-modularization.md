@@ -2,7 +2,7 @@
 
 很多团队第一次认真谈模块化，往往不是因为“想做更高级的工程架构”，而是因为单体工程已经开始持续制造成本: 改一点代码要等很久才能重新构建，一个模块的依赖变动会波及整个项目，多个开发者经常在同一个大模块里互相踩改动，公共能力越积越多却没有边界。到了这个阶段，问题早就不是“目录够不够整齐”，而是工程结构已经撑不住协作和演进了。
 
-模块化真正要解决的，就是把职责边界、依赖边界和构建边界同时整理出来。它不是把代码机械切成更多 module，也不是项目一上来就必须做的仪式，而是一种在规模和复杂度增长时，用结构换可维护性的工程手段。
+更贴近真实项目的模块化资料通常会把它描述成一种 feature-oriented 的工程收缩方式：先根据用户能感知到的功能旅程识别边界，再把共享但稳定的基础设施沉到更小的公共模块里，同时让依赖方向和模块层级彼此对齐。换句话说，模块化真正要解决的，是职责边界、依赖边界和构建边界同时失控的问题，而不是把代码机械切成更多 module。
 
 ## 学习目标
 
@@ -71,6 +71,8 @@
 - 构建边界
 
 也就是说，它让“我们怎么理解这个应用”和“Gradle 怎么组织这个应用”尽量保持一致。
+
+如果再往前走一步，很多更成熟的多模块项目还会继续在 `feature` 内部按用户旅程或业务子域细化粒度，而不是先从技术层名字开始拆。这种顺序之所以重要，是因为用户能感知的功能边界通常比“这个类是不是工具类”更稳定，模块层级也更容易围绕真实协作关系生长出来。
 
 ### 5. 模块化为什么会影响构建速度
 
@@ -170,9 +172,8 @@
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 10-15 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
-
+- 参考并改写自本地 PDF：Bennett M.，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，feature-oriented development、module hierarchy、分层与功能模块协同相关章节。
+- 参考并整理自本地 PDF：`Clean Android Architecture`，依赖方向、Repository 边界与 Clean Architecture 在多模块项目中的落地相关章节。
 - Guide to Android app modularization: <https://developer.android.com/topic/modularization>
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
 

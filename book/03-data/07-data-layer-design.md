@@ -2,7 +2,7 @@
 
 前面几章分别讲了配置、文件、SQLite、Room 和 JSON，但真正的 Android 项目不会把这些能力孤立使用。现实里的问题通常是：页面需要数据时，应该向谁要；本地和远程数据如何协作；缓存和真实来源如何划分；模型转换应该放在哪一层。所有这些问题，最终都会汇聚到“数据层设计”上。
 
-这一章很容易被写成几句抽象架构口号，例如“加一个 Repository”“保持单一可信来源”“不要让页面直接访问数据库”。这些结论当然没有错，但如果不把它们放回真实数据流里，读者很难真正理解为什么数据层会成为 Android 工程里的关键稳定器。本章要做的，就是把这些原则还原为真实项目中能落地的边界设计。
+这一章很容易被写成几句抽象架构口号，例如“加一个 Repository”“保持单一可信来源”“不要让页面直接访问数据库”。这些结论当然没有错，但如果不把它们放回真实数据流里，读者很难真正理解为什么数据层会成为 Android 工程里的关键稳定器。更成熟的架构资料也正是沿着这条线展开：数据层不是一句口号，而是让本地来源、远程来源、模型转换和页面状态真正各归其位的稳定边界。本章要做的，就是把这些原则还原为真实项目中能落地的边界设计。
 
 ## 学习目标
 
@@ -132,10 +132,8 @@ class TaskRepository(
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 8 章。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 6 章。
-- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 11 章。
-
+- 参考并改写自本地 PDF：`Clean Android Architecture`，Repository、数据边界、单一可信来源与 Dependency Rule 相关章节。
+- 参考并整理自本地 PDF：Bennett M.，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，data-domain-presentation 分层、feature 模块中的数据入口设计与 offline-first 相关章节。
 - Data layer：<https://developer.android.com/topic/architecture/data-layer>
 - Guide to app architecture：<https://developer.android.com/topic/architecture>
 - Recommendations for Android architecture：<https://developer.android.com/topic/architecture/recommendations>

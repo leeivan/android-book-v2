@@ -2,7 +2,7 @@
 
 当项目还比较小时，ViewModel 调 Repository 往往已经够用。但只要功能开始变复杂，你很快会遇到另一类问题: 一个动作不再只是“拿数据”，而是要跨多个 Repository 协作、做一串业务规则判断、决定失败时怎么退让、成功后怎么回写。到了这个阶段，如果所有流程都继续留在 ViewModel 里，页面状态层很快又会膨胀。
 
-`UseCase` 或 `Domain` 层的价值，就在于把“业务动作本身”抽出来。它不是为了让项目看起来更“企业级”，也不是每个项目都必须有，而是在回答一个问题: 当某个操作已经超出单纯页面状态组织时，这段业务流程应该放在哪里，才能既不压垮 ViewModel，又不把 Repository 变成业务垃圾桶。
+`UseCase` 或 `Domain` 层的价值，就在于把“业务动作本身”抽出来。更偏 Clean Architecture 的资料通常会把它放在更稳定的内层来理解：外层技术细节会不断变化，但“用户完成某个业务动作时，系统应该按什么规则运行”这件事更值得被稳定保存。因此 Domain 层不是为了让项目看起来更“企业级”，而是在回答一个问题: 当某个操作已经超出单纯页面状态组织时，这段业务流程应该放在哪里，才能既不压垮 ViewModel，又不把 Repository 变成业务垃圾桶。
 
 ## 学习目标
 
@@ -57,7 +57,7 @@ UseCase 往往就是在这种时刻出现的。
 - 业务规则本身比页面状态更复杂。
 - 你已经在 ViewModel 里看到了明显的流程膨胀。
 
-换句话说，UseCase 是为复杂业务动作服务的，而不是为“看起来标准”服务的。
+换句话说，UseCase 是为复杂业务动作服务的，而不是为“看起来标准”服务的。只有当你已经能明确说出“这一层在保护哪些更稳定的业务规则”时，Domain 层才真正开始产生收益。
 
 ### 4. 一个好的 UseCase 应该长什么样
 
@@ -182,11 +182,8 @@ UseCase / Domain 层真正要解决的，是复杂业务动作应该放在哪里
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 5 章。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 2、7-9、12 章。
-- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 8 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
-
+- 参考并改写自本地 PDF：`Clean Android Architecture`，UseCase、Repository 接口、Domain 内层边界与依赖规则相关章节。
+- 参考并整理自本地 PDF：Bennett M.，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，data-domain-presentation 分层与多模块应用中的业务动作组织相关章节。
 - Domain layer guide: <https://developer.android.com/topic/architecture/domain-layer>
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
 - Now in Android: <https://github.com/android/nowinandroid>

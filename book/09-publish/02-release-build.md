@@ -163,7 +163,8 @@ Release 构建真正代表的是“准备交给真实用户的正式产物”。
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 13 章。
+- 参考并改写自本地 PDF：Neil Smyth，《Android Studio Narwhal Essentials: Java Edition》(2025)，release 构建、AAB / APK、发布准备与 Play 交付相关章节。
+- 参考并整理自本地 EPUB：`Android Security - Attacks and Defenses`，正式构建中的日志、凭证与暴露面控制相关内容。
 - Build for release: <https://developer.android.com/build/build-for-release>
 - Shrink, obfuscate, and optimize your app: <https://developer.android.com/build/shrink-code>
 - App Bundle support FAQ: <https://developer.android.com/guide/app-bundle/faq>

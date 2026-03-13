@@ -2,7 +2,7 @@
 
 很多 Android 项目在最初只有几个页面时，并不会立刻觉得依赖管理有多痛苦。页面里自己 new 一个 Repository，Repository 里自己 new 一个 Retrofit 或 DAO，似乎也能跑。问题往往要等项目开始增长以后才集中爆发: 同一个依赖被多处重复创建，构造链越来越长，测试替换困难，生命周期和对象作用域开始对不上。到了这一步，你会发现真正麻烦的已经不是“少写了几行代码”，而是对象组装这件事完全失控了。
 
-依赖注入要解决的，就是“对象怎么被创建、怎么被复用、怎么在不同生命周期里稳定地交给需要它的地方”。`Hilt` 在 Android 里的价值，并不只是帮你少写模板，而是把原本分散在各个页面和工厂里的组装逻辑收回到一个更清晰的系统里。
+依赖注入要解决的，就是“对象怎么被创建、怎么被复用、怎么在不同生命周期里稳定地交给需要它的地方”。放到更完整的架构语境里看，`Hilt` 的价值还在于它把“依赖朝哪里流动”和“对象该活多久”这两件事同时收回来，让 Repository、UseCase、数据源和 ViewModel 的组装关系不再散落在页面里。它并不只是帮你少写模板，而是把原本分散在各个页面和工厂里的装配逻辑收回到一个更清晰的系统里。
 
 ## 学习目标
 
@@ -74,7 +74,7 @@ Hilt 的价值在于，它已经把这些 Android 组件边界考虑进来了。
 - 本该复用的对象被反复创建，浪费资源。
 - 本该短命的对象活得太久，状态污染或内存泄漏风险变高。
 
-所以学 Hilt 时，真正要学的是对象生命周期判断。
+所以学 Hilt 时，真正要学的是对象生命周期判断。只有当作用域判断和架构边界一起成立时，依赖注入才会真正减轻复杂度，而不是只把创建代码搬到别处。
 
 ### 6. 一个最小但真实的 Hilt 配置
 
@@ -179,11 +179,8 @@ Hilt 与依赖注入真正解决的，是对象创建、复用、替换和生命
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 5 章。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 2、7-9、12 章。
-- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 8 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
-
+- 参考并改写自本地 PDF：Bennett M.，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，依赖注入、模块层级与多模块应用装配相关章节。
+- 参考并整理自本地 PDF：`Clean Android Architecture`，依赖方向、UseCase/Repository 组装与可替换实现相关章节。
 - Hilt on Android: <https://developer.android.com/training/dependency-injection/hilt-android>
 - Hilt and Jetpack integrations: <https://developer.android.com/training/dependency-injection/hilt-jetpack>
 - Dependency injection guide: <https://developer.android.com/training/dependency-injection>

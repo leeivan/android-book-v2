@@ -2,7 +2,7 @@
 
 当页面开始同时面对网络、数据库、缓存和用户本地操作时，最容易发生的一件事，就是数据入口失控。一个列表页从 Room 读缓存，刷新时直接打 Retrofit，收藏状态又自己改数据库，错误处理还散落在页面和 ViewModel 里。功能勉强能跑，但一旦需求继续增长，你会发现几乎没人能完整解释“这份数据到底从哪来、谁说了算、失败后应该怎么办”。
 
-`Repository` 模式的价值，就在于给上层提供一个稳定、可理解的数据入口。它不是“多包一层”那么简单，而是在回答: 某个页面或某项业务，应该通过什么统一边界去拿数据、写数据、决定缓存和同步策略。
+`Repository` 模式的价值，就在于给上层提供一个稳定、可理解的数据入口。更偏架构的本地参考资料通常会把它看成内外层之间的重要接缝：内层只声明自己需要什么样的数据能力，外层再去接住网络、数据库、文件或缓存实现。因此 Repository 不是“多包一层”那么简单，而是在回答: 某个页面或某项业务，应该通过什么统一边界去拿数据、写数据、决定缓存和同步策略。
 
 ## 学习目标
 
@@ -123,7 +123,7 @@ Repository 也很容易被滥用。常见错误包括:
 - 把完全不相干的业务动作放进同一个 Repository。
 - 让 Repository 同时承担复杂流程编排和业务规则判断。
 
-更稳的判断标准是: 如果某段逻辑的核心问题是“数据从哪来、怎么合并、怎么同步、谁是可信来源”，它通常适合 Repository；如果核心问题是“某个页面怎样显示”或“一个跨页面业务动作如何编排”，那通常应该交给 ViewModel 或 UseCase。
+更稳的判断标准是: 如果某段逻辑的核心问题是“数据从哪来、怎么合并、怎么同步、谁是可信来源”，它通常适合 Repository；如果核心问题是“某个页面怎样显示”或“一个跨页面业务动作如何编排”，那通常应该交给 ViewModel 或 UseCase。也正因为如此，Repository 最值得保护的不是某个具体 Retrofit 或 Room 调用，而是那条对上层稳定暴露的数据能力边界。
 
 ### 8. 为什么 Repository 经常让测试变容易
 
@@ -176,11 +176,8 @@ Repository 模式真正解决的是“数据入口和数据策略混乱”的问
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 5 章。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 2、7-9、12 章。
-- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 8 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1 章。
-
+- 参考并改写自本地 PDF：`Clean Android Architecture`，Repository 接口、数据边界、Dependency Rule 与数据层实现相关章节。
+- 参考并整理自本地 PDF：Bennett M.，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，data-domain-presentation 分层、feature 模块与数据能力组织相关章节。
 - Data layer guide: <https://developer.android.com/topic/architecture/data-layer>
 - Offline-first architecture: <https://developer.android.com/topic/architecture/data-layer/offline-first>
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>

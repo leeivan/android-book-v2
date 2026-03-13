@@ -2,7 +2,7 @@
 
 安全问题在 Android 项目里最容易被推迟，因为它在功能开发早期往往不直接影响“能不能跑”。很多团队直到出现真实风险才开始认真补安全，例如组件被意外导出、调试日志泄露 token、WebView 加载了不可信内容、文件共享边界太宽、明文传输被抓到、密钥直接写在仓库里。到了那个阶段，安全就不再是“再优化一下”，而是必须回头补基础。
 
-参考资料在讲安全时有一个很值得保留的特点：不会把安全写成“密码学专题”，而是写成一组日常工程判断。本章也沿用这个角度。现代 Android 安全首先是边界治理问题：组件边界是否收紧、敏感信息是否被克制处理、网络是否可信、权限是否最小化、调试信息是否越界。只要这些基本判断建立起来，项目的安全基线就会稳很多。
+本地安全参考资料反复强调的一点，是 Android 安全模型首先不是一堆零散技巧，而是一套分层边界：应用默认运行在隔离进程和独立 UID 下，权限决定它能触达哪些系统能力，组件导出与外部输入决定攻击面有多宽，网络配置、WebView 和文件共享则决定这条边界在和外部世界交互时会不会被重新撕开。本章沿用这个视角，把安全理解成“持续缩小暴露面”，而不是只在最后时刻补几个加密选项。
 
 ## 学习目标
 
@@ -20,7 +20,7 @@
 
 ### 1. 安全问题最常见的形态不是“被攻击”，而是边界放得太松
 
-很多安全问题并不是因为项目没有上复杂加密，而是因为最基本的边界没收紧。例如：
+很多安全问题并不是因为项目没有上复杂加密，而是因为最基本的边界没收紧。Android 的隔离模型确实已经帮应用建立了第一道线，但这条线一旦因为 exported 组件、过宽权限、调试日志或不受控 WebView 被自己主动放松，风险就会重新落回应用代码层。例如：
 
 - 不该对外的 Activity / Receiver 被导出了。
 - 调试日志直接打印 token 或用户信息。
@@ -37,7 +37,7 @@
 - 允许谁调用？
 - 传进来的数据是否可信？
 
-这对 Activity、Service、BroadcastReceiver、ContentProvider 都成立。很多组件安全问题，本质上不是组件本身危险，而是开发者默认所有外部输入都可信、所有入口都应该开放。只要这个默认值改掉，很多基础风险会直接下降。
+这对 Activity、Service、BroadcastReceiver、ContentProvider 都成立。很多组件安全问题，本质上不是组件本身危险，而是开发者默认所有外部输入都可信、所有入口都应该开放。真正成熟的默认值应该是“先把攻击面收窄，再为明确需要的调用关系开口子”。只要这个默认值改掉，很多基础风险会直接下降。
 
 ### 3. 网络安全不是“上线前记得开 HTTPS”
 
@@ -89,7 +89,7 @@
 - 外部传入的 Intent data 直接使用。
 - 下载内容未经校验就展示或执行。
 
-这些问题的共同点是，应用在无意识地扩大自己对外部输入的信任范围。成熟的默认值应该是：外部输入默认不可信，需要被校验、约束和最小化使用。
+这些问题的共同点是，应用在无意识地扩大自己对外部输入的信任范围。尤其 WebView 这类既像展示容器又像浏览器入口的组件，一旦和不受控 URL、脚本能力、外部 Intent 数据直接拼接，往往会把原本局部的功能点变成整条安全链路上的薄弱环节。成熟的默认值应该是：外部输入默认不可信，需要被校验、约束和最小化使用。
 
 ### 8. 权限最小化本身就是安全设计
 
@@ -158,9 +158,8 @@ Android 安全基础真正要建立的，不是几个零散技巧，而是一套
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 10-15 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
-
+- 参考并改写自本地 EPUB：`Android Security - Attacks and Defenses`，Android 安全模型、权限、Intent、ContentProvider 与 WebView 安全相关章节。
+- 参考并整理自本地 PDF：`The Android Malware Handbook: Detection and Analysis by Human and Machine`，应用隔离、攻击面收缩、导出组件与移动端常见风险分析相关章节。
 - Android app security best practices: <https://developer.android.com/privacy-and-security/security-best-practices>
 - Security tips: <https://developer.android.com/privacy-and-security/security-tips>
 - Network security config: <https://developer.android.com/privacy-and-security/security-config>

@@ -2,7 +2,7 @@
 
 只要应用的数据依赖网络，离线缓存就不是可有可无的小优化，而是体验设计的一部分。用户不会因为你“理论上可以重新请求一次”就接受白屏、空页面和反复加载。对移动应用来说，弱网、无网、网络抖动、切后台和接口波动都是常态，缓存的价值正在于帮助应用在这些不稳定条件下仍保持可用。
 
-很多人第一次做缓存时，思路是“请求成功后顺手存一份本地数据”。这当然比完全不存要好，但还远远不够。真正的难点不在“有没有存”，而在“页面最终信任谁”“远程结果何时写回本地”“什么时候算过期”“离线时该显示什么”。本章会把这些问题串起来，让缓存不再只是附属功能，而成为完整数据链路的一部分。
+很多人第一次做缓存时，思路是“请求成功后顺手存一份本地数据”。这当然比完全不存要好，但还远远不够。真正的难点不在“有没有存”，而在“页面最终信任谁”“远程结果何时写回本地”“什么时候算过期”“离线时该显示什么”。更成熟的离线优先资料通常不会把缓存当作网络层尾部的小附件，而是直接把它放进 Repository、Room 和单一可信来源这条主数据链里。本章会把这些问题串起来，让缓存不再只是附属功能，而成为完整数据链路的一部分。
 
 ## 学习目标
 
@@ -192,10 +192,8 @@ class ArticleRepository(
 
 ## 参考资料
 
-- 参考并改写自：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)，第 6 章。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，第 3-4 章。
-- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 6 章。
-
+- 参考并整理自本地 PDF：Bennett M.，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，offline-first、canonical source of truth 与多模块应用中的本地优先数据流相关章节。
+- 参考并整理自本地 PDF：`Real-World Android by Tutorials`，本地缓存、列表数据回填与网络-数据库协作相关内容。
 - Build an offline-first app：<https://developer.android.com/topic/architecture/data-layer/offline-first>
 - Recommendations for Android architecture：<https://developer.android.com/topic/architecture/recommendations>
 - Room：<https://developer.android.com/training/data-storage/room>
