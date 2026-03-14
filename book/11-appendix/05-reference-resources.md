@@ -1,101 +1,157 @@
-# 本地参考资料与后续学习路径
+# 参考资料与后续学习路径
 
-学完整本书以后，很多人会立刻遇到新的困惑。前面的章节解决的是“Android 该怎么学”，后面的真实问题却变成了“接下来该往哪里继续走”。如果这时只是不断收藏链接、订阅频道、保存项目仓库，学习看起来像在推进，实际上却很容易停在一种持续输入、很少转化的状态里。
+读完整本书以后，最容易出现的新问题不是“没有资料”，而是“资料太多，入口太散”。本仓库的 `reference/` 目录已经积累了大量 Android 相关书籍、手册和配套文件，它足够支撑后续扩写、重写和自学，但前提是我们先把它整理成可用的资料地图，而不是继续把所有文件视为平行入口。
 
-这一章不再把参考资料继续堆成一张长清单，而是直接回到本仓库真正会用到的本地 `reference/` 目录。对这本书来说，后续学习最重要的不是“再找更多资料”，而是先把已经在本地的 EPUB 和 PDF 按主题、年代和用途整理清楚，再把它们和正文的章节结构对应起来。只要这一层关系理顺，后面不管是补章节、扩写正文，还是自己继续进阶，都不会再陷入“同类资料开了一堆，却不知道哪本该先看”的状态。
+这一章的目标，就是把 `reference/` 从“文件堆”变成“写作工作台”。后续无论是继续补正文、重写某一章，还是自己深入一个专题，都应先回到这里判断：这次需要的是基础教材、项目实践、架构资料、安全资料，还是一份历史对照材料。只要这一步先做对，正文就不容易再写成资料摘抄。
 
 ## 学习目标
 
-- 理解 `reference/` 目录里不同资料各自适合解决什么问题。
-- 学会把重复或相近的书合并成更小的主题资料集，而不是把它们当成平行入口。
-- 学会根据本书的章节位置回到最合适的本地参考源。
-- 建立“选一组最小资料集 -> 整理章节 -> 再回官方边界”的稳定工作顺序。
+- 理解 `reference/` 目录中不同资料组的角色，而不是只记单本书名。
+- 学会为一个章节只选一组最小资料集，而不是并行打开大量相近资料。
+- 学会区分现代主参考、项目实践补充、架构专题和历史对照材料。
+- 建立“判断主题 -> 选主参考 -> 选补充参考 -> 回官方核边界 -> 重写正文”的稳定闭环。
 
 ## 前置知识
 
-- 已完成本书主线内容学习，或至少完成其中大部分章节。
-- 愿意继续通过本地参考资料、少量官方边界核对和自己的代码实验深化理解。
+- 已完成本书主线阅读，或至少已经知道各部分的大致主题。
+- 愿意把资料选择也当成写作和学习的一部分，而不是临时决定。
 
 ## 正文
 
-### 1. 先把本地 `reference/` 当作主入口，而不是资料仓库
+### 1. 先看清 `reference/` 的整体结构
 
-这套仓库已经把后续写作真正高频会用到的资料放进了 `reference/`。因此继续学习时，最有效的第一步不是重新上网搜一轮“最佳 Android 书单”，而是先判断本地资料里哪些是主资料，哪些只是补充资料，哪些更适合拿来做历史对照。只有先把这一层理顺，正文整理才不会反复被同类资料拉扯。
+当前 `reference/` 目录以 PDF 和 EPUB 为主，还混有少量 HTML、TXT、ZIP、AZW3 和 MOBI 文件。实际分布是：185 份 PDF、13 份 EPUB、22 份 TXT、4 份 HTML、4 份 ZIP，外加极少量其他格式。这个规模已经足以说明一个事实：它不是一套需要逐本顺读的“个人书单”，而是一座需要分层使用的本地资料库。
 
-对本书的写作和修订来说，最稳妥的默认顺序通常是这样的。先用 `SUMMARY.md` 和当前章节判断主题位置，再从 `reference/` 里选一组最小资料集，通常只包含一份主参考和一到两份补充参考；如果主题涉及平台边界、权限或发布规则，再回到官方文档做最后核对。这样做的关键不是保守，而是为了避免同一个章节同时吸收太多同类说法，最后把正文写成资料摘抄。
+这些文件里既有现代 Android 开发教材，也有早期 Java 时代的入门书、用户手册、Dummies 系列、历史版 Android Studio 教材和少量安全专题资料。它们的价值并不相同。继续把它们视为同一层级，只会让读者在“应该先看哪本”这件事上不断犹豫。
 
-### 2. 先把重复或相近的资料合并掉
+因此，使用 `reference/` 的第一原则不是“再多读一些”，而是先判断这次正在解决什么问题。是平台基础、UI 组织、架构扩展、安全边界，还是旧项目迁移？问题类型一旦明确，资料范围会立刻缩小。
 
-`reference/` 里最明显的一类重复，是同一主题在不同格式或不同版本上的平行出现。最典型的例子是 `Android Programming: The Big Nerd Ranch Guide, 5th Edition` 同时存在 EPUB 和 PDF。对正文整理来说，这两份资料不应该被视为两本不同来源，而应该合并成一组。默认优先 EPUB，因为更方便抽取和定位连续叙述；当 EPUB 某些章节排版不清楚时，再回到 PDF 做核对即可。
+### 2. 基础主线资料，负责稳定叙事
 
-另一类重复来自 Neil Smyth 的 Android Studio Essentials 系列。`Hedgehog`、`Iguana`、`Jellyfish` 和 `Narwhal` 这几本并不是四套完全独立的现代资料，更接近同一条教材线在不同 Android Studio 版本上的更新。对今天的章节整理来说，`Android Studio Narwhal Essentials` 应该作为默认主资料，`Jellyfish`、`Iguana` 和 `Hedgehog` 只在需要对照旧版写法、确认 API 迁移背景，或者补充某个 Narwhal 版本没有展开的细节时再打开。
+如果主题属于 Android 概述、开发环境、第一个应用、项目结构、生命周期和常见组件，那么最值得优先打开的是基础主线资料。这一层里，最核心的两组是：
 
-还有一组资料虽然仍有参考价值，但不应该再和现代资料并列作为主源，例如更早期的 Java Android 书、Dummies 系列和明显属于历史平台阶段的旧版教材。它们更适合拿来说明“以前为什么这么写”或者“某些旧项目为什么还保留这种结构”，不适合直接反向指导本书当前正文的推荐实践。
+- `Android Programming: The Big Nerd Ranch Guide, 5th Edition`
+- `Android Studio Narwhal Essentials`
 
-### 3. 基础与系统能力，优先看稳定主线资料
+Big Nerd Ranch 的 EPUB 目录非常能说明它为什么适合担任基础主线。它在开头就连续安排了 “Learning Android”“The Necessary Tools”“Your First Android Application”“Interactive User Interfaces”“The Activity Lifecycle” 这些主题，说明它的强项是把基础平台、最小应用和页面行为组织成一条连续教学路径，而不是把概念拆散。
 
-如果回看的是基础、项目结构、Activity 生命周期、系统组件和平台能力相关章节，最稳的主线通常来自三类资料。第一类是 `Android Programming: The Big Nerd Ranch Guide, 5th Edition`，它擅长把组件、生命周期、RecyclerView、Profiler、位图和常见应用流程讲成一条连续教学叙事。第二类是 `Android Studio Narwhal Essentials`，它更贴近当前工具链、发布流程、通知、构建与较新的平台约束。第三类是 `Mastering Kotlin for Android 14`，它适合补当前 Kotlin 与现代 Android 开发语境下的实现细节。
+Narwhal 系列的价值则更靠近当前工具链与平台约束。它更适合用来核对 Android Studio、SDK、构建、设备调试、通知、发布流程和一些较新的平台边界。换句话说，Big Nerd Ranch 更像稳定的主讲材料，Narwhal 更像当前工具链的现代补充。
 
-这意味着，当本书里某一章主要是在帮助读者建立平台能力认知时，不需要同时打开三四本近似的“Android 全栈入门书”。更好的做法是先确定哪一本在这个主题上更像主讲人，再用另一份资料补足实现视角。例如通知、性能和构建这类主题，就更适合让 Narwhal 或 Big Nerd Ranch 先承担主叙述，而不是把各种现代 Android 总论混在一起。
+如果一个章节主要在回答“这个平台能力为什么存在”“最小链路怎样跑通”“这一层工具各自负责什么”，就不该同时打开很多现代 Android 总论。先让基础主线教材承担连续叙事，再用 Narwhal 或少量官方文档核对版本边界，通常已经足够。
 
-### 4. UI 与项目实践，更适合读“做法”和“完整例子”
+### 3. UI 与项目实践资料，负责把做法落地
 
-当主题转到 UI、Compose、导航、常见交互和小型项目实践时，资料选择就应该明显变化。`Kickstart Modern Android Development With Jetpack And Kotlin`、`Tiny Android Projects Using Kotlin`、`Real-World Android by Tutorials` 和 `Android Accessibility by Tutorials` 这组资料，更适合承担“怎么落地”和“完整项目里怎样组织”的角色。
+当主题转到布局、常用组件、交互、Compose、导航、Material、列表和项目练习时，资料选择应明显切换。更适合担任主参考的通常是：
 
-这类书的价值不在于替代平台文档，而在于它们更善于把一个主题从零件拼成可运行页面、可交互流程和较完整的应用结构。也正因为如此，UI 与项目章节通常不需要把很多近似项目书同时打开。只要先判断自己缺的是基础交互、现代 Compose 页面组织、可访问性补课，还是完整项目参考，就能很快把资料范围收缩到一两本真正相关的书上。
+- `Real-World Android by Tutorials`
+- `Tiny Android Projects Using Kotlin`
+- `Android Accessibility by Tutorials`
+- `Kickstart Modern Android Development With Jetpack And Kotlin`
+- `Jetpack Compose 1.7 Essentials`
 
-### 5. 架构与可扩展工程，优先交给更专业的架构资料
+这一组资料的共同价值，不在于替代官方文档，而在于它们更擅长把“概念”推进到“可运行页面”和“较完整项目结构”。例如 Compose 主题更需要状态驱动、页面拆分和真实项目组织；交互与组件主题更需要看到控件如何在一个完整页面里协同；可访问性主题则需要把语义、反馈和布局判断放回真实界面中理解。
 
-一旦章节主题进入 Repository、UseCase、模块化、分层、可扩展项目结构和 Clean Architecture，原来那组“通用 Android 教材”就不再是最合适的主源了。对这些主题，本地资料里更应该优先使用的是 `Clean Android Architecture`、`Scalable Android Applications in Kotlin and Jetpack Compose` 以及 `Ultimate Android Design Patterns` 这一组更偏工程结构和长期演进的资料。
+因此，UI 章节最不该做的，就是把很多书同时摊开，最后把正文写成组件说明拼盘。更稳的做法是：先判断这一章缺的是页面结构、交互反馈、Compose 心智模型，还是完整项目练习，再从这一组里选一份主参考和一份补充参考。
 
-这组资料最重要的价值，在于它们关心的不是“某个 API 会不会用”，而是“业务边界如何进入代码结构”“依赖为什么要朝内收”“feature module 为什么要按用户旅程或稳定能力划分”“data-domain-presentation 怎样在真实项目里协同”。因此，只要正文已经进入模块边界、依赖方向、UseCase 价值和 Clean Architecture 示例，继续沿用更泛化的 Kotlin/Android 入门书做主参考，信息就会开始偏散。更好的方式，是直接切换到架构主线资料，再用现代 Android 通用教材做补充说明。
+### 4. 架构与工程扩展资料，负责解释长期复杂度
 
-### 6. 安全与发布，不要再用泛化教材硬撑
+只要章节已经进入 Repository、UseCase、模块化、依赖方向、Clean Architecture 和设计模式，通用 Android 教材就不再是最合适的主源。此时更应该切换到：
 
-安全与发布是另一组最容易被“泛化教材”覆盖却始终讲不深的主题。本地资料里已经有更合适的安全来源：`Android Security - Attacks and Defenses` 和 `The Android Malware Handbook: Detection and Analysis by Human and Machine`。前者更适合用来整理 Android 的安全模型、权限边界、Intent、ContentProvider、WebView 和组件暴露面；后者更适合补应用隔离、攻击面收缩、导出组件风险、恶意样本视角下的常见失误，以及 Play Protect、侧载与发布链条上的风险理解。
+- `Clean Android Architecture`
+- `Scalable Android Applications in Kotlin and Jetpack Compose`
+- `Ultimate Android Design Patterns`
 
-发布相关章节则更适合回到 `Android Studio Narwhal Essentials` 这种更贴近当前工具链与发布流程的资料。也就是说，安全章节和发布章节虽然都属于“工程后段”，但它们其实依赖的是不同类型的主参考。把它们都交给一套泛化 Android 入门书去覆盖，正文通常会变得正确但不够有抓手。
+这些资料关心的不是“某个 API 会不会用”，而是“边界怎么收”“依赖为什么要朝内”“模块为什么这样划分”“页面状态和数据层怎样长期协作”。这正是应用在规模扩大后最容易失控的部分。
 
-### 7. 按本书结构回看，本地资料的对应关系大致是清楚的
+因此，架构章节的主参考应该明显更专业。只要正文已经开始讨论 Repository 为何不是机械透传、UseCase 是否真的需要、模块到底按技术层还是按功能域拆分，那么继续把通用入门书当主参考，信息就会开始发散。更好的方式，是让架构专题资料负责主线，再用现代 Android 通用教材补足 API 或项目语境。
 
-如果你回到本书前几部分，例如基础、项目结构和常见 UI 组件，优先看 Big Nerd Ranch、Narwhal 和少量现代 Kotlin Android 教材会更稳，因为这些章节主要在建立连续认知和最小实现路径。到了数据、网络、并发和后台任务部分，Narwhal、Big Nerd Ranch 与一些项目实践类书会更适合协同使用：前者负责当前平台与工具链，后者负责把网络、缓存、列表、图片与后台流程串起来。
+### 5. 安全与发布资料，不能再交给泛化教材
 
-再往后进入架构、模块化和工程治理时，主资料应该切换为 `Clean Android Architecture` 与 `Scalable Android Applications in Kotlin and Jetpack Compose`。到了系统组件、权限、安全、通知和发布，Big Nerd Ranch、Narwhal、安全专题资料又会重新成为更适合的主源。最后，项目章节最适合回到 `Tiny Android Projects Using Kotlin`、`Real-World Android by Tutorials` 以及架构类书，去看完整功能链和工程结构如何落在一个实际应用里。
+安全与发布是另一组特别容易被“泛化教材”带过去、却很难真正讲透的主题。对这些主题，本地资料里最值得优先使用的是：
 
-换句话说，本书并不是每一章都需要重新“从所有参考资料里选”。大部分时候，只要先判断这章属于基础与平台、UI 与项目实践、架构与工程扩展，还是安全与发布，主参考范围就已经收得很小了。
+- `Android Security - Attacks and Defenses`
+- `The Android Malware Handbook: Detection and Analysis by Human and Machine`
+- `Android Studio Narwhal Essentials`
 
-### 8. 真正有效的做法，是为每一章只选一组最小资料集
+`Android Security - Attacks and Defenses` 的 EPUB 目录本身就能说明它的使用位置。它不仅覆盖 Android architecture 和 application architecture，还单独展开了 Android security model、pen testing、reverse engineering、browser security 和 future threat landscape。这意味着它特别适合为“权限、组件暴露、WebView、文件边界、日志与输入信任”这类章节提供安全视角。
 
-整理正文时，最稳妥的经验不是“越多资料越完整”，而是“每章先选一组最小资料集”。一个比较稳定的最小组合通常是：一份主参考，负责连续叙事；一份补充参考，负责案例、结构或某个实现角度；再加一次必要的官方边界核对。只要超过这个范围，章节很容易开始出现重复定义、相似例子和同义改写，结果看起来更厚，实际上逻辑反而松了。
+`Android Malware Handbook` 更适合作为补充参考。它能帮助我们从攻击面、恶意样本和风险收缩角度重新看组件导出、权限滥用和数据暴露，但它不适合直接替代基础教材成为入门章节主线。
 
-例如在模块化章节里，主参考完全可以是 `Scalable Android Applications in Kotlin and Jetpack Compose`，补充参考是 `Clean Android Architecture`，最后只回官方文档确认当前 modularization 与 architecture recommendations 的边界即可。又例如在安全章节里，主参考可以换成 `Android Security - Attacks and Defenses`，补充参考是 `The Android Malware Handbook`，再回官方文档核对 network security config、best practices 和权限相关边界。只要主次关系明确，正文就会更像一条教学路径，而不是资料混编。
+发布主题则更适合回到 Narwhal 或同类现代 Android Studio 教材，因为签名、AAB、发布流程、版本维护和 Play 交付这些内容，更依赖工具链和当前流程，而不是安全专题资料本身。
 
-### 9. 历史资料的价值，在于帮助你识别“为什么旧项目会这样”
+### 6. 历史资料的作用，是解释演进，不是提供主线
 
-旧资料并不等于没价值。它们真正的价值不在于继续当今天的默认答案，而在于帮助你理解历史代码、旧文章和遗留项目为什么会有今天看起来不够现代的写法。比如早期 Java Android 书、旧版 Android Studio 教材和 Dummies 系列，在做平台迁移、教学对比或代码考古时仍然有意义。但在本书的当前正文里，它们更适合作为背景说明，而不是直接驱动推荐实践。
+`reference/` 里还有一大批早期资料，例如 2008-2015 年间的 Android 入门书、Dummies 系列、旧版 Java Android 教材、早期 Android Studio 指南和用户手册。它们当然不是毫无价值，但它们的价值主要在三个地方：
 
-因此，更成熟的资料观不是简单地把旧资料丢掉，而是先承认它们的时代位置。现代正文优先使用现代资料；历史资料只在解释迁移背景、旧 API 习惯和历史包袱时出场。这样既能保留知识连续性，也不会把过时做法误写成当前推荐。
+- 解释旧项目里为什么会出现今天看来不够现代的写法。
+- 补充平台演进背景，帮助读者识别 API 历史包袱。
+- 在迁移说明、对照说明和代码考古时提供历史上下文。
 
-### 10. 继续学习时，真正要形成的是“选材闭环”
+它们不适合继续作为新项目默认实践的主源。只要正文今天在推荐 Kotlin、AndroidX、Jetpack、现代权限模型、WorkManager 或 Compose，就不应再让这些历史资料反向主导结论。更成熟的做法，是把它们放回“历史视角”而不是“当前主线”。
 
-后续学习最怕的不是慢，而是散。你完全可以让自己每次只推进一个主题，但必须形成一个稳定闭环：先判断当前卡在什么主题，再从 `reference/` 里挑一组最小资料集，完成一次章节级整理或最小实现，然后再回到自己的代码或本书正文里做一次真正落地。只要这个闭环建立起来，资料就会不断转化成结构化理解，而不是继续堆成未消化的收藏。
+### 7. 按本书结构选择主参考，比按书名选择更稳
 
-因此，这一章最终想建立的不是一张更长的资源清单，而是一套更小、更稳的使用方法。只要你能先合并重复资料，再按主题挑主源，再把资料重新落回正文和项目，`reference/` 目录就不再是静态仓库，而会真正变成这本书后续演进的写作基础。
+真正稳定的资料使用方式，不是记住“哪本书好”，而是先判断当前章节处在全书的哪一部分。按本书结构看，大致可以这样回到主参考：
+
+- 基础篇：优先 Big Nerd Ranch，补 Narwhal 与少量官方文档。
+- UI 开发：优先 Real-World Android by Tutorials、Kickstart、Compose 相关资料，补 Accessibility 与官方 codelab。
+- 数据与网络：优先 Big Nerd Ranch、Real-World Android by Tutorials 和现代架构资料，必要时回官方网络与数据层文档核边界。
+- 架构篇：优先 Clean Android Architecture 与 Scalable Android Applications。
+- 并发篇：优先现代 Kotlin/Android 实践资料，补 Big Nerd Ranch 和官方协程文档。
+- 系统组件篇：优先 Big Nerd Ranch、Narwhal 与安全资料。
+- 工程实践与发布：优先 Narwhal、Scalable Android Applications，以及安全专题资料。
+- 综合项目篇：优先 Tiny Android Projects、Real-World Android by Tutorials 和架构资料。
+
+这样选的好处是：你不是被单本书牵着走，而是在用章节需求倒推资料角色。正文也会因此更像一条教学路径，而不是“我最近看到了哪些资料”的堆叠。
+
+### 8. 真正可执行的做法，是每章只选一组最小资料集
+
+一章最稳定的资料组合通常只有三层：
+
+1. 一份主参考，负责连续叙事。
+2. 一份补充参考，负责补案例、结构或另一种实现视角。
+3. 一次官方核对，负责确认平台边界、权限要求、版本行为或发布规则。
+
+只要超过这个范围，正文就很容易出现重复定义、近义改写和结构松动。资料并不是越多越稳，反而越容易把写作者拉回“摘抄和折中”。
+
+例如模块化章节完全可以让 `Scalable Android Applications in Kotlin and Jetpack Compose` 担任主参考，让 `Clean Android Architecture` 负责补依赖方向，再回官方文档核对 modularization 和 architecture recommendations。安全章节则可以让 `Android Security - Attacks and Defenses` 担任主参考，让 `Android Malware Handbook` 补攻击面视角，最后回官方安全最佳实践确认当前边界。
+
+### 9. 整理正文时，资料导读不应反复挤进章内主体
+
+这轮正文整理暴露出的一个共性问题是：很多章节一边讲概念，一边顺手讲“这部分资料该怎么学”。适度提醒没有问题，但如果每章都重复展开，就会让正文从教材慢慢变成编者按合集。更稳的做法是：
+
+- 章节主体只负责概念、示例、实践任务和误区。
+- 资料使用方法统一收束到本附录。
+- 章节里只保留一两段与当前主题直接相关的学习路径提示。
+
+这样处理之后，章节会更聚焦，附录则真正承担起资料地图的角色。读者需要扩展阅读时，统一回附录判断主参考，而不是在每一章里重新看一遍“如何读资料”。
+
+### 10. 后续学习真正要形成的是“选材闭环”
+
+后续学习最怕的不是慢，而是散。真正有效的闭环通常是这样的：
+
+1. 先判断当前卡住的是哪个主题。
+2. 再按本章给出的分组，选一份主参考和一份补充参考。
+3. 在官方文档中只核对当前章节真正依赖的边界事实。
+4. 回到本书正文或自己的项目，做一次真正落地。
+5. 如果仍有缺口，再追加下一轮资料，而不是一开始就并行打开很多来源。
+
+只要这个闭环建立起来，`reference/` 就不再是静态文件夹，而会真正成为这本书持续演进的写作基础。
 
 ## 小结
 
-本地 `reference/` 的价值，不在于它同时装下了很多 EPUB 和 PDF，而在于它已经足够构成一套可持续使用的资料地图。只要先把重复资料合并成主题组，再按本书章节判断这次到底是在处理基础与平台、UI 与项目实践、架构与工程扩展，还是安全与发布，正文整理就能明显更稳。真正有效的后续学习也会因此从“继续找资料”转向“围绕问题使用资料”。
+本地 `reference/` 的价值，不在于它收集了很多文件，而在于它已经足够构成一张清晰的资料地图。只要先分清基础主线、项目实践、架构扩展、安全发布和历史对照这几层，再按章节需求选一组最小资料集，正文整理就会明显更稳，后续学习也会从“继续找资料”转向“围绕问题使用资料”。
 
 ## 练习题
 
-1. 打开 `reference/` 目录，把你认为属于“基础与平台”“UI 与项目实践”“架构与工程扩展”“安全与发布”的资料各列出一组，并说明你为什么这样分。
-2. 任选本书一章，先判断它更适合用哪一组本地资料作为主参考，再说明你准备保留哪一份补充参考，舍弃哪些相近资料。
-3. 找一份明显偏旧的 Android 资料，说明它今天仍然适合拿来解决什么问题，又不适合再直接指导哪些现代正文写法。
+1. 打开 `reference/` 目录，先按“基础主线”“项目实践”“架构扩展”“安全发布”“历史对照”五组做一次归类，再说明你最不确定的三份资料为什么难以归类。
+2. 任选本书一章，写出它的主参考、补充参考和需要核对的官方边界各是什么，并说明为什么不再额外加入第三本同类教材。
+3. 找一份明显偏旧的 Android 资料，说明它今天仍然适合解释什么历史问题，又为什么不适合继续充当现代正文的主源。
 
 ## 参考资料
 
 - 本地参考资料：Bryan Sills、Brian Gardner、Kristin Marsicano、Chris Stewart，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》EPUB/PDF。
-- 本地参考资料：Neil Smyth，《Android Studio Narwhal Essentials: Java Edition》(2025)，以及 `Hedgehog`、`Iguana`、`Jellyfish` 同系列旧版补充资料。
+- 本地参考资料：Neil Smyth，《Android Studio Narwhal Essentials: Java Edition》(2025)，以及 `Hedgehog`、`Iguana`、`Jellyfish` 等同系列资料。
 - 本地参考资料：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)。
 - 本地参考资料：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)。
 - 本地参考资料：Kickstart Modern Android Development With Jetpack And Kotlin (2024)。
