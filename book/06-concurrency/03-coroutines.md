@@ -1,4 +1,4 @@
-﻿# Kotlin Coroutines
+# Kotlin Coroutines
 
 很多读者第一次认真使用协程，并不是因为想学一门新的并发理论，而是因为旧方式已经开始撑不住了。页面里嵌套回调越来越长，线程切换越来越乱，取消越来越难处理，网络请求和数据库读写一多，状态更新也开始互相覆盖。协程之所以成为现代 Android 异步主线，不是因为它“写起来更像同步代码”这么简单，而是因为它提供了一套更统一的方式来组织任务、取消、线程切换和结果归属。
 
@@ -63,6 +63,8 @@ Android 上的大量工作都具备两个共同特点:
 - 页面离开后很多结果已经没有意义。
 
 这也是为什么现代实践里更强调 `viewModelScope`、`lifecycleScope` 和明确的作用域，而不是随手 new 线程或全局起任务。
+
+Big Nerd Ranch 在 `CriminalIntent` 的协程重构里给了一个很有教学价值的对照：一开始 `CrimeListFragment` 用 `job: Job?` 搭配 `onStart()` / `onStop()` 手动启动和取消加载；随后改成 `viewLifecycleOwner.lifecycleScope.launch { viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { crimeListViewModel.crimes.collect { ... } } }`。这个变化看似只少了几行代码，实质却是在把协程重新绑定到清晰的生命周期边界上，让“何时开始、何时取消”从手工约定变成结构化约束。
 
 ### 5. `launch`、`async` 和 `withContext` 该怎样理解
 
@@ -139,6 +141,8 @@ class ArticleListViewModel(
 - I/O 与状态更新边界清楚。
 - 页面只消费状态，不直接参与异步过程。
 
+《Thriving in Android Development Using Kotlin》里的 `ChatViewModel` 则把 `launch`、`withContext` 和取消放到一条完整链路里：`messageCollectionJob = viewModelScope.launch(Dispatchers.IO)` 负责长期收集消息流，`map { it.toUI() }` 在后台整理数据，只有真正写回 `_messages` 时才 `withContext(Dispatchers.Main)`，最后在 `onCleared()` 里取消 job 并调用 `disconnectMessages()`。这个例子很适合用来校准一个常被忽略的判断：协程不是“开起来就完了”，谁拥有任务的生命周期，谁就必须负责它的结束。
+
 ### 9. 协程不会自动给你合理架构
 
 这一点特别需要强调。很多项目迁移到协程后，以为异步问题已经解决，结果只是把原来的回调混乱换成了新的 `launch` 混乱。只要:
@@ -197,7 +201,7 @@ class ArticleListViewModel(
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 12 章。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，协程作用域、状态持有与现代架构相关章节。
-- 参考并改写自：`Kickstart Modern Android Development With Jetpack And Kotlin`，协程、取消与异步任务组织相关章节。
+- 参考并改写自：Guilherme Socorro，《Thriving in Android Development Using Kotlin》(2024)，`ChatViewModel`、`viewModelScope.launch(Dispatchers.IO)`、`withContext(Dispatchers.Main)` 与取消相关章节。
 
 - Kotlin coroutines on Android: <https://developer.android.com/kotlin/coroutines>
 - Coroutines best practices: <https://developer.android.com/kotlin/coroutines/coroutines-best-practices>

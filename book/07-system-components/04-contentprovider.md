@@ -1,4 +1,4 @@
-﻿# ContentProvider
+# ContentProvider
 
 `ContentProvider` 可能是系统组件里最让读者困惑的一章之一。很多人学完以后只记住了一堆 URI、`ContentResolver` 和 CRUD 方法，却仍然不知道现实项目里到底什么时候会碰它，什么时候需要自己写一个 Provider，什么时候其实只是在使用系统已经提供好的 Provider。结果就是，这一章要么被当成纯理论，要么被误认为“每个应用都应该自定义一个 Provider”。
 
@@ -68,6 +68,8 @@ ContentProvider 的价值，就是提供一个正式、统一、可授权的数�
 
 换句话说，自定义 Provider 是一种“公开数据接口”的承诺，而不是普通本地存储技巧。大多数纯业务应用，如果没有明显跨应用共享需求，完全可以不写。
 
+`The Android Developer's Cookbook` 里的日记应用，则把“自定义 Provider 是对外协议”这件事讲得很落地：一边通过 `DiaryContentProvider` 暴露 `content://com.cookbook.datastorage/diaries`，另一边再用单独的 `DataStorageTester` 应用通过 `ContentResolver.query()` 把标题列表读出来。这个例子最值得保留的，不是早期 `Cursor` 细节，而是它清楚展示了 Provider 的真正对象永远是“另一个调用者”，而不是你自己应用内部的页面代码。
+
 ### 7. 自定义 Provider 最难的不是 CRUD，而是边界承诺
 
 很多教程写 Provider 时，把重点放在增删改查方法实现上。但真正困难的部分其实是:
@@ -78,6 +80,10 @@ ContentProvider 的价值，就是提供一个正式、统一、可授权的数�
 - 权限和导出边界怎么控制。
 
 一旦你对外公布了一套 URI 和访问语义，本质上就是在维护一套外部接口。这远比“把数据库封一下”更严肃。
+
+`Android Security - Attacks and Defenses` 用联系人 Provider 做了一个很好的参照：系统联系人应用和第三方应用之所以能共享同一批底层数据，不是因为它们共用数据库文件，而是因为它们都通过同一条 Provider 边界访问数据。书里还特别强调，`<provider>` 可以分别声明 `android:readPermission` 和 `android:writePermission`，系统会在 `ContentResolver.query()`、`insert()`、`update()`、`delete()` 调用时逐一检查权限。这个例子非常适合帮助我们建立正确直觉：Provider 不是一层方便写 CRUD 的包装，它首先是一道带门禁的数据接口。
+
+Neil Smyth 在 Jellyfish/Koala 这套教程里，又用一对 provider/client 示例把“默认边界”和“显式门禁”之间的差别讲得很清楚：当示例里的 SQLDemo 只把 Provider 声明到 Manifest、却没有额外声明权限时，作者明确指出“其他应用只要知道 content URI 和列名，就可能直接访问这批数据”；随后客户端教程再补上一层“先在 Manifest 中请求 query permission”，才让访问边界重新变得可控。这个例子特别适合放在这里，因为它提醒读者：Provider 一旦对外可见，真正危险的不是 CRUD 代码本身，而是你有没有把默认开放的门关上。
 
 ### 8. 一个更健康的理解路径
 
@@ -136,8 +142,11 @@ ContentProvider 真正要解决的，是结构化数据在组件和应用边界�
 
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，ContentProvider、文件共享与 URI 边界相关章节。
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，系统数据访问与组件边界相关内容。
+- 参考并改写自：`Android Security - Attacks and Defenses`，ContentProvider 权限边界与访问控制相关章节。
 - 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，文件共享、媒体访问与真实项目集成相关章节。
 
+- 参考并改写自：James Steele、Nelson To，《The Android Developer's Cookbook》(2011)，自定义 ContentProvider 与跨应用查询相关 recipes。
+- 参考并改写自：Neil Smyth，《Android Studio Jellyfish Essentials》(2024)，Provider 客户端访问、内容 URI 与 query permission 相关章节。
 - Content providers overview: <https://developer.android.com/guide/topics/providers/content-providers>
 - ContentResolver reference: <https://developer.android.com/reference/android/content/ContentResolver>
 - FileProvider reference: <https://developer.android.com/reference/androidx/core/content/FileProvider>

@@ -1,4 +1,4 @@
-﻿# MVC / MVP / MVVM
+# MVC / MVP / MVVM
 
 很多人第一次接触架构模式，是从三张缩写表开始的：`MVC`、`MVP`、`MVVM`。结果学完以后，脑子里多了几个名词，项目里却还是同样的问题: 页面越来越重，状态越来越散，谁在改数据说不清，改一个功能就要连带改很多地方。原因并不复杂，因为架构模式从来不是为了让类图更好看，而是为了回答一个非常现实的问题: 当页面、状态、数据来源和交互复杂度不断上升时，代码到底应该怎样分工，才能不失控。
 
@@ -79,6 +79,8 @@
 结果就是，原来从页面类搬走的复杂度，很可能又集中到了 Presenter。尤其在响应式状态管理还没建立时，Presenter 很容易变成新的“大脑”，而且仍然要频繁和 Android 生命周期打架。
 
 这也是为什么不少团队后来逐渐从 `MVP` 转向 `MVVM`。不是因为 `MVP` 完全错误，而是因为现代 Android 平台提供了更适合页面状态持有的官方工具。
+
+Luca Vainigli 在同一本书里用同一个 articles 场景连续演示了三种模式，这个对比特别适合放在这里看：在 MVC 版本中，`ArticleListActivity` 自己持有 `ArticleRepository` 并直接触发 `repository.getArticles()`；到了 MVP，Activity 退成 `ArticleView` 接口实现，`ArticlePresenter(view, repository)` 负责 `loadArticles()` 并调用 `view.showArticles()` / `view.showError()`；到了 MVVM，`ArticleViewModel` 改为持有 `ArticleRepository`，并把结果通过 `MutableStateFlow` 暴露给 `ArticleListScreen`。同一份“文章列表”需求，在三种写法里数据来源几乎没变，真正变化的是页面与状态的关系：职责先从 Activity 被抽到 Presenter，最后再收束成可观察状态。
 
 ### 6. MVVM 在 Android 中为什么更自然
 
@@ -176,7 +178,7 @@
 
 - 参考并改写自：`Clean Android Architecture`，架构模式演进、职责边界与分层讨论相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，单向数据流、状态建模与屏幕结构相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，真实项目中的 MVVM 组织与 UI 状态实践相关章节。
+- 参考并改写自：Luca Vainigli，《Ultimate Android Design Patterns》(2025)，`ArticleListActivity`、`ArticlePresenter`、`ArticleViewModel` 与 MVC / MVP / MVVM 对照相关章节。
 
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
 - State holders and UI state: <https://developer.android.com/topic/architecture/ui-layer/stateholders>

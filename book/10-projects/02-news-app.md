@@ -48,6 +48,8 @@
 
 这也是新闻应用比普通“列表 + 详情”练习更适合训练状态建模的原因。它逼着你承认一件事：共享的是内容事实，不是页面上下文。只要这个边界没立住，项目后面再接分页、收藏、稍后阅读或阅读历史时，几乎一定会出现状态互相污染的问题。
 
+分页尤其值得单独强调一个边界：它追加的是“当前查询条件下的内容序列”，不是简单地往数据库里再塞一批文章。也就是说，分页键必须和查询条件、排序维度一起被管理；文章身份也必须稳定，不能因为同一篇文章在不同页或不同查询里出现，就在本地生成彼此不相认的多份事实。教材里把这层讲清楚，读者后面接分页库、远端键或稍后阅读时，才不会把“列表位置”误当成“内容身份”。
+
 ### 5. 一个最小但健康的实现骨架
 
 如果你希望这个案例既能跑通，又能继续扩展，一个很稳妥的最小骨架通常包含这几层：`NewsApi` 负责远程内容获取，`ArticleDao` 负责本地缓存与查询，`NewsRepository` 负责协调刷新与读取，`NewsListViewModel` 负责列表页状态，`ArticleDetailViewModel` 负责详情页状态。
@@ -156,7 +158,8 @@ class NewsRepository(
 
 ## 参考资料
 
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，NewsFeed、Repository 与分页相关章节。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，Room、离线能力与 single source of truth 相关章节。
+- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，内容型项目、网络数据流与页面组织相关章节。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，single source of truth、分页边界与项目扩展相关章节。
+- 参考并改写自：`Clean Android Architecture`，Repository、缓存协作与内容型应用边界相关章节。
 - Offline-first architecture: <https://developer.android.com/topic/architecture/data-layer/offline-first>
 - Now in Android: <https://github.com/android/nowinandroid>

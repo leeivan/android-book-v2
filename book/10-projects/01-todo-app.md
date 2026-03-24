@@ -101,6 +101,8 @@
 
 这件事非常适合训练“页面、数据、后台、系统通知如何协作”。它不是额外点缀，而是把整本书主线串起来的一次完整练习。
 
+提醒功能还有一个特别适合教材讲透的细节：提醒时间和提醒调度不是同一回事。任务实体里保存的是“用户希望何时被提醒”这条业务事实，调度层保存的则是“这条事实当前如何映射为后台任务”这一层执行状态。只要把这两层混在一起，后面修改提醒时间、取消提醒或恢复数据时就会变得很脆弱。更稳妥的做法是让 Repository 先稳定保存提醒事实，再由独立调度层根据任务 ID 重新安排或取消后台任务，这样页面、数据库和 WorkManager 才不会互相覆盖。
+
 ### 7. 一个更像真实项目的目录建议
 
 如果你不想案例最后变成“所有文件都塞在 app 里”，可以用一个轻量目录方案：
@@ -170,9 +172,9 @@ Todo App 最适合作为综合案例，不是因为它简单，而是因为它�
 
 ## 参考资料
 
-- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，第 2、6-12 章。
-- 参考并改写自：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)，第 1-3 章。
-- 参考并改写自：Kickstart Modern Android Development With Jetpack And Kotlin (2024)，全书贯穿案例结构。
+- 参考并改写自：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)，Todo 类项目与分阶段实现相关章节。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，项目结构、状态边界与可扩展组织相关章节。
+- 参考并改写自：`Clean Android Architecture`，UseCase、Repository 与系统能力协作相关章节。
 
 - Room: <https://developer.android.com/training/data-storage/room>
 - WorkManager overview: <https://developer.android.com/topic/libraries/architecture/workmanager>

@@ -38,6 +38,10 @@
 
 从这一刻开始，你就应该意识到：Android 应用不是靠一个 `main()` 函数启动的普通脚本。系统进入应用，要经过 Manifest 中声明的组件入口；页面显示效果，不一定都写在 Kotlin 文件里；应用能否安装和运行，也依赖构建脚本和 SDK 配置。你稍后对欢迎文本做一次看似很小的修改，往往就会跨越代码、资源和构建三层内容。这正是 Android 工程化思维的第一课。
 
+Big Nerd Ranch 在 `GeoQuiz` 这个入门例子里，刻意把第一个应用收缩成“一个 `Activity`、一个布局、两个判断按钮”的最小组合。它先让读者在 `MainActivity`、`activity_main.xml`、`strings.xml` 和 `AndroidManifest.xml` 之间来回定位入口，再通过按钮点击与 `Toast` 反馈把页面、资源和运行结果连成一条线。这种顺序很值得借鉴，因为它把第一个应用的目标固定在识别工程骨架与跑通最小闭环上，而不是一开始就堆更多功能。
+
+`Android Application Development Cookbook, 2nd Edition` 还补了一个很适合初学者建立“模板不是黑盒”直觉的小切口：书里明确指出，Android Studio 向导创建项目后会自动生成 `res/layout/activity_main.xml`，再在 `onCreate()` 里通过 `setContentView(R.layout.activity_main)` 把这份布局真正挂到屏幕上；后面的示例甚至直接切到 `activity_main2`，用第二套布局证明“页面显示出来”本质上就是布局资源被显式加载的结果。这个例子很适合放在本章，因为它能帮助读者把“IDE 自动生成的欢迎界面”拆回到看得见的文件和方法调用。
+
 ### 4. 第一次点击 Run 时，背后发生了什么
 
 第一次点击运行按钮时，Android Studio 背后会完成一整条链路：读取当前运行配置，检查目标设备是否可用，执行 Gradle 构建任务，生成本地安装产物，把它部署到模拟器或真机上，然后请求系统启动默认入口 Activity。对初学者来说，这个过程看起来像“只点了一下按钮”，但它其实已经包含了 Android 开发最核心的工作流。
@@ -45,6 +49,8 @@
 理解这条链路非常重要，因为后面无论项目复杂到什么程度，本质上都还是同一条流程在工作。今天你运行的是一个只有一屏内容的最小应用，未来你运行的是包含多个模块、多个页面和网络依赖的项目，构建、安装、启动和验证这几个阶段都不会消失。第一个应用的意义，就在于先把这条主链路走熟。
 
 第一次运行往往也会明显比后续慢，这是正常现象。因为首轮构建通常伴随依赖解析、Gradle 配置、代码编译、资源处理、模拟器冷启动或首次安装。初学者很容易把“第一次比较慢”误判成“工程出了问题”，于是反复重新创建项目。更稳妥的做法是先看 Build 输出和设备状态，分清它是在正常构建，还是确实卡在某个失败点。
+
+Big Nerd Ranch 在第一次运行 `GeoQuiz` 时还专门提醒读者观察两件事：模拟器首轮启动可能明显偏慢；一旦应用在启动或按钮点击时崩溃，就应立即去 `Logcat` 按 `MainActivity` 过滤异常。这正好对应本章想建立的基本习惯：第一次运行不是只盯着屏幕有没有显示，而是把构建、安装、启动和日志反馈一起纳入同一条调试链路。
 
 ### 5. 第一轮改动，应该改什么最有价值
 
@@ -154,6 +160,7 @@ Text(text = "你好，Android")
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 1 章。
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，创建首个项目、运行应用与 Android Studio 工具窗口相关章节。
 
+- 参考并改写自：Rick Boyer、Kyle Mew，《Android Application Development Cookbook, 2nd Edition》(2016)，项目模板、`activity_main.xml` 与 `setContentView()` 相关 recipes。
 - 创建第一个 Android 应用：<https://developer.android.com/training/basics/firstapp/creating-project.html>
 - 创建项目：<https://developer.android.com/studio/projects/create-project>
 - 构建与运行应用：<https://developer.android.com/studio/run/index.html>

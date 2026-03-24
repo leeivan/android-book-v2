@@ -1,4 +1,4 @@
-﻿# Intent
+# Intent
 
 很多读者第一次学 `Intent`，只把它记成“页面跳转参数包”。这样记可以让第一个页面先跑起来，但很快就会遇到边界问题: 什么时候应该显式跳转，什么时候应该交给系统选择处理者，为什么分享、打开网页、拍照、选文件都离不开 Intent，为什么参数一多以后组件之间很快就开始耦合。真正理解 Intent，关键不是会不会写 `startActivity()`，而是要把它看成 Android 组件世界里“动作请求”的统一表达方式。
 
@@ -38,6 +38,8 @@
 
 ### 3. 显式 Intent: 你知道谁来处理
 
+Big Nerd Ranch 在 `GeoQuiz` 里用 `MainActivity -> CheatActivity` 给了一个很好的显式 Intent 例子：最开始是直接 `Intent(this, CheatActivity::class.java)`，随后又进一步把参数组装收进 `CheatActivity.newIntent(...)`。这个改动很小，却非常值得保留，因为它把“启动目标页”和“目标页到底需要哪些 extra”解耦开了。调用方只知道自己要启动 `CheatActivity`，但不需要知道内部 extra 的键名细节；这正是显式 Intent 边界开始变健康的信号。
+
 显式 Intent 最适合应用内部结构清楚、目标明确的调用，例如:
 
 - 列表页打开详情页。
@@ -46,9 +48,13 @@
 
 这类场景的重点是，调用方知道目标组件是谁，也知道自己在走应用内部受控导航。因此显式 Intent 更像“通过系统组件边界进行一次明确调用”。
 
+`The Android Developer's Cookbook` 里 `MenuScreen -> PlayGame` 的例子也很适合拿来说明显式 Intent 的最小闭环：按钮点击后创建 `Intent(this, PlayGame.class)`，调用 `startActivity()`，目标页结束时再通过 `finish()` 把控制权交回去。这个例子来自早期多 `Activity` 写法，但教学点仍然成立：显式 Intent 最核心的是“明确目标组件 + 明确动作”，而不是先把一大包页面状态塞进 extra。
+
 对这类场景，更成熟的设计不是把一大坨页面状态塞进去，而是只传目标页真正需要的最小信息，例如主键 ID、筛选条件、模式标记。
 
 ### 4. 隐式 Intent: 你知道动作，但不指定处理者
+
+同一本书在后续 `CriminalIntent` 里又把这条线继续推进到了“发送 crime report”“选择联系人”“调起相机”这些场景。这里最值得学的，不是某个 `ACTION_SEND` 常量，而是教学节奏本身：先通过显式 Intent 建立应用内边界意识，再把同一套“动作请求”模型扩展到跨应用协作。只要按这个顺序理解，显式 Intent 和隐式 Intent 就不会再像两套互不相干的 API，而会变成同一套组件动作表达在不同边界下的两种落法。
 
 隐式 Intent 的价值在于解耦。你只声明:
 
@@ -100,6 +106,8 @@
 ### 8. Activity Result API 并没有让 Intent 过时
 
 很多现代教程把 `registerForActivityResult()` 讲得很重，有的读者就会误以为“现在不用 Intent 了”。实际上，Activity Result API 改变的是“结果怎么回收和管理”，并没有改变“动作怎么描述”。系统选图、打开文档、请求某些系统能力，底层仍然离不开 Intent 这一层动作表达。
+
+同一本书还用 `RecognizerIntent` 演示了“启动系统 Activity 并取回结果”的链路：调用方声明 `ACTION_RECOGNIZE_SPEECH`，附上语言模型等必要 extra，再在 `onActivityResult()` 里按 `requestCode` 和 `RESULT_OK` 回收结果。今天结果回调已经更推荐用 Activity Result API，但这个例子恰好说明了一件事：结果封装方式在演进，Intent 作为动作描述层并没有消失。
 
 所以理解 Activity Result API 时，最好把它看成“对基于 Intent 的结果交互做了更现代的封装”，而不是另一套完全独立的通信模型。
 
@@ -179,6 +187,7 @@ Intent 真正的价值，不是让页面跳起来，而是用统一语义表达�
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，Intent、Activity Result 与系统能力调用相关章节。
 - 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，应用内外导航与结果交互相关章节。
 
+- 参考并改写自：James Steele、Nelson To，《The Android Developer's Cookbook》(2011)，显式 Intent、结果回传与 `RecognizerIntent` 相关 recipes。
 - Intents and intent filters: <https://developer.android.com/guide/components/intents-filters>
 - Common intents: <https://developer.android.com/guide/components/intents-common>
 - Get a result from an activity: <https://developer.android.com/training/basics/intents/result>

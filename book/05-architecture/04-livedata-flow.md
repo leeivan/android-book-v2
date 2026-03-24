@@ -1,4 +1,4 @@
-﻿# LiveData 与 Flow
+# LiveData 与 Flow
 
 很多开发者第一次学这一章时，脑子里只有一个问题：“`LiveData` 和 `Flow` 到底哪个更高级？”这个问题并不重要。真正决定页面质量的，不是你选了哪个名词，而是你有没有把“页面当前状态”“一次性事件”“生命周期收集”和“数据流方向”理顺。只要这四件事没有理顺，哪怕 API 用得再新，页面一样会出现重复加载、界面闪烁、旋转后重复弹消息、返回页面后状态错乱这些问题。
 
@@ -83,6 +83,8 @@
 
 技术选型不是比谁新，而是比哪种方案能让当前系统更统一、更少出错。
 
+这一点在 Vainigli 的《Ultimate Android Design Patterns》里讲得很直白：`LiveData` 仍然适合以 Activity / Fragment 生命周期为中心的观察场景，而在现代 Kotlin-first 项目里，持久 UI state 更常由 `StateFlow` 承接，异步数据通道则更适合交给 `Flow`。把这三者先按“状态形态”分清，选型就不再是“谁更新”，而是“谁更贴合当前这类数据”。
+
 ### 7. 页面状态为什么通常落在 StateFlow，而不是把所有 Flow 直接暴露给 UI
 
 很多初学者学到 `Flow` 后，容易把 Repository 返回的各种流直接扔给 Fragment 或 Compose 页面去拼。这样做的结果是，页面自己知道了太多数据来源，也承担了太多合成逻辑。只要筛选条件、分页状态、刷新动作一复杂，UI 层就会迅速失控。
@@ -150,6 +152,8 @@ class NewsViewModel(
 这件事说起来像编码技巧，实际上是教材里必须讲透的建模问题。因为很多 UI bug 不是出在语法，而是出在你把“状态”和“动作”当成了同一类东西。
 
 对应到实现上，一个很稳的实践是：对外暴露稳定状态时，优先使用只读 `StateFlow` / `LiveData`；对外暴露一次性 effect 时，使用单独的事件流或 effect 通道，而不是把 UI 动作伪装成状态字段。这样页面每次重建时，真正会被重新消费的只有“现在是什么状态”，而不是“刚刚做过什么动作”。
+
+Socorro 的聊天项目则把“状态”和“事件/消息流”分开的好处讲得很具体：`ChatViewModel` 不只暴露一个 `messages: StateFlow<List<Message>>`，还额外维护一个 `uiState: StateFlow<Chat>` 来承接聊天室标题、头像和初始化信息；Compose 侧再用 `collectAsState()` 分别收集它们，并用 `LaunchedEffect(Unit)` 触发首次加载。这个例子特别适合提醒读者：不是所有屏幕信息都该塞进同一个流里，稳定页面状态和持续到来的消息流往往需要分开建模。
 
 ### 9. Flow 并不会自动替你解决生命周期问题
 
@@ -225,9 +229,10 @@ viewLifecycleOwner.lifecycleScope.launch {
 
 ## 参考资料
 
-- 参考并改写自：`Clean Android Architecture`，LiveData、Flow 与状态边界相关章节。
-- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，StateFlow、SharedFlow 与 UI effect 建模相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，真实页面中的状态收集、事件分离与生命周期协作相关章节。
+- 参考并改写自本地 PDF：`Clean Android Architecture`，LiveData、Flow 与状态边界相关章节。
+- 参考并改写自本地 PDF：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，Flow、StateFlow 与响应式状态组织相关章节。
+- 参考并改写自本地 PDF：Luca Vainigli，《Ultimate Android Design Patterns》(2025)，“LiveData, Flow, or StateFlow” 与 MVVM 状态管理相关章节。
+- 参考并改写自本地 PDF：Guilherme Socorro，《Thriving in Android Development Using Kotlin》(2024)，`ChatViewModel`、`uiState` / `messages` 分流与 Compose `collectAsState()` 相关章节。
 
 - Kotlin flows on Android：<https://developer.android.com/kotlin/flow>
 - StateFlow and SharedFlow：<https://developer.android.com/kotlin/flow/stateflow-and-sharedflow>

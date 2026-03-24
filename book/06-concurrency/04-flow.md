@@ -1,4 +1,4 @@
-﻿# Flow
+# Flow
 
 如果说协程解决的是“异步任务怎样被组织”，那么 `Flow` 更进一步解决的是“异步结果怎样以持续数据流的方式被表达和组合”。很多读者第一次接触 Flow 时，会把它当成“会连续返回值的 suspend 函数”或者“协程版本的观察者模式”。这两种理解都能抓住一点表面，但都不够深入。Flow 真正的价值，在于它把一连串随时间变化的数据，用一种可组合、可取消、可变换的方式表达出来。
 
@@ -133,6 +133,8 @@ Flow 本身不是页面状态容器，但它很适合成为页面状态的上游
 
 这也是 `StateFlow` 和 `SharedFlow` 需要被分开理解的原因。前者更适合承载“当前状态是什么”，强调始终有最新值；后者更适合表达“有一件事发生了”，例如一次性 effect、事件广播或多消费者信号。只要把这两类需求混在一起，页面就会很快陷入“状态像事件、事件又像状态”的混乱。
 
+Socorro 在聊天页里没有让界面直接面对一组零散回调，而是把“会话头部信息”和“消息列表”拆成 `uiState` 与 `messages` 两个 `StateFlow` 出口。`loadChatInformation(id)` 先在 `Dispatchers.IO` 拉取初始会话，再回到主线程一次性写入 `_uiState` 和 `_messages`；页面最终消费的不是仓库、WebSocket 和本地缓存的细节，而是两个已经整理好的状态入口。这个例子很适合说明 Flow / StateFlow 在工程里的真正作用：它们不只是“会持续发值”的类型，更是把多个异步来源收束成稳定 UI 合约的方式。
+
 ### 8. 什么情况下不必强行上 Flow
 
 Flow 很强，但不是所有异步问题都需要它。以下场景通常不必硬用 Flow:
@@ -190,7 +192,7 @@ Flow 在 Android 中真正提供的，是一种表达“持续变化数据关系
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 12 章中 `Flow` / `StateFlow` 与单向数据流相关部分。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，状态流、UI 状态组织与数据流建模相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，搜索、状态转换与流式数据组织相关章节。
+- 参考并改写自：Giselle Socorro，《Thriving in Android Development Using Kotlin》(2024)，`StateFlow`、聊天状态组织与异步消息链路相关章节。
 
 - Kotlin flows on Android: <https://developer.android.com/kotlin/flow>
 - StateFlow and SharedFlow: <https://developer.android.com/kotlin/flow/stateflow-and-sharedflow>

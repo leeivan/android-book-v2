@@ -42,6 +42,8 @@
 
 这也是为什么 Repository 不应该只是简单透传 Retrofit 或 DAO 的调用。如果它什么都不做，那么上层仍然必须自己理解所有数据来源和规则，分层收益就不存在了。
 
+`Clean Android Architecture` 里有一条很适合教材保留的演进线：先让 `ConcreteDataRepository` 直接依赖 `ConcreteDataService`，再把网络细节继续抽到 `ConcreteDataSource` 接口后面，让 Repository 只面对数据源抽象；随后再由 `ConcreteDataUseCase` 调用 Repository，`MainViewModel` 收集结果并更新界面。这个过程之所以有教学价值，是因为它把 Repository 的两个关键作用拆开演示了：一是把 ViewModel 从具体框架细节里隔开，二是让你能在演示、测试或离线模式下替换成另一套 data source 实现。
+
 ### 3. Repository 真正承接的是“数据策略”
 
 Repository 最有价值的地方，不在“调用了几个接口”，而在它承接了数据策略。例如：
@@ -131,6 +133,8 @@ Repository 也很容易被滥用。常见错误包括：
 
 这也是 Repository 的工程价值之一：它不只是让代码看起来分层，更让上层逻辑具备更明确的替换点和测试边界。
 
+Bennett 在购物车示例里强调了另一个边界：像 `AddToCartUseCase` 这样的业务动作，会同时调用 `cartRepository` 和 `productRepository` 来完成一次跨数据源编排。这刚好说明 Repository 最适合承接稳定数据能力，而跨仓库的业务流程不一定还要继续塞进 Repository；一旦开始涉及多仓库组合、校验和动作编排，就更应该交给 UseCase 或 domain 层。
+
 ### 9. 实践任务
 
 起点条件：
@@ -176,8 +180,8 @@ Repository 模式真正解决的是“数据入口和数据策略混乱”的问
 
 ## 参考资料
 
-- 参考并改写自本地 PDF：`Clean Android Architecture`，Repository 接口、数据边界、Dependency Rule 与数据层实现相关章节。
-- 参考并整理自本地 PDF：Bennett M.，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，data-domain-presentation 分层、feature 模块与数据能力组织相关章节。
+- 参考并改写自本地 PDF：`Clean Android Architecture`，`ConcreteDataSource -> ConcreteDataRepository -> ConcreteDataUseCase -> MainViewModel` 的分层演进、数据边界与可替换数据源相关章节。
+- 参考并整理自本地 PDF：Bennett M.，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，repository 接口、data-domain-presentation 分层与 `AddToCartUseCase` 跨仓库编排相关章节。
 - Data layer guide: <https://developer.android.com/topic/architecture/data-layer>
 - Offline-first architecture: <https://developer.android.com/topic/architecture/data-layer/offline-first>
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>

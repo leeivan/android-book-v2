@@ -1,4 +1,4 @@
-﻿# WorkManager
+# WorkManager
 
 很多读者第一次遇到 WorkManager，往往不是因为“想学一个 Jetpack 库”，而是因为手头有一类任务越来越难处理。比如用户在页面里写了一条草稿，点击发送后可以马上离开页面；比如应用需要定期同步一小批远程内容；比如日志和附件希望在合适网络下再上传。这些任务都很重要，但又不是用户眼前立刻就要看到的结果。如果你继续把它们塞在页面协程里，页面一结束任务就失去宿主；如果你为了它们启一个长期后台机制，又会很快踩到平台限制。
 
@@ -95,6 +95,8 @@ WorkManager.getInstance(context).enqueueUniqueWork(
 
 如果你把这段逻辑放回页面里，页面一旦结束，任务生命周期就会和页面绑死。如果你把它做成长时间前台机制，又会和任务本身的延迟性质冲突。WorkManager 恰好位于这两者之间。
 
+Big Nerd Ranch 的 `PhotoGallery` 例子还给出了一个很适合教学的渐进路径：先在 `PhotoGalleryFragment` 里用 `OneTimeWorkRequest.Builder(PollWorker::class.java)` 验证 `PollWorker` 会被触发，再补上 `Constraints.Builder().setRequiredNetworkType(NetworkType.UNMETERED)` 限制执行条件，最后改成 `PeriodicWorkRequestBuilder<PollWorker>(15, TimeUnit.MINUTES)` 并通过 `enqueueUniquePeriodicWork(POLL_WORK, ExistingPeriodicWorkPolicy.KEEP, periodicRequest)` 把轮询升级成可开关的唯一周期任务。这个例子最值得保留的，不是“定时查 Flickr”本身，而是它把 WorkManager 的三步判断拆得很清楚：先确认工作单元，再加执行约束，最后再讨论周期调度与去重策略。
+
 ### 6. 什么时候不要用 WorkManager
 
 理解边界比会写示例更重要。最常见的误用，就是把所有“不在主线程”的工作都往 WorkManager 塞。下面几类任务通常不应优先考虑它。
@@ -158,9 +160,7 @@ WorkManager 最重要的不是 API，而是任务分类。只要你先看清一�
 
 ## 参考资料
 
-- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 22 章。
-- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，同步策略、可靠后台执行与任务恢复相关章节。
-- 参考并改写自：`Kickstart Modern Android Development With Jetpack And Kotlin`，WorkManager 与现代任务调度相关章节。
+- 参考并改写自本地 PDF：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming, 5th Edition - The Big Nerd Ranch Guide》(2022)，第 22 章中 `PollWorker`、`Constraints.Builder()`、`PeriodicWorkRequestBuilder` 与 `enqueueUniquePeriodicWork()` 的完整教学示例。
 
 - WorkManager overview：<https://developer.android.com/topic/libraries/architecture/workmanager>
 - Define work requests：<https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work>

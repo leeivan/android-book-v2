@@ -32,6 +32,8 @@
 
 因此，更稳妥的理解方式是：`onReceive()` 只做三件事。第一，判断这是不是自己真正关心的广播；第二，提取最小必要信息；第三，把后续工作转交给更合适的层。这个“更合适的层”可能是页面可见时的 ViewModel，也可能是 Repository，或者是 `WorkManager` 这样的后台调度工具。
 
+`The Android Developer's Cookbook` 用过一个更直接的例子：`SimpleBroadcastReceiver` 监听 `ACTION_CAMERA_BUTTON`，收到广播后立刻 `startService()`，把后续工作交给 `SimpleService2`。尽管 `ACTION_CAMERA_BUTTON` 这种具体广播已经很有年代感，但这个例子的边界今天仍然成立：Receiver 最健康的角色就是接住事件、做最小判断、快速转交，而不是在 `onReceive()` 里自己变成长任务执行现场。
+
 官方还提供了 `goAsync()` 这样的接口，用来处理少量必须异步收尾的场景。但它的意义只是“给你一点额外时间把短尾操作交出去”，不是把接收器变成长期任务容器。只要记住这条边界，就能避开广播章节里最常见的一类设计错误。
 
 ### 3. 写接收器之前，先用四个问题做判断
@@ -62,6 +64,8 @@ Android 8.0 开始，系统已经不允许应用像早期那样在清单里接�
 
 所以今天判断清单注册时，不能再沿用“只要想接系统广播，就先在 `AndroidManifest.xml` 里写一个 receiver”的习惯。更稳妥的问题应该是：这个事件是否真的要求在应用不活跃时也唤醒我？如果要求，再进一步确认它是否允许通过清单方式接收。
 
+`Android Security - Attacks and Defenses` 在讲接收器时用过一个很典型的组合例子：闹钟或时间相关应用会关心 `ACTION_TIME_CHANGED`、`ACTION_TIMEZONE_CHANGED`，而如果希望设备重启后重新恢复行为，又可能需要接 `ACTION_BOOT_COMPLETED`。这个例子之所以有教学价值，是因为它同时说明了两件事：只有确实要求应用未启动也能响应的系统事件，才值得认真评估清单注册；而像 `BOOT_COMPLETED` 这样的广播，能否收到还取决于应用是否声明了 `RECEIVE_BOOT_COMPLETED` 等权限。
+
 ### 6. 导出边界必须说清楚，不能再依赖“默认猜测”
 
 广播接收器天然位于组件边界上，因此它的安全问题比很多普通类更直接。只要一个接收器可能被应用外部触达，你就要明确知道：谁能给它发广播，它能接收什么 action，接到之后是否会触发敏感逻辑。
@@ -69,6 +73,8 @@ Android 8.0 开始，系统已经不允许应用像早期那样在清单里接�
 对于清单注册的接收器，这个边界主要体现在 `android:exported`、权限要求和 `intent-filter` 的设计上。对于运行时注册的接收器，Android 13 引入了 `RECEIVER_EXPORTED` 和 `RECEIVER_NOT_EXPORTED` 标志，Android 14 又进一步收紧了相关检查。它背后的原则很清楚：接收器是否对外可见，不能再靠含糊默认值来猜。
 
 写代码时可以先抓住一个实用原则。如果接收器只用于本应用内部或受控来源事件，优先把它限制在不导出的边界内；如果它确实需要接受外部应用发来的广播，再显式评估导出行为、权限和输入校验。官方文档还特别说明：对于只接收系统广播的运行时注册场景，`Context.registerReceiver()` 在 Android 14 有专门例外，使用时要按当前平台文档选择对应重载和标志，而不要死记某一套写法。
+
+同一本安全资料还特别强调，Receiver 的权限边界有两个方向：一边是“我有没有资格接这个广播”，另一边是“谁有资格把广播发给我”。因此，只写一个 `action` 名称并不等于边界已经设计完成；如果接收器会触发敏感逻辑，还要把 `android:exported`、发送方权限和输入校验一起考虑进去。
 
 ### 7. 一个更健康的最小例子：只在页面活跃时接收播放控制广播
 
@@ -196,6 +202,8 @@ BroadcastReceiver 在现代 Android 里的真正角色，是接住“某件事�
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，广播接收器、系统事件与运行时注册相关章节。
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，Fragment 生命周期、事件入口与现代组件边界相关章节。
 - 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，通知动作与事件驱动 UI 相关章节。
+- 参考并改写自：`Android Security - Attacks and Defenses`，BroadcastReceiver、Manifest 与组件权限边界相关章节。
+- 参考并改写自：James Steele、Nelson To，《The Android Developer's Cookbook》(2011)，BroadcastReceiver 启动 Service 与组件分工相关 recipes。
 - Broadcasts overview: <https://developer.android.com/develop/background-work/background-tasks/broadcasts>
 - BroadcastReceiver reference: <https://developer.android.com/reference/android/content/BroadcastReceiver>
 - Background work overview: <https://developer.android.com/develop/background-work>

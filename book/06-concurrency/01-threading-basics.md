@@ -1,4 +1,4 @@
-﻿# 线程基础
+# 线程基础
 
 很多 Android 并发问题，第一次并不是以“线程模型”这种学术名词出现的，而是以很具体的故障出现: 点一下按钮页面卡住了，图片列表滚动不动了，数据库写入时界面掉帧了，两个异步结果互相覆盖了。读者往往会立刻去找“怎么开后台线程”，但真正的问题通常更早就已经出现了: 你还没有先把任务分清楚，哪些事情必须在主线程做，哪些事情不能在主线程做，哪些事情虽然放到了后台却仍然会把状态搞乱。
 
@@ -83,6 +83,8 @@ Android 的主线程承担着几乎所有用户直接能感知到的工作:
 
 这也是为什么现代 Android 文档经常强调 main-safe 和 state ownership 这类观念。一个函数如果声称自己能在任意线程安全调用，就不应偷偷依赖调用方替它切线程；一份页面状态如果由多个执行路径同时随意改写，它最终几乎一定会走向不可预测。线程基础这章真正要建立的，不只是“谁在主线程”，还包括“谁拥有状态、谁负责切上下文”。
 
+Socorro 在一个消息备份案例里把 `AWSS3Provider.uploadFile()` 设计成 `suspend` 函数，并在内部用 `withContext(Dispatchers.IO)` 包住真正的 S3 上传。这样一来，调用方表达的是“我要上传文件”这个业务动作，而不是每次都要先记得手动切到 I/O 线程；上传进度、成功与失败的边界也继续留在存储模块内部。这个例子很适合说明 main-safe 的真实含义：耗时的网络 I/O 应该由拥有这段工作的实现自己切上下文，而不是把“别忘了后台调用我”这种隐含前提丢给页面层。
+
 ### 7. 一个典型误区: 把所有耗时工作都当成同一种后台任务
 
 例如:
@@ -149,7 +151,7 @@ Android 的主线程承担着几乎所有用户直接能感知到的工作:
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 12 章导论部分。
-- 参考并改写自：`Kickstart Modern Android Development With Jetpack And Kotlin`，协程、线程切换与现代异步组织相关章节。
+- 参考并改写自：Giselle Socorro，《Thriving in Android Development Using Kotlin》(2024)，协程、I/O 调度、存储上传与异步边界相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，状态归属、并发边界与现代工程组织相关章节。
 
 - Processes and threads overview: <https://developer.android.com/guide/components/processes-and-threads>

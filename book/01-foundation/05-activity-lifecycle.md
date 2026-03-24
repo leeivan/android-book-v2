@@ -1,4 +1,4 @@
-﻿# Activity 生命周期
+# Activity 生命周期
 
 如果说前几章主要解决“平台是什么、环境如何搭、项目怎么跑起来”，那么这一章开始，Android 的核心难点才真正出现：界面不是一直存在的，系统会在不同时间点创建、暂停、停止、销毁并重建你的页面。理解 Activity 生命周期，是理解 Android 为什么不能像普通脚本那样线性编程的第一道门槛。
 
@@ -57,6 +57,10 @@
 进程回收则更进一步。用户切到后台后，系统在资源紧张时可能会回收应用进程。等用户重新回到应用时，你看到的往往不是“原来的页面继续存在”，而是系统根据已有信息重新创建了页面。对于读者来说，这意味着你必须从一开始就接受一个事实：页面实例并不稳定，真正稳定的应该是状态托管策略。
 
 ### 7. 生命周期必须和状态托管一起理解
+
+`Head First Android Development` 里用 `StopwatchActivity` 做了一个特别适合入门的案例：页面里只有秒表文本和开始、停止、重置三个按钮，但一旦旋转屏幕，`seconds` 和 `running` 这两个变量就会随着 Activity 重建而回到默认值。作者先用这个例子暴露“配置变化会让页面实例失效”，再引出 `onSaveInstanceState()` 保存轻量状态，以及用 `onPause()` / `onResume()` 让秒表在失去和恢复前台焦点时暂停与继续。这个案例的价值不在秒表本身，而在于它把生命周期最核心的三件事放到了同一条线上：页面实例并不稳定、轻量状态需要明确保存、前台交互资源必须跟随可见性和焦点变化调整。
+
+`Android Application Development Cookbook, 2nd Edition` 则用两个很适合并读的小例子把这条线补得更完整。第一个是 `StateSaver`：页面里放一个计数器、`EditText` 和 `TextView`，通过 `onSaveInstanceState()` / `onRestoreInstanceState()` 手动保存计数器，同时顺手暴露一个很容易忽略的事实：像 `EditText` 这样带唯一 ID 的控件，系统往往会自动恢复部分视图状态，但 `TextView` 这类显示结果并不会替你兜底。第二个是 `ActivityLifecycle`：把 `onCreate()`、`onStart()`、`onResume()`、`onPause()`、`onStop()`、`onRestart()`、`onDestroy()` 依次写到界面上，再结合 `isFinishing()` 区分“真的要结束”还是“只是暂时离开前台”。这两个例子放在一起，很适合帮助读者把“状态保存”和“回调顺序观察”分成两件不同但相关的事。
 
 生命周期真正难的地方，不在于方法名，而在于状态该放在哪里。工程上可以把页面状态大致分成三类。第一类是很轻、很短暂的 UI 状态，例如输入框当前内容、滚动位置或临时筛选项。第二类是与页面逻辑紧密相关、但不应随着 Activity 重建而丢失的屏幕状态。第三类则是需要长期保存的业务数据，例如本地记录、账户信息、离线内容或数据库实体。
 
@@ -173,8 +177,10 @@ Activity 生命周期是 Android 开发的第一道真正门槛，因为它迫�
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 3-4 章。
+- 参考并改写自：Dawn Griffiths、David Griffiths，《Head First Android Development》，Stopwatch、`onSaveInstanceState()` 与焦点切换相关示例。
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，Activity、状态保存与配置变化相关章节。
 
+- 参考并改写自：Rick Boyer、Kyle Mew，《Android Application Development Cookbook, 2nd Edition》(2016)，`StateSaver` 与 `ActivityLifecycle` 相关 recipes。
 - Activity 生命周期：<https://developer.android.com/guide/components/activities/activity-lifecycle>
 - 保存 UI 状态：<https://developer.android.com/topic/libraries/architecture/saving-states>
 

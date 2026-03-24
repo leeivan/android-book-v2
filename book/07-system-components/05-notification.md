@@ -51,6 +51,8 @@
 
 这意味着通知权限请求不能再像旧教程里那样，只在代码流程里机械地补一句。更合理的策略，是在用户已经看得见价值的时刻再解释为什么需要通知。例如，用户刚创建提醒任务时再申请提醒权限，远比第一次启动就弹权限框更容易被理解。通知权限的变化，本质上是在提醒开发者：通知机会是稀缺资源，只有和真实价值绑定时，用户才更愿意把它交给你。
 
+Neil Smyth 在 `Android Studio Narwhal Essentials` 里把这条现代通知链路拆得很清楚：先创建通知渠道，再请求 `POST_NOTIFICATIONS`，随后用 `PendingIntent` 把通知点击动作接回 `ResultActivity`，再在下一章继续扩展到 Direct Reply。这个教学顺序值得保留，因为它提醒我们：现代通知不是单靠一段 `Builder` 代码就算完成，而是要把权限、渠道、入口和后续操作一起设计。
+
 ### 5. 一条通知至少要说清楚“发生了什么、为什么值得看、点进去到哪里”
 
 一条可用通知至少要包含几个最小元素：状态栏图标、抽屉中的可读内容、用户点击后的 `PendingIntent`，以及所属渠道。这个组合背后的设计意义非常清楚：通知不仅要让用户知道发生了什么，还要让用户知道点进去会回到哪一层上下文。
@@ -99,9 +101,15 @@ fun buildMessageNotification(
 
 ### 6. 动作按钮和 Direct Reply 的意义，是降低打断后的操作成本
 
+`Head First Android Development` 里 `DelayedMessageService` 的例子，正好能把这条通知链路讲得非常具体：`MainActivity` 先启动 service，service 等 10 秒后构建通知，再借助 `TaskStackBuilder` 和 `PendingIntent` 把用户点通知后的返回路径重新接回 `MainActivity`。这个案例的教学价值很高，因为它说明通知真正完整的设计并不是“把内容发出去”就结束了，而是要同时考虑消息何时出现、由谁发出、点进去以后如何回到正确任务栈。把通知理解成这条完整链路，后面再看渠道、权限和动作按钮，逻辑就会顺很多。
+
 动作按钮和 Direct Reply 的价值，不在于让通知看起来更丰富，而在于让用户在尽量短的路径里处理这件事。消息通知可以直接回复，音乐通知可以暂停或下一首，待办提醒可以标记完成或稍后提醒，这些都在降低通知带来的打断成本。
 
 所以动作按钮不该被当成装饰功能，而应该被看作用户处理成本优化的一部分。如果一条通知每次都强迫用户先进应用、再打开页面、再找到目标内容，它就很容易从帮助变成骚扰。通知越强势，处理路径就越应该短。
+
+`Android Application Development Cookbook, 2nd Edition` 里有个名字很直白的例子叫 `Lights, Action, and Sound Redux using Notifications`。它把声音、灯光、震动和 `addAction()` 按钮都塞进同一条通知里，同时又明确提醒“不是因为能加就都该加”，并强调按钮背后的 `PendingIntent` 最好把用户带回具体项目而不是模糊首页。这个例子虽然写于渠道普及之前，但它留下的设计判断今天仍然成立：通知能力越强，越要克制；动作按钮越多，越要精确。
+
+同一本 Narwhal Essentials 在 Direct Reply 教程里继续把这层设计推进了一步：它不是停在“加个按钮”，而是用 `RemoteInput` 把用户在通知面板里输入的文本直接随 `PendingIntent` 带回 Activity。这个案例特别适合帮助读者建立一个现代直觉：Direct Reply 不是“让通知更花哨”，而是在不强迫用户完整跳回应用的前提下，把处理路径再缩短一步。
 
 ### 7. 通知和前台服务、后台任务是连在一起的
 
@@ -166,7 +174,9 @@ Notification 真正的价值，是在系统层和用户层之间建立一条正�
 ## 参考资料
 
 - 参考并整理自本地 EPUB：Bryan Sills、Brian Gardner、Kristin Marsicano、Chris Stewart，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》，通知渠道、PendingIntent 与通知类别设计相关内容。
+- 参考并整理自本地 EPUB：Dawn Griffiths、David Griffiths，《Head First Android Development》，`DelayedMessageService`、`TaskStackBuilder` 与通知返回路径相关示例。
 - 参考并整理自本地 PDF：Neil Smyth，《Android Studio Narwhal Essentials: Java Edition》(2025)，第 58-59 章，涵盖通知概览、渠道、`POST_NOTIFICATIONS`、动作按钮与 Direct Reply。
+- 参考并整理自本地 PDF：Rick Boyer、Kyle Mew，《Android Application Development Cookbook, 2nd Edition》(2016)，通知构建、动作按钮与 `PendingIntent` 相关 recipes。
 - Notification runtime permission: <https://developer.android.com/develop/ui/views/notifications/notification-permission>
 - Create and manage notification channels: <https://developer.android.com/develop/ui/views/notifications/channels>
 - Create a notification: <https://developer.android.com/develop/ui/views/notifications/build-notification>

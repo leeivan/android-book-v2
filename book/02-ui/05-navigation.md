@@ -1,4 +1,4 @@
-﻿# Navigation
+# Navigation
 
 页面一旦变多，导航就不再只是“从 A 跳到 B”这么简单。返回栈如何组织、参数如何传递、页面层级如何表达、返回行为是否符合用户预期，这些问题都会集中暴露出来。Navigation 章节的重点，不是教你背若干跳转 API，而是帮助你理解 Android 页面流转的结构化组织方式。
 
@@ -30,11 +30,15 @@ Android 官方关于 Navigation back stack 的文档明确指出，`NavControlle
 
 一个良好的导航设计，应该让用户在前进和返回时都能保持方向感。比如，列表进入详情，再进入编辑，返回时通常应回到详情，再回到列表；而登录流程完成后，Back 不应再把用户带回登录页。这些都是 back stack 设计问题，而不是单个按钮点击问题。
 
+Head First Android 在饮品示例里用 `TopLevelActivity -> DrinkCategoryActivity -> DrinkActivity` 这条三层流转，把这个问题讲得很直观：应用启动先落到顶层入口页，点击 `Drinks` 进入分类列表，再点具体饮品进入详情页，连续按 Back 则按相反顺序返回。虽然这还是多 `Activity` 时代的写法，但它已经把“导航首先是层级和返回路径设计”这件事讲清楚了。
+
 ### 3. 为什么现代项目更适合用结构化导航
 
 过去很多示例会把跳转散落在各个 Activity 或 Fragment 中，这种方式在小项目里还能应付，但项目一大，很容易出现页面路径不清楚、参数传递分散、返回行为难以统一的问题。Jetpack Navigation 的价值就在于把页面目的地、参数和流转关系放到更统一的结构中理解，让导航不再只是零散调用。
 
 这也是为什么现代 Android 项目在基于 Fragment 的页面结构中，通常更推荐使用 Navigation 组件来承载主要流程。它不是“帮你少写几行代码”的小工具，而是把导航提升为一套结构化能力：目的地有图，起点明确，参数可声明，back stack 可推理，宿主和内容目的地的边界也更稳定。
+
+如果把上面的饮品示例翻译到今天的 Jetpack Navigation 语境里，起点目的地仍然是顶层入口，分类页和详情页仍然是后续目的地，真正需要跨页面传递的也往往只是 `drinkId` 这类最小标识。也就是说，Navigation 组件改变的是组织手段，而不是用户任务流本身；你只是用导航图和 `NavController` 把原本分散在多个页面类里的层级关系显式化了。
 
 ### 4. Navigation 组件真正带来的是什么
 
@@ -43,6 +47,8 @@ Navigation 组件真正带来的，不只是一个 `navigate()` 方法，而是�
 对于基于 Fragment 的页面来说，Navigation 还承担了一层隐性价值：它能替你更规范地管理很多原本需要自己直接操作 `FragmentManager` 和 back stack 的细节。Android 官方在 FragmentManager 文档里也明确建议，应用导航应优先使用 Navigation library，因为它遵循了 working with fragments、back stack 和 fragment manager 的最佳实践。
 
 把这套结构再拆细一点，会更容易掌握。导航宿主负责提供一块可替换的内容区域；导航图负责声明有哪些目的地、起点是谁、它们之间如何连通；`NavController` 负责在运行时解释这些规则并维护 back stack。只要这三层角色分清，你就不会把“页面容器”“页面本身”和“跳转动作”混成一团。很多导航代码之所以后来越来越乱，根源就是这三种职责一开始没有被拆开。
+
+Neil Smyth 在 `Android Studio Koala Essentials` 的 Navigation tutorial 里，则把这套现代结构拆成了一个很清楚的最小样板：`activity_main` 里声明 `nav_host_fragment_content_main` 作为 Navigation Host，Activity 通过 `AppBarConfiguration(navController.graph)` 和 `setupActionBarWithNavController(...)` 接管 Up 行为，`FirstFragment` 再用 `findNavController().navigate(...)` 或 `FirstFragmentDirections.mainToSecond()` 触发动作和传参。这个例子适合补在这里，是因为它把宿主、导航图、控制器、参数和 action bar 的职责都收进同一个小工程里，读者更容易看到“结构化导航”到底具体长什么样。
 
 ### 5. 页面职责不清，导航一定会跟着混乱
 
@@ -130,7 +136,7 @@ findNavController().navigate(action)
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 13 章。
 - 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，多页面流程、状态与界面组织相关章节。
-- 参考并改写自：`Kickstart Modern Android Development With Jetpack And Kotlin`，Jetpack Navigation 与现代页面组织相关章节。
+- 参考并改写自：Neil Smyth，《Android Studio Koala Essentials. Developing Android Apps》(2024)，Navigation Host、Navigation Graph、Safe Args 与 `NavController` 教程相关章节。
 
 - Navigation and the back stack：<https://developer.android.com/guide/navigation/backstack>
 - Pass data between destinations：<https://developer.android.com/guide/navigation/use-graph/pass-data>

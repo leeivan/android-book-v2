@@ -1,4 +1,4 @@
-﻿# Room 数据库
+# Room 数据库
 
 如果说 SQLite 提供了 Android 本地结构化存储的底层能力，那么 Room 提供的就是更适合现代工程使用的数据库表达方式。它的价值不在于“让数据库看起来更高级”，而在于把那些重复、分散且容易出错的底层数据库代码收束成更清晰的结构：实体负责描述数据，DAO 负责表达访问，数据库类负责统一组织入口。本章要建立的，就是这种结构化数据库思维。
 
@@ -75,6 +75,8 @@ abstract class AppDatabase : RoomDatabase() {
 
 这个例子的重点不是 API 完整性，而是让你看到一条更完整的数据链：Entity 描述条目结构，DAO 提供读取和更新入口，Database 统一暴露 DAO，后续 ViewModel 或 Repository 则可直接围绕 `Flow<List<TaskEntity>>` 组织状态。Room 的现实价值，就在于它天然能接上现代 Android 的状态流模型。
 
+Narwhal 的 `RoomDemo` 很适合把这条链路看完整：`ProductDao.getAllProducts()` 返回 `LiveData<List<Product>>`，`ProductRoomDatabase` 通过 `Room.databaseBuilder(..., "product_database")` 提供数据库实例，`ProductRepository` 在初始化时先拿到这条 `LiveData` 供 ViewModel 继续观察，而插入、删除、普通查询等不返回 `LiveData` 的 DAO 操作则必须放到主线程之外执行。这个例子特别适合提醒初学者：Room 不是只有 `Entity`、`Dao`、`Database` 三件套，真正可用的工程结构通常还包括 Repository 和上层观察链路。
+
 ### 6. 为什么 Room 特别适合与 Flow、ViewModel 和 Repository 结合
 
 Room 很少孤立存在。它通常会和 ViewModel、Flow、Repository、Paging 等能力一起工作。原因很直接：本地数据库里的变化，本身就适合作为页面可观察的状态来源。Android 官方 Room 文档也明确把“离线浏览内容缓存”作为常见用例，这与现代 ViewModel 和状态流组织方式天然契合。
@@ -86,6 +88,8 @@ Room 很少孤立存在。它通常会和 ViewModel、Flow、Repository、Paging
 很多本地数据库设计失败，不是因为存不进去，而是因为最常见的读取场景没有被提前考虑，或者数据库结构一变化就缺乏明确迁移策略。Android 官方 Room 文档把迁移路径列为它的重要价值之一，这一点非常值得重视。数据库不是永远不变的，新增字段、调整默认值、增加索引、重构关系，这些变化在长期项目里迟早都会出现。
 
 入门阶段你不必掌握所有迁移细节，但必须建立一个意识：数据库结构不是一次性定下就永远不变的。Room 可以帮你把迁移纳入更明确的工程管理，但它无法替你决定该如何演进结构，也无法替你回避建模失误。
+
+Big Nerd Ranch 的 `CrimeDatabase` 则补上了长期演进这一面：随着 `Crime` 实体新增字段，数据库版本从 1 升到 2、再升到 3，`Room.databaseBuilder(...).addMigrations(migration_1_2, migration_2_3)` 也随之进入数据库启动路径。这个例子说明迁移不是“出问题后再补的修复动作”，而应该像 DAO 和 Entity 一样，被当成数据库结构的一部分长期维护。
 
 ### 8. 什么时候不该再往 Room 里塞逻辑
 
@@ -141,8 +145,8 @@ Room 把 Android 本地数据库开发从“低层 API 使用”提升成了“�
 
 ## 参考资料
 
-- 参考并整理自本地 PDF：Neil Smyth，《Android Studio Narwhal Essentials: Java Edition》(2025)，Room、本地数据库与现代 Android 工具链中的结构化存储相关章节。
-- 参考并整理自本地 PDF：Bennett M.，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，Room 作为本地可信来源、与 Flow/Repository 协作相关章节。
+- 参考并整理自本地 PDF：Neil Smyth，《Android Studio Narwhal Essentials: Java Edition》(2025)，`RoomDemo` 中 `ProductDao`、`ProductRoomDatabase`、`ProductRepository` 与 `LiveData<List<Product>>` 观察链路相关章节。
+- 参考并整理自本地 PDF：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming, 5th Edition - The Big Nerd Ranch Guide》(2022)，`CrimeDatabase`、`Room.databaseBuilder(...).addMigrations(...)` 与版本迁移相关章节。
 - Save data in a local database using Room：<https://developer.android.com/training/data-storage/room>
 - Room and Flow：<https://developer.android.com/kotlin/flow>
 

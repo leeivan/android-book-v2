@@ -44,6 +44,8 @@ Android 官方的 Compose state 文档也明确说明：Compose 是声明式的�
 
 这里最容易犯的错，是把 composable 函数体当成“只会执行一次的初始化区”。一旦这样理解，开发者就会在函数体里直接发网络请求、写日志、改外部变量，结果是每次重组都可能重复触发副作用。更准确的认识是：composable 负责描述 UI，副作用则应通过 `LaunchedEffect`、`DisposableEffect` 等机制在明确生命周期里执行；更重的业务工作则继续留在 ViewModel 或数据层。只有把“界面描述”和“副作用执行”分开，Compose 代码才会稳定。
 
+《Thriving in Android Development Using Kotlin》里的会话主页给了一个很好的副作用例子：`LaunchedEffect(selectedIndex.value) { pagerState.animateScrollToPage(selectedIndex.value) }` 把“标签切换后滚动到对应页”这种行为明确绑在状态变化上。这里最值得学的不是 pager 本身，而是副作用写法的边界：它随着 key 变化重启，Composable 离开组合时自动取消，比把滚动逻辑直接塞进函数体稳定得多。
+
 ### 5. `remember`、`rememberSaveable` 和状态提升分别在解决什么问题
 
 `remember` 的作用，是让某个值在重组之间保留下来。官方 state 文档明确说明，`remember` 会把对象存储在 Composition 中，并在重组时返回先前保存的值。它适合保存那些只需要在当前 Composition 生命周期中延续的本地状态。比如一个展开/收起状态、一个局部输入值、一个临时选中项。
@@ -53,6 +55,8 @@ Android 官方的 Compose state 文档也明确说明：Compose 是声明式的�
 状态提升的价值，在于让组件更可复用、状态来源更清晰，也更容易与 ViewModel 配合。Compose Architecture 文档把这套模式总结成单向数据流：state flows down，events flow up。也就是说，状态往下传，事件往上传。只要这个方向清晰，Compose 页面就更容易维护。
 
 和这些概念经常一起出现的，还有 `Modifier`。它并不是“随手往组件后面串的一堆样式参数”，而是 Compose 里统一表达布局、绘制、交互和语义的链式机制。为什么 `padding()` 写在前后顺序会影响结果、为什么 `clickable()` 和 `background()` 的组合会改变点击区域，本质上都和 `Modifier` 的顺序有关。把 `Modifier` 当成 Compose 的结构语言，而不是零散样式开关，会更容易读懂真实项目里的界面代码。
+
+Compose 的状态分层也可以从两个极简例子看清。Bennett 用 `Counter()` 展示 `var count by remember { mutableStateOf(0) }`，再专门提醒如果要跨旋转保留值，应改用 `rememberSaveable`；Vainigli 则在 `ArticleListScreen(viewModel: ArticleViewModel = viewModel())` 里用 `viewModel.articles.collectAsState(emptyList()).value` 把 `StateFlow` 变成 UI 可消费的状态。前者讲的是局部 Composition 内部状态，后者讲的是屏幕级可观察状态，两者合在一起，正好构成 Compose 项目里最常见的两层状态来源。
 
 ### 6. 最小示例：一个状态驱动的计数器
 
@@ -175,8 +179,9 @@ Compose 是现代 Android UI 的重要方向，但它不是平台基础的替代
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 26-29 章。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，Compose、状态与项目结构相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，Compose 屏幕组织、状态持有与工程结构相关章节。
+- 参考并改写自：Luca Vainigli，《Ultimate Android Design Patterns》(2025)，`ArticleListScreen`、`collectAsState()` 与 Compose 状态组织相关章节。
+- 参考并改写自：Guilherme Socorro，《Thriving in Android Development Using Kotlin》(2024)，`LaunchedEffect`、pager 状态与 Compose 副作用相关章节。
 
 - Thinking in Compose：<https://developer.android.com/develop/ui/compose/mental-model>
 - State and Jetpack Compose：<https://developer.android.com/develop/ui/compose/state>

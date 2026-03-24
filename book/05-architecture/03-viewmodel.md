@@ -1,4 +1,4 @@
-﻿# ViewModel
+# ViewModel
 
 几乎每个 Android 初学者都会在某个时刻写出这样一个页面：列表数据放在 Fragment 里，搜索关键字也放在 Fragment 里，点击刷新就直接在页面里发请求。它在第一次运行时看起来没有问题，直到你旋转屏幕、切到后台再回来，或者让页面和另一个页面共享部分状态。这个时候，原本“够用”的写法会很快暴露出问题：状态丢了，请求重复发了，页面类越来越重，谁在更新什么也越来越说不清。
 
@@ -25,6 +25,7 @@ ViewModel 正是为这种场景出现的。它不是为了让代码看起来更�
 第一个问题是页面实例不稳定。配置变化、分屏、多窗口、语言切换，都会让 Activity 或 Fragment 重建。第二个问题是状态来源混乱。列表内容、加载状态、搜索词、错误提示、分页位置，很容易散落在多个字段里。第三个问题是页面承担了过多工作。它既要渲染 UI，又要发请求、拼数据、判断错误、做重试，还要处理生命周期。
 
 ViewModel 的意义，就在于把“屏幕真正关心的状态和逻辑”从页面实例里拿出来。这样页面负责显示和转发用户意图，ViewModel 负责维护当前屏幕状态、触发异步动作、把结果组织成 UI 能消费的形式。这不是教条式分层，而是在解决一个非常现实的问题：页面实例会反复变化，但屏幕状态不应该每次都跟着从零开始。
+Big Nerd Ranch 在 `GeoQuiz` 里演示 ViewModel 的方式非常适合入门：一开始题目索引 `currentIndex` 直接放在 `MainActivity`，旋转屏幕后状态丢失；接着把它挪进 `QuizViewModel`，用 `by viewModels()` 让同一份屏幕状态跨配置变化保留下来；最后再用 `SavedStateHandle` 只保存 `currentIndex` 这种“恢复界面所必需的最小信息”。这个案例特别值得借鉴，因为它没有一上来就搬出复杂架构，而是让读者直接看到 ViewModel 解决的就是一个非常具体的屏幕状态问题。
 
 ### 2. 什么叫“屏幕级状态持有者”
 
@@ -41,6 +42,7 @@ Android 官方现在把 ViewModel 放在 state holder 语境里理解，这是�
 举个最常见的例子。假设一个搜索页和搜索结果页属于同一个导航流程，而且你希望它们共享同一份搜索词和筛选条件。这种状态更适合绑定到共同的导航作用域或共同宿主，而不是分别绑在两个页面自己身上。相反，如果两个列表页虽然长得像，但它们的数据完全独立，就不该错误地共用同一个 Activity 级 ViewModel。
 
 所以理解 ViewModel，不能只停留在“它比 Activity 活得久”。更关键的问题是：它到底应该跟哪个屏幕语义一起存活。只要这个问题想清楚，很多共享状态和返回后状态丢失的问题都会自然少掉。
+Big Nerd Ranch 后面在 `CriminalIntent` 里又给了第二层例子：`CrimeListFragment` 通过 `private val crimeListViewModel: CrimeListViewModel by viewModels()` 拿到和当前 Fragment 作用域绑定的 ViewModel。这个例子很有价值，因为它把“Activity 级保留状态”和“Fragment 级屏幕状态”区分开了。也就是说，ViewModel 不是只会“跨旋转保存变量”，它真正要回答的是：这份状态到底属于整个宿主流程，还是只属于当前这一个内容页面。
 
 ### 4. ViewModel 真正做的，不只是保存变量
 
@@ -122,6 +124,8 @@ ViewModel 本身已经比页面实例稳定，但它仍然主要活在内存里�
 
 如果把这条边界再压实一点，可以得到一个很实用的规则：凡是“重新进入这个屏幕后，用户理应继续看到”的轻量关键参数，才值得进 `SavedStateHandle`；凡是“应用彻底关闭后仍要长期存在”的数据，则应进入数据库、DataStore 或其他持久层。`SavedStateHandle` 最容易被误用成半吊子存储层，这一点必须提前防住。
 
+《Thriving in Android Development Using Kotlin》里的 `ChatViewModel` 则把这条边界落成了很具体的工程形态：它通过构造函数接住 `RetrieveMessages`、`SendMessage`、`DisconnectMessages` 和 `GetInitialChatRoomInformation`，内部维护 `_messages` 与 `_uiState` 两个 `MutableStateFlow`，再在 `viewModelScope.launch(Dispatchers.IO)` 中先拉取聊天初始化信息，再开始收集消息流。这个结构很值得参考，因为它说明 ViewModel 最合适做的是“接住屏幕初始化、编排用例、向外暴露状态”，而不是自己去持有 WebSocket、REST 客户端或数据库细节。
+
 ### 7. ViewModel 最容易越界的地方
 
 真正写项目时，ViewModel 很容易从“页面状态持有者”变成“什么都往里塞的地方”。最常见的越界有三种。第一种是直接持有 `Activity`、`Fragment`、`View` 或 `Context`，这通常会把生命周期边界搅乱，甚至带来内存泄漏风险。第二种是把所有数据层和业务层细节都机械搬进 ViewModel，结果只是把原来的胖页面换成了胖 ViewModel。第三种是反过来太保守，什么都不敢放进去，导致页面仍然自己发请求、自己处理状态。
@@ -129,6 +133,8 @@ ViewModel 本身已经比页面实例稳定，但它仍然主要活在内存里�
 更稳妥的判断方式是：只要某段逻辑是在回答“这个屏幕现在应该处于什么状态”，通常就适合放在 ViewModel；只要某段逻辑是在回答“这个应用的数据从哪里来、怎样存、怎样同步”，通常就更适合放在 Repository 或数据层；只要某段逻辑是在回答“某个控件怎么展开、动画怎么做、键盘怎么弹”，通常就留在 UI 层。
 
 这套边界不是为了让每个类看起来干净，而是为了让问题真正回到最适合被解决的位置。
+
+Big Nerd Ranch 在这里给过一个特别值得直接记住的提醒：Activity 或 Fragment 可以持有 ViewModel，但 ViewModel 不应该反过来持有 Activity、Fragment 或 View 的引用。原因不是抽象洁癖，而是生命周期事实本身。ViewModel 会跨配置变化继续活着，旧页面实例却会被销毁；如果 ViewModel 留着旧页面引用，就既会泄漏旧实例，也可能在后续状态更新时操作一块已经失效的界面。也因此，`onCleared()` 真正该做的是取消观察、断开连接、清理与当前屏幕绑定的资源，而不是再去碰 UI。
 
 ### 8. 实践任务
 
@@ -178,8 +184,9 @@ ViewModel 真正解决的，不是一个 API 问题，而是页面状态如何�
 ## 参考资料
 
 - 参考并改写自：`Clean Android Architecture`，ViewModel、状态持有与 UseCase/Repository 协作相关章节。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，`QuizViewModel`、`CrimeListViewModel` 与 `SavedStateHandle` 相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，ViewModel 作用域、状态恢复与页面组织相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，ViewModel 在真实屏幕中的应用相关章节。
+- 参考并改写自：Guilherme Socorro，《Thriving in Android Development Using Kotlin》(2024)，`ChatViewModel`、`viewModelScope`、`MutableStateFlow` 与屏幕初始化相关章节。
 
 - ViewModel overview：<https://developer.android.com/topic/libraries/architecture/viewmodel>
 - ViewModel APIs and scopes：<https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-apis>

@@ -1,4 +1,4 @@
-﻿# 后台任务
+# 后台任务
 
 很多团队第一次遇到后台任务问题，不是因为“想学一个新 API”，而是因为项目开始出现一些难回答的问题：用户把应用切到后台后，上传要不要继续；草稿同步失败了要不要重试；定位记录为什么一锁屏就断；明明只是一次页面请求，为什么却被做成了常驻服务。后台任务设计真正难的地方，从来不是类名，而是判断一件事到底属于哪一类工作。
 
@@ -84,6 +84,8 @@
 在教学里必须强调这一点：所谓“后台任务”，很多时候真正需要的不是“现在立刻后台长跑”，而是“最终可靠地完成”。这和前台持续运行完全不是一回事。
 
 这类任务还有一个很重要的工程要求：尽量做到幂等。也就是说，同一项同步或上传即使因为重试、重排队或进程恢复被执行多次，结果也不应该变得更糟。后台工作一旦离开页面、交给系统调度，重复执行就不再是例外情况，而是必须提前接受的现实。
+
+《Thriving in Android Development Using Kotlin》里对消息备份的处理，就是一个很适合放在这里的范例：它没有把备份做成常驻服务，而是定义 `UploadMessagesWorker`，再用 `PeriodicWorkRequestBuilder<UploadMessagesWorker>(7, TimeUnit.DAYS)` 把任务设成“每周一次”，并通过 `Constraints.Builder().setRequiredNetworkType(NetworkType.UNMETERED)` 限定在非计费网络下执行，再配合线性回退做失败重试。这个案例把系统调度型工作的三条判断线讲得很具体：事情确实有长期价值，但不要求立刻完成；用户不需要一直盯着它；失败后也可以安全重来。
 
 ### 7. 用户可感知的持续工作：重点是透明和可控
 
@@ -184,7 +186,7 @@
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 22 章与后台任务分类相关内容。
-- 参考并改写自：`Kickstart Modern Android Development With Jetpack And Kotlin`，后台工作、服务边界与任务调度相关章节。
+- 参考并改写自：Guilherme Socorro，《Thriving in Android Development Using Kotlin》(2024)，`UploadMessagesWorker`、`PeriodicWorkRequestBuilder`、网络约束与重试策略相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，可靠后台执行与工程边界相关章节。
 
 - Background tasks overview：<https://developer.android.com/develop/background-work/background-tasks>

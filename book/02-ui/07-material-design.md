@@ -1,4 +1,4 @@
-﻿# Material Design
+# Material Design
 
 一提到 Material Design，很多初学者首先想到的是按钮样式、卡片阴影或若干组件名字。但从更高层看，Material Design 的价值并不在于提供一套“看起来现代”的外观，而在于提供一套关于层级、颜色、排版、间距、反馈和可达性的统一设计语言。对 Android 开发者来说，理解 Material Design 的意义，是为了让 UI 不再只是“功能摆上去”，而是具备清晰、一致、可扩展的交互表达。
 
@@ -49,6 +49,10 @@ Material 设计之所以适合交互型产品，是因为它非常强调状态�
 Android 官方的 Material Design for Android 页面明确建议：如果应用使用 View，可以采用 Android Material Components；如果应用使用 Compose，可以采用 Compose Material 3。它的价值不只是“样式现成”，更在于它让主题系统更统一、状态反馈更规范、颜色与排版更容易集中管理，也让 View 和 Compose 两套 UI 体系更容易在设计语言上衔接。
 
 这也是为什么很多现代项目会把 Material 当作 UI 基线，而不是临时拼控件。你当然可以手工做出各种按钮、输入框和卡片，但只要缺少统一的主题、层级和语义表达，页面数量一多，风格几乎一定会散。
+
+这一点在 Socorro 的会话列表示例里很直观。她把“新建聊天”放进 `FloatingActionButton`，明确让它承担页面的 primary action，而不是与其他按钮混在内容区里。这个例子说明，Material 组件真正提供的不是单个控件的“皮肤”，而是把操作优先级编码进界面语义：当页面只有一个最重要的动作时，用户应该几乎不用思考就能发现它。
+
+Vainigli 的 `CartScreen` 和 `AuthScreen` 又展示了主题与状态反馈怎样一起工作。前者用 `MaterialTheme.typography.headlineMedium` 突出总价，用 `enabled = isUserLoggedIn.value` 控制结算按钮，并在未登录时补上明确说明；后者则让 `TextField`、`Button` 和欢迎语随着认证状态切换。这里真正值得借鉴的不是“多用了几个 Material 组件”，而是排版层级、按钮可用性和反馈文案都被统一收进同一套设计语言里。
 
 ### 6. 从组件思维，走向设计令牌思维
 
@@ -114,8 +118,8 @@ Material Design 的真正价值，不在于页面“像不像某个官方示例�
 ## 参考资料
 
 - 参考并改写自：Gonda V.，《Android Accessibility by Tutorials, 2nd Edition》(2022)，可访问性、交互反馈与可用性检查相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，主题、组件与真实项目 UI 组织相关章节。
-- 参考并改写自：`Kickstart Modern Android Development With Jetpack And Kotlin`，Material 组件、主题与现代 UI 组织相关章节。
+- 参考并改写自：Giselle Socorro，《Thriving in Android Development Using Kotlin》(2024)，Compose Material 组件、主操作表达与聊天界面组织相关章节。
+- 参考并改写自：Luca Vainigli，《Ultimate Android Design Patterns》(2025)，Compose 主题、排版层级与状态反馈相关章节。
 
 - Material Design for Android：<https://developer.android.com/develop/ui/views/theming/look-and-feel>
 - Material Design specification：<https://m3.material.io/>

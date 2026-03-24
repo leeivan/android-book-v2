@@ -1,4 +1,4 @@
-﻿# Service
+# Service
 
 `Service` 可能是 Android 系统组件里最容易被误解的一个。很多开发者第一次接触它时，会自然地把它等同于“后台线程”或“让任务在后台一直跑的东西”。这种理解在现代 Android 里非常危险，因为 `Service` 从来不是线程，也不是后台执行万能解。它只是一个系统组件入口，用来承载某些不依赖界面但需要在组件边界上持续存在的工作。
 
@@ -39,6 +39,8 @@ Service 是组件，不是线程。它不会自动开后台线程，也不会天
 
 这两句话在现代 Android 里都不成立。Service 解决的是组件存在方式，不是执行模型。
 
+`The Android Developer's Cookbook` 有个 `SimpleService` 例子，非常适合把这条边界钉死：Activity 通过 `startService()` / `stopService()` 控制 service，service 自己在 `onCreate()` 里再起线程播放一段音频。书里还特意提醒两件事：如果不额外起线程，耗时工作仍会阻塞 UI；而且即使 Activity 因旋转或退到后台而结束，service 仍会作为独立实体继续存在。这个例子虽然年代较早，但正好把“Service 负责存在方式，并发工具负责执行方式”讲得很直白。
+
 ### 3. Service 真正适合的，是“组件边界上的持续能力”
 
 Service 更适合承载的是这类问题:
@@ -76,6 +78,8 @@ Service 更适合承载的是这类问题:
 - 用户通知被打扰。
 
 所以 Service 并不是“后台任务默认方案”，更不是 `WorkManager` 的替代。
+
+《Head First Android Development》用两个对比非常鲜明的例子把这条边界讲得很清楚。第一个是 `DelayedMessageService`：`MainActivity` 发一个显式 `Intent`，service 等 10 秒后写日志、发通知，然后自己结束。这个例子当年用 `IntentService` 演示 started service，今天不该机械照搬成现代主线，但它仍然很好地说明了 started service 更像“接到一次请求，把这次工作做完”。第二个例子是 `OdometerService`：Activity 绑定后不断调用 `getMiles()`，service 内部借助位置服务累计里程，只要组件保持绑定，它就持续提供结果。把这两个例子放在一起看，started service 和 bound service 的边界会比单背概念清楚得多。
 
 ### 7. 一个典型场景: 音乐播放为什么比数据同步更像 Service
 
@@ -153,8 +157,10 @@ Service 在 Android 中真正的角色，是承载某些脱离界面但仍需要
 
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，Service、前台服务与后台执行相关章节。
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，系统组件与现代后台能力相关章节。
+- 参考并改写自：Dawn Griffiths、David Griffiths，《Head First Android Development》，`DelayedMessageService` 与 `OdometerService` 相关示例。
 - 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，媒体与持续任务组织相关章节。
 
+- 参考并改写自：James Steele、Nelson To，《The Android Developer's Cookbook》(2011)，`SimpleService` 与系统组件边界相关 recipes。
 - Services overview: <https://developer.android.com/develop/background-work/services>
 - Foreground services overview: <https://developer.android.com/develop/background-work/services/foreground-services>
 - Background work overview: <https://developer.android.com/develop/background-work>

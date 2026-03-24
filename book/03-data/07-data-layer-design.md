@@ -1,4 +1,4 @@
-﻿# 数据层设计
+# 数据层设计
 
 前面几章分别讲了配置、文件、SQLite、Room 和 JSON，但真正的 Android 项目不会把这些能力孤立使用。现实里的问题通常是：页面需要数据时，应该向谁要；本地和远程数据如何协作；缓存和真实来源如何划分；模型转换应该放在哪一层。所有这些问题，最终都会汇聚到“数据层设计”上。
 
@@ -78,11 +78,15 @@ class TaskRepository(
 
 这个例子故意保持简单，但已经体现了几个关键点。上层观察的是本地数据流，而不是直接盯着网络结果；刷新动作由 Repository 协调，而不是由页面自己同时调网络和写数据库；本地数据库在这里更接近单一可信来源。你未来当然会加入错误处理、冲突策略和模型转换细节，但这条结构主线不应改变。
 
+《Thriving in Android Development Using Kotlin》里的消息功能把这条主线进一步做实了：一开始 `MessagesRepository` 只依赖 `MessagesSocketDataSource`，对外暴露 `getMessages()`、`sendMessage()`、`disconnect()`；随后作者把这些能力上提成领域层接口 `IMessagesRepository`，再让 `RetrieveMessages`、`SendMessage`、`DisconnectMessages` 这些 UseCase 依赖抽象而不是具体实现。再往后，当聊天功能需要离线能力时，仓库同时接入 socket 数据源和本地 `MessageDao`，在线时把新消息写入数据库并继续向上游发射，断线时则直接回退到数据库流。这个例子很适合拿来理解 Repository 的真实工作：它不是“代替页面转发一下请求”，而是在不同来源之间协调、兜底并维持边界。
+
 ### 8. 数据层为什么直接影响测试和迭代效率
 
 只要数据层边界清晰，页面可以更容易做状态测试，Repository 可以更容易替换模拟数据源，本地和远程策略也可以独立演进。Android 官方的数据层文档同样强调：把数据层从 UI 分离出来，有助于多屏复用数据、在 UI 之外复现业务逻辑，并提升可测试性。
 
 也就是说，数据层不是“写给架构图看的”，而是直接影响开发效率和长期维护成本。一个边界清晰的数据层，会让新需求主要在同一条数据流里演进；一个边界混乱的数据层，则会迫使你在每个页面里都重新协调一遍数据来源。
+
+同一本书后面的备份模块也提供了一个很有代表性的替换实现：`BackupRepository` 依赖 `MessageDao`、`ConversationDao` 和 `IStorageDataSource`，于是本地消息读取、会话索引和远端存储能力被拆成了三个清楚的来源。后来作者把底层存储从 Firebase Storage 换成 AWS S3 时，主要改动只发生在 `IStorageDataSource` 的实现和 Hilt 绑定上，`BackupRepository` 自己几乎不用跟着重写。对数据层设计来说，这种“可以换底座而不把上层一起掀翻”的能力，比任何口号都更能说明分层的价值。
 
 ### 9. 实践任务
 
@@ -134,6 +138,7 @@ class TaskRepository(
 
 - 参考并改写自本地 PDF：`Clean Android Architecture`，Repository、数据边界、单一可信来源与 Dependency Rule 相关章节。
 - 参考并整理自本地 PDF：Bennett M.，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，data-domain-presentation 分层、feature 模块中的数据入口设计与 offline-first 相关章节。
+- 参考并整理自本地 PDF：Guilherme Socorro，《Thriving in Android Development Using Kotlin》(2024)，`MessagesRepository`、`IMessagesRepository`、本地回退与 `BackupRepository` 相关章节。
 - Data layer：<https://developer.android.com/topic/architecture/data-layer>
 - Guide to app architecture：<https://developer.android.com/topic/architecture>
 - Recommendations for Android architecture：<https://developer.android.com/topic/architecture/recommendations>

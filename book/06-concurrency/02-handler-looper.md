@@ -1,4 +1,4 @@
-﻿# Handler 与 Looper
+# Handler 与 Looper
 
 很多现代 Android 项目已经大量使用协程，结果不少读者会误以为 `Handler` 和 `Looper` 已经变成纯历史知识。真正写项目时，这种判断常常会让人看不懂旧代码，也看不懂 Android 主线程到底为什么能持续处理输入、绘制和回调。`Handler`、`Looper` 这一章真正的价值，不是鼓励你回到旧式异步写法，而是让你建立对 Android 消息循环模型的直觉。
 
@@ -98,6 +98,10 @@ fun scheduleHint() {
 
 这说明 `Handler` 很适合表达“在线程消息循环内调度一个稍后执行的动作”。
 
+《Head First Android Development》里有一个更经典、也更适合建立直觉的例子：秒表应用在 `StopwatchActivity` 里维护 `seconds` 和 `running` 两个状态，`runTimer()` 每次先刷新界面上的时间文本，再通过 `postDelayed()` 把同一个 `Runnable` 安排到 1000 毫秒后再次执行。这个案例的妙处在于，它没有引入复杂线程模型，却清楚展示了 Handler 的两个核心动作：把任务送回消息队列，以及让同一段逻辑按节奏重复调度。今天如果只是实现页面内计时，协程也常常更自然；但从理解消息循环的角度，这个秒表例子比“网络请求回主线程”更透明。
+
+`The Android Developer's Cookbook` 里的 `BackgroundTimer` 又把同一类问题换了一种更“消息队列可见”的写法：页面一边记录按钮点击次数，一边用 `SystemClock.uptimeMillis()` 计算应用启动后的经过时间，再通过 `Handler.postDelayed(mUpdateTimeTask, 200)` 每 200 毫秒递归刷新一次文本；进入 `onPause()` 时用 `removeCallbacks()` 停掉，回到 `onResume()` 再恢复。这个老例子特别适合拿来说明两件事：一是 `Handler` 调度的本质就是不断把同一个任务重新塞回队列；二是只要任务会跨越前后台，就必须把取消和恢复放进生命周期。
+
 ### 7. Handler 最容易出问题的地方不是语法，而是生命周期
 
 `Handler` 本身不复杂，复杂的是你把它和谁绑定、它持有谁、页面是否还活着。典型问题包括:
@@ -167,7 +171,8 @@ fun scheduleHint() {
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 12 章异步基础部分。
-- 参考并改写自：`Kickstart Modern Android Development With Jetpack And Kotlin`，主线程调度、延迟执行与旧式异步模型过渡相关章节。
+- 参考并改写自：Dawn Griffiths、David Griffiths，《Head First Android Development》，Stopwatch 与 `Handler.postDelayed()` 相关示例。
+- 参考并改写自：James Steele、Nelson To，《The Android Developer's Cookbook》(2011)，`BackgroundTimer`、`Handler.postDelayed()` 与生命周期取消相关 recipes。
 
 - Processes and threads overview: <https://developer.android.com/guide/components/processes-and-threads>
 - Handler reference: <https://developer.android.com/reference/android/os/Handler>

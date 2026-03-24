@@ -1,4 +1,4 @@
-﻿# Android 中的 MVVM
+# Android 中的 MVVM
 
 上一章解决的是“为什么现代 Android 更常采用 MVVM”，这一章开始回答另一个更实在的问题: 它在代码里到底怎样落地。很多开发者知道 `View`、`ViewModel`、`Model` 这三个词，却很难把它们和 Activity、Fragment、Compose、Repository、Room、网络接口这些现实对象对应起来。结果往往是，概念上似乎已经在用 MVVM，代码上却仍然由页面类承担大部分复杂度。
 
@@ -111,6 +111,8 @@ data class ArticleListUiState(
 
 与这件事配套的，还有“只暴露只读状态”的纪律。ViewModel 内部可以维护 `MutableStateFlow` 或其他可变状态容器，但对外更稳妥的接口通常应该是 `StateFlow<UiState>` 或其他只读视图。这样做不是形式主义，而是在明确：页面负责消费状态，不负责绕过 ViewModel 直接改状态。
 
+Luca Vainigli 在一个很简洁的 `ArticleRepository -> ArticleViewModel -> ArticleListScreen` 例子里，把这层接口压得很实：`ArticleRepository(private val dataSource: ArticleDataSource)` 负责取文，`ArticleViewModel` 内部维护 `private val _articles = MutableStateFlow(emptyList<Article>())`，只向外暴露 `StateFlow<List<Article>>`，Compose 端的 `ArticleListScreen(viewModel: ArticleViewModel = viewModel())` 则通过 `viewModel.articles.collectAsState(emptyList()).value` 渲染列表。这个例子看似简单，却正好说明了 MVVM 的关键纪律：数据源不碰 UI，Composable 不直连数据源，ViewModel 和界面之间只通过可观察状态交换信息。
+
 ### 8. View 应该轻到什么程度
 
 “页面要轻”这句话很容易说空。更具体一点，View 可以负责:
@@ -181,6 +183,8 @@ class ArticleListViewModel(
 
 这就是 MVVM 在 Android 中最有价值的部分: 把复杂页面重新收束成清晰状态。
 
+《Thriving in Android Development Using Kotlin》里的聊天页又把这个结构往真实项目推了一步：`ChatViewModel` 同时暴露 `uiState: StateFlow<Chat>` 和 `messages: StateFlow<List<Message>>`，Compose 端用 `LaunchedEffect(Unit)` 触发初始化，再分别消费这两条状态流。作者之所以没有把所有东西硬塞进一个超大的状态对象，是因为聊天头部信息和消息流的变化频率完全不同。这个例子很适合提醒读者，MVVM 的重点不是“永远只有一个状态对象”，而是让状态边界和变化频率匹配，让 UI 知道该观察什么、为什么变化。
+
 ### 11. 实践任务
 
 起点条件:
@@ -228,7 +232,8 @@ Android 中的 MVVM，本质上是一种围绕页面状态组织起来的职责�
 
 - 参考并改写自：`Clean Android Architecture`，MVVM、页面状态和数据层边界相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，route/content 分层、只读状态暴露与屏幕组织相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，ViewModel 与 UI 状态在真实项目中的协作相关章节。
+- 参考并改写自：Luca Vainigli，《Ultimate Android Design Patterns》(2025)，`ArticleRepository`、`ArticleViewModel`、`collectAsState()` 与 `StateFlow` 相关章节。
+- 参考并改写自：Guilherme Socorro，《Thriving in Android Development Using Kotlin》(2024)，`ChatViewModel`、`uiState` / `messages` 分流与 Compose 初始化相关章节。
 
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
 - ViewModel overview: <https://developer.android.com/topic/libraries/architecture/viewmodel>

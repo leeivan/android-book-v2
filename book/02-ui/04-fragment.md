@@ -1,4 +1,4 @@
-﻿# Fragment
+# Fragment
 
 Fragment 是 Android 界面结构中非常重要、也经常被误解的一类组件。很多初学者第一次接触 Fragment 时，会觉得它像“半个 Activity”或者“可以嵌在页面里的小页面”。这种描述有一点直观性，但不够准确。Fragment 的真正价值，在于它提供了一种更细粒度的界面和生命周期组织方式，让同一个 Activity 可以承载多个可组合、可替换的 UI 片段。
 
@@ -44,6 +44,8 @@ Fragment 比 Activity 更容易让初学者迷惑的地方，在于它同时涉�
 
 这也是为什么很多项目会在 `onViewCreated()` 里完成 ViewBinding、Adapter 和界面观察初始化，再在 `onDestroyView()` 里清理对 View 的引用。只要把这类和界面树直接相关的对象错误地保留到 Fragment 实例级别，就很容易在返回栈切换、配置变化或重复进入页面时留下泄漏和脏状态。对 Fragment 来说，“实例还在”与“当前这套 View 还能安全使用”必须始终分开判断。
 
+Big Nerd Ranch 在同一个 `CriminalIntent` 示例里也把这个坑讲得很实在：一开始 `CrimeDetailFragment` 直接持有 binding，后面随着返回栈和视图重建引出“为什么 View 其实已经该被释放了”，再用 `_binding` 与 `binding` 的组合把“实例级 Fragment”和“视图级生命周期”拆开。这个例子很适合直接映射到今天的工程实践，因为它不是抽象原则，而是一个非常真实的内存管理和生命周期边界问题。
+
 ### 5. 什么时候最适合用 Fragment
 
 Fragment 最常见、最有价值的场景包括：页面内容区替换、标签页和主从结构、导航图中的多个目的地、复杂页面内部的结构拆分。它也特别适合那些“宿主不变，但局部内容会切换”的界面。比如一个设置页面的多个子面板，一个列表页进入详情页后的内容替换，或者大屏幕上的双栏详情结构。
@@ -52,9 +54,15 @@ Fragment 最常见、最有价值的场景包括：页面内容区替换、标�
 
 ### 6. `FragmentContainerView` 和事务，决定了 Fragment 怎么落到页面里
 
+Big Nerd Ranch 在 `CriminalIntent` 里给了一个非常清晰的 Fragment 入门路径：先让 `MainActivity` 用 `FragmentContainerView` 承载 `CrimeDetailFragment`，把“宿主提供容器、Fragment 提供内容区”这条边界立住；随后再引入 `CrimeListFragment`，让同一个宿主开始承载可切换的不同内容单元。这个案例特别适合帮助读者摆脱“Fragment 就是小页面”的印象，因为它展示的重点并不是多一个类，而是当列表和详情都变成可替换内容区后，Activity 才终于退回到真正适合它的位置：系统入口和宿主外壳。
+
 Android 官方的 Create a fragment 指南明确建议，用 `FragmentContainerView` 作为 Fragment 的容器，而不是随便找一个 `FrameLayout` 来代替，因为它包含了专门针对 Fragment 的行为修复。你可以在 XML 中直接让容器承载一个 Fragment，也可以在 Activity 中通过 `FragmentManager` 和事务把 Fragment 加入或替换进去。
 
 如果是代码方式添加，官方同样建议在事务中调用 `setReorderingAllowed(true)`。这个细节很容易被忽略，但它关系到 FragmentManager 正确处理事务、生命周期和回退行为。对当前阶段的读者来说，最重要的不是记住所有事务方法，而是理解：Fragment 不是自动漂浮在页面里的，它必须有宿主、有容器、有明确的添加或替换入口。
+
+`Android Application Development Cookbook, 2nd Edition` 在 Fragment 切换示例里，把这个容器和回退关系写得很直接：Activity 先通过 `getSupportFragmentManager()` 拿到 `FragmentManager`，再把 `FragmentOne` 加进 `frameLayout`，按钮点击时用 `replace()` 在 `FragmentOne` 和 `FragmentTwo` 之间切换；一旦希望 Back 键把用户带回上一个内容区，只要在 `commit()` 前补上 `addToBackStack()` 即可。这个例子虽然仍属早期 Views 时代，但它很好地说明了 Fragment 的“切换感”并不是系统自动给的，而是容器、事务和 back stack 一起配合出来的。
+
+`Apress Pro Android 4` 还特别提醒了一个今天仍然很容易误解的点：Fragment back stack 只是 UI 历史，不是业务状态回滚。也就是说，用户按 Back 回到上一个 Fragment，看起来像“回退了一步”，但 Activity 里的数据变化并不会自动恢复到旧值；如果你的页面状态需要跟着恢复，仍然要靠参数、保存状态或更清晰的状态托管来完成。把这一点想清楚，很多“为什么界面回去了但数据没回去”的困惑就会少很多。
 
 ### 7. 最小示例：把内容区从 Activity 中拆成 Fragment
 
@@ -146,6 +154,8 @@ Fragment 的意义不在于“多学一个组件”，而在于它提供了更�
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 9 章与第 13 章。
 - 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，宿主页面、界面拆分与多页面流程相关章节。
 
+- 参考并改写自：Rick Boyer、Kyle Mew，《Android Application Development Cookbook, 2nd Edition》(2016)，Fragment 切换、`FragmentManager` 与 `addToBackStack()` 相关 recipes。
+- 参考并改写自：Satya Komatineni、Dave MacLean，《Apress Pro Android 4》(2012)，fragment back stack 与状态恢复边界相关讨论。
 - 创建 Fragment：<https://developer.android.com/guide/fragments/create>
 - Fragment 生命周期：<https://developer.android.com/guide/fragments/lifecycle>
 - FragmentManager：<https://developer.android.com/guide/fragments/fragmentmanager>

@@ -51,6 +51,8 @@
 
 很多开发者习惯把“已经拿到权限”当成永久状态，这在今天已经不够可靠。用户可以随时撤回、改成仅本次允许、改成模糊授权、限制后台访问。权限因此更像动态状态，而不是一次性初始化结果。
 
+Neil Smyth 在 `Android Studio Narwhal Essentials` 里用一个很典型的 `PermissionDemo` 把这件事讲得非常具体：示例先在 Manifest 里声明 `RECORD_AUDIO`，随后用 `ContextCompat.checkSelfPermission()` 检查当前状态，不满足时再通过 `ActivityCompat.requestPermissions()` 发起请求，并在 `onRequestPermissionsResult()` 里处理结果，必要时还会借助 `shouldShowRequestPermissionRationale()` 给出二次解释。这个例子最值得保留的，不是某个旧式回调名，而是它清楚拆开了三层边界：Manifest 声明、运行时授权、被拒绝后的说明与降级。少了任何一层，权限流程都不完整。
+
 这意味着你的应用必须能处理：
 
 - 权限被拒绝。
@@ -69,6 +71,8 @@
 - 真正不需要时，过早申请只会增加拒绝概率。
 
 最小权限原则的核心是：只申请当前任务真正需要的能力，只要足够完成目标，就不要额外扩张。
+
+`Android Security - Attacks and Defenses` 在讲 Manifest permission 时给了一个很直接的例子：应用通过 `<uses-permission>` 声明 `INTERNET`、读取 MMS/SMS 等能力，系统再据此决定代码能否触碰这些受保护资源；如果应用去执行没有授权的操作，平台会直接抛出 `SecurityException`。这个例子虽然来自安全语境，但对日常开发很有提醒作用：权限不是“先写着备用”的标签，而是平台用来截断越界能力的硬边界。放到今天的产品设计里，这就意味着如果某个功能只需要用户选一张图，就不该顺手把更大范围的媒体访问能力也声明进去。
 
 ### 6. 一个现实例子：选图为什么已经不该优先想到存储权限
 
