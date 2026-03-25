@@ -110,6 +110,80 @@ Service 更适合承载的是这类问题:
 
 也就是说，Service 决定“它以什么身份存在”，并发工具决定“工作怎么被执行”。这两层不要混。
 
+下面把这个边界写成一个更完整的前台服务骨架，会比单纯记住“Service 不是线程”更容易落地。
+
+```kotlin
+class PlaybackService : Service() {
+
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val binder = LocalBinder()
+    private lateinit var player: EpisodePlayer
+
+    inner class LocalBinder : Binder() {
+        fun service(): PlaybackService = this@PlaybackService
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        player = EpisodePlayer(this)
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val episodeId = intent?.getStringExtra(EXTRA_EPISODE_ID) ?: return START_NOT_STICKY
+        startForeground(PLAYER_NOTIFICATION_ID, buildPlaybackNotification())
+
+        serviceScope.launch {
+            player.prepare(episodeId)
+            player.play()
+        }
+        return START_STICKY
+    }
+
+    override fun onBind(intent: Intent): IBinder = binder
+
+    fun pausePlayback() {
+        player.pause()
+    }
+
+    fun currentPosition(): Long = player.currentPosition()
+
+    override fun onDestroy() {
+        serviceScope.cancel()
+        player.release()
+        super.onDestroy()
+    }
+}
+```
+
+这段代码里最值得观察的不是 `startForeground()` 本身，而是职责拆分。`Service` 负责以系统组件身份存在，也负责把播放这件事公开成用户可感知的持续能力；真正准备音频、开始播放、结束释放这些工作，仍然交给协程和播放器对象去做。
+
+如果页面需要显示进度或响应播放控制，它可以通过绑定拿到一个很小的控制面，而不是把整个业务实现塞回 Activity。
+
+```kotlin
+class NowPlayingActivity : AppCompatActivity() {
+
+    private var playbackService: PlaybackService? = null
+
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            playbackService = (service as PlaybackService.LocalBinder).service()
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            playbackService = null
+        }
+    }
+
+    fun onPauseClicked() {
+        playbackService?.pausePlayback()
+    }
+}
+```
+
+这种组合也顺手解释了 started service 和 bound service 为什么经常一起出现。started service 解决的是“播放能力应该继续存在”，bound service 解决的是“当前界面怎样和这项持续能力交互”。两者关注的是不同问题，所以完全可以同时存在。
+
+反过来看，如果一个需求只是“页面关闭后把待发送草稿补传到服务器”，那它通常只需要可靠调度，而不需要把自己包装成用户可感知的持续能力。把这种任务做成 Service，大概率只是在拿更重的组件解决更轻的问题。
+
 ### 9. 实践任务
 
 起点条件:
@@ -158,7 +232,6 @@ Service 在 Android 中真正的角色，是承载某些脱离界面但仍需要
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，Service、前台服务与后台执行相关章节。
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，系统组件与现代后台能力相关章节。
 - 参考并改写自：Dawn Griffiths、David Griffiths，《Head First Android Development》，`DelayedMessageService` 与 `OdometerService` 相关示例。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，媒体与持续任务组织相关章节。
 
 - 参考并改写自：James Steele、Nelson To，《The Android Developer's Cookbook》(2011)，`SimpleService` 与系统组件边界相关 recipes。
 - Services overview: <https://developer.android.com/develop/background-work/services>

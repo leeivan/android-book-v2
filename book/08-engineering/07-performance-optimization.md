@@ -100,6 +100,75 @@ fun decodeScaledBitmap(path: String, destWidth: Int, destHeight: Int): Bitmap {
 
 这样一来，问题就不再是一个抽象的“慢”，而是一条可以逐段观察的用户链路。你可以先在真机上复现，再用 Profiler 看 CPU、Memory、Network 的变化，然后判断究竟是启动分层出了问题、条目绑定过重、位图解码过大，还是后台请求节奏不合理。性能优化真正怕的，不是问题复杂，而是问题一直停留在含糊的描述里。
 
+把“先测量”和“减少绑定链路负担”各落一段代码，性能这章会更容易从概念进入实践。
+
+```kotlin
+@RunWith(AndroidJUnit4::class)
+class StartupBenchmark {
+
+    @get:Rule
+    val benchmarkRule = MacrobenchmarkRule()
+
+    @Test
+    fun coldStartup() = benchmarkRule.measureRepeated(
+        packageName = "com.example.news",
+        metrics = listOf(StartupTimingMetric()),
+        iterations = 5,
+        startupMode = StartupMode.COLD,
+        setupBlock = {
+            pressHome()
+        },
+    ) {
+        startActivityAndWait()
+    }
+}
+```
+
+这段 Macrobenchmark 代码最重要的教学点，不是把性能工作变成“又一个测试框架”，而是把“先做基线”这件事落到了可重复执行的工具上。只要启动时间能够被稳定测量，后面无论你是在拆分初始化、引入 Baseline Profile，还是延后非关键工作，都能真正知道自己有没有改善首屏体验，而不是只剩“感觉好像快了一点”。
+
+列表性能的判断也应该尽量落到链路上，而不是只盯着容器本身。下面这个例子展示的是把条目格式化工作前移到 ViewModel，而不是滚动时在绑定阶段反复计算。
+
+```kotlin
+data class ArticleRowUiModel(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+)
+
+class ArticleListViewModel(
+    repository: ArticleRepository,
+) : ViewModel() {
+
+    val rows: StateFlow<List<ArticleRowUiModel>> = repository.observeArticles()
+        .map { articles ->
+            articles.map { article ->
+                ArticleRowUiModel(
+                    id = article.id,
+                    title = article.title,
+                    subtitle = formatRelativeTime(article.publishedAt),
+                )
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
+}
+
+class ArticleViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+
+    fun bind(model: ArticleRowUiModel) {
+        itemView.findViewById<TextView>(R.id.title).text = model.title
+        itemView.findViewById<TextView>(R.id.subtitle).text = model.subtitle
+    }
+}
+```
+
+这段代码真正要传达的，不是“ViewModel 里做格式化一定永远最好”，而是滚动时的绑定链路应该尽量轻。相对时间格式化、字符串拼接、排序映射这类工作，如果每次 `bind()` 都重新做一遍，就会把主线程时间切得很碎。把这些工作收束到数据更新阶段之后，列表容器才能真正把重用和批量更新的优势发挥出来。
+
+把 Macrobenchmark 和 `ArticleRowUiModel` 放在一起看，性能工作的闭环就会非常清楚：先测量，再定位，然后让重工作回到更合适的层。你真正优化的不是某个单独 API，而是用户整条使用链路里的资源分配顺序。
+
 ### 9. 实践任务
 
 起点条件：
@@ -149,4 +218,6 @@ fun decodeScaledBitmap(path: String, destWidth: Int, destHeight: Int): Bitmap {
 ## 参考资料
 
 - 参考并整理自本地资料：Bryan Sills、Brian Gardner、Kristin Marsicano、Chris Stewart，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》，第 5 章（Profiler）、第 10 章（RecyclerView）、第 17 章（位图缩放）以及 ViewModel 与内存泄漏相关内容。
-- 可继续结合 Android Developers 的性能、Profiler 与大图加载文档做延伸阅读。
+- Benchmark your app: <https://developer.android.com/topic/performance/benchmarking/benchmarking-overview>
+- Write a Macrobenchmark: <https://developer.android.com/topic/performance/benchmarking/macrobenchmark-overview>
+- App startup time: <https://developer.android.com/topic/performance/vitals/launch-time>

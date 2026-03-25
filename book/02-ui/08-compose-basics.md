@@ -113,6 +113,48 @@ fun CounterContent(
 
 这个版本的关键不是代码更多了，而是角色更清楚了：`CounterRoute` 负责持有状态，`CounterContent` 负责根据状态渲染并把事件抛回去。很多官方样例项目，包括 `Now in Android`，都会把屏幕拆成 route 层和 content 层，本质上就是在贯彻这种“状态上提、展示下沉”的结构思路。
 
+如果把这个思路继续推进到真实项目，route/content 往往会再往上接一个 ViewModel：
+
+```kotlin
+@Composable
+fun ArticleListRoute(
+    viewModel: ArticleListViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    ArticleListContent(
+        uiState = uiState,
+        onRefresh = viewModel::refresh,
+        onArticleClick = viewModel::onArticleClick
+    )
+}
+
+@Composable
+fun ArticleListContent(
+    uiState: ArticleListUiState,
+    onRefresh: () -> Unit,
+    onArticleClick: (String) -> Unit
+) {
+    when {
+        uiState.isLoading -> CircularProgressIndicator()
+        uiState.articles.isEmpty() -> EmptyState(onRefresh = onRefresh)
+        else -> LazyColumn {
+            items(uiState.articles) { article ->
+                Text(
+                    text = article.title,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onArticleClick(article.id) }
+                        .padding(16.dp)
+                )
+            }
+        }
+    }
+}
+```
+
+这个版本一出来，Compose 的工程结构就会清楚很多：`ArticleListRoute` 负责从 ViewModel 拿状态，`ArticleListContent` 负责纯展示，事件再通过参数往上抛回。这样做的价值并不是“多拆一个函数”，而是把状态来源、UI 描述和用户意图彻底分开。只要这条边界站稳，你后面再引入 `collectAsStateWithLifecycle()`、导航、分页或 effect 处理时，代码都不会轻易退回“一个 composable 里什么都做”的混乱状态。
+
 ### 8. 为什么 Compose 和 Material 3 往往一起出现
 
 在现代 Android 项目中，Compose 往往会和 Material 3 一起出现。原因很简单：Compose 提供声明式 UI 组织方式，Material 3 提供现代设计语言和组件体系。两者结合后，界面结构、状态驱动和设计系统更容易统一。Android 官方的 Material Design for Android 页面也直接指出：如果应用使用 Compose，可以使用 Compose Material 3 library。

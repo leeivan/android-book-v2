@@ -114,6 +114,107 @@
 
 同样都发生在页面之外，一个更接近持久调度，一个更接近前台持续服务。这就是为什么后台任务不能按“是不是在页面外”来简单判断。
 
+下面把三类任务并排写成最小代码，边界会更直观。
+
+```kotlin
+data class ComposerUiState(
+    val sending: Boolean = false,
+    val sent: Boolean = false,
+    val error: String? = null
+)
+
+class ComposeMessageViewModel(
+    private val repository: DraftRepository
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ComposerUiState())
+    val uiState: StateFlow<ComposerUiState> = _uiState.asStateFlow()
+
+    fun sendNow(draftId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(sending = true, error = null) }
+            runCatching { repository.sendNow(draftId) }
+                .onSuccess {
+                    _uiState.update { state -> state.copy(sending = false, sent = true) }
+                }
+                .onFailure { throwable ->
+                    _uiState.update { state ->
+                        state.copy(sending = false, error = throwable.message)
+                    }
+                }
+        }
+    }
+}
+```
+
+这段 `sendNow()` 是典型的页面内异步工作：用户此刻正在等待结果，页面销毁后结果通常也不再值得回写，所以它应该留在 `viewModelScope` 里，跟着页面状态结束。
+
+```kotlin
+class UploadAttachmentWorker(
+    appContext: Context,
+    params: WorkerParameters,
+    private val repository: DraftRepository
+) : CoroutineWorker(appContext, params) {
+
+    override suspend fun doWork(): Result {
+        val draftId = inputData.getString(KEY_DRAFT_ID) ?: return Result.failure()
+        return runCatching { repository.uploadPendingAttachment(draftId) }
+            .fold(
+                onSuccess = { Result.success() },
+                onFailure = { Result.retry() }
+            )
+    }
+}
+
+fun enqueueAttachmentUpload(context: Context, draftId: String) {
+    val request = OneTimeWorkRequestBuilder<UploadAttachmentWorker>()
+        .setInputData(workDataOf(KEY_DRAFT_ID to draftId))
+        .setConstraints(
+            Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+        )
+        .build()
+
+    WorkManager.getInstance(context).enqueueUniqueWork(
+        "upload_attachment_$draftId",
+        ExistingWorkPolicy.KEEP,
+        request
+    )
+}
+```
+
+这里同样是“发送附件”，但目标已经变成“即使离开页面也要最终补传成功”。它不要求用户盯着看，却要接受掉线、重试和系统择机执行，所以更适合交给 `WorkManager`。
+
+```kotlin
+class NavigationService : Service() {
+
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForeground(NAV_NOTIFICATION_ID, buildNavigationNotification())
+        val routeId = intent?.getStringExtra(EXTRA_ROUTE_ID) ?: return START_NOT_STICKY
+
+        serviceScope.launch {
+            navigationEngine.start(routeId)
+        }
+        return START_STICKY
+    }
+
+    override fun onDestroy() {
+        serviceScope.cancel()
+        navigationEngine.stop()
+        super.onDestroy()
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+}
+```
+
+这段代码代表的则是第三类任务：用户正在导航，任务一停用户马上感知，所以不仅要继续运行，还必须通过通知让用户知道应用正在持续工作。这里 `Service` 决定的是组件身份和可见性，真正的执行仍然交给协程和业务对象。
+
+把这三段并排之后，分类标准就会非常清楚：用户正在等待结果的任务留在页面状态层；允许稍后完成但必须最终完成的任务交给系统调度；用户正在依赖、而且必须持续可见的能力，才升级成前台服务。
+
 ### 10. 一个实用的决策顺序
 
 当你面对一个新需求，不确定它该落在哪类机制上时，可以按下面这个顺序想。

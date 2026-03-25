@@ -126,6 +126,53 @@ ViewModel 本身已经比页面实例稳定，但它仍然主要活在内存里�
 
 《Thriving in Android Development Using Kotlin》里的 `ChatViewModel` 则把这条边界落成了很具体的工程形态：它通过构造函数接住 `RetrieveMessages`、`SendMessage`、`DisconnectMessages` 和 `GetInitialChatRoomInformation`，内部维护 `_messages` 与 `_uiState` 两个 `MutableStateFlow`，再在 `viewModelScope.launch(Dispatchers.IO)` 中先拉取聊天初始化信息，再开始收集消息流。这个结构很值得参考，因为它说明 ViewModel 最合适做的是“接住屏幕初始化、编排用例、向外暴露状态”，而不是自己去持有 WebSocket、REST 客户端或数据库细节。
 
+如果把 `SavedStateHandle`、屏幕状态和一次性事件放进同一个最小例子里，结构通常会长成这样：
+
+```kotlin
+sealed interface ArticleListEvent {
+    data class OpenArticle(val id: String) : ArticleListEvent
+    data class ShowSnackbar(val message: String) : ArticleListEvent
+}
+
+class ArticleListViewModel(
+    private val repository: ArticleRepository,
+    private val savedStateHandle: SavedStateHandle
+) : ViewModel() {
+    private val query: StateFlow<String> =
+        savedStateHandle.getStateFlow("query", "")
+
+    private val _events = MutableSharedFlow<ArticleListEvent>()
+    val events: SharedFlow<ArticleListEvent> = _events.asSharedFlow()
+
+    val uiState: StateFlow<ArticleListUiState> = query
+        .flatMapLatest { keyword -> repository.observeArticles(keyword) }
+        .map { articles ->
+            ArticleListUiState(
+                isLoading = false,
+                articles = articles,
+                errorMessage = null
+            )
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = ArticleListUiState(isLoading = true)
+        )
+
+    fun updateQuery(value: String) {
+        savedStateHandle["query"] = value
+    }
+
+    fun onArticleClick(id: String) {
+        viewModelScope.launch {
+            _events.emit(ArticleListEvent.OpenArticle(id))
+        }
+    }
+}
+```
+
+这段代码正好把三个常被混淆的边界拆开了。第一，`query` 是“重新回到这个屏幕后用户理应继续看到”的轻量关键状态，所以它值得进入 `SavedStateHandle`。第二，真正长期驱动页面显示的是 `uiState`，它描述的是“现在页面长什么样”。第三，点击文章后的跳转不是页面常驻状态，而是一次性事件，所以它被单独放进 `SharedFlow`。只要把这三层分清，ViewModel 就不会再被迫把“可恢复参数”“稳定状态”“瞬时动作”全揉进一个字段里。
+
 ### 7. ViewModel 最容易越界的地方
 
 真正写项目时，ViewModel 很容易从“页面状态持有者”变成“什么都往里塞的地方”。最常见的越界有三种。第一种是直接持有 `Activity`、`Fragment`、`View` 或 `Context`，这通常会把生命周期边界搅乱，甚至带来内存泄漏风险。第二种是把所有数据层和业务层细节都机械搬进 ViewModel，结果只是把原来的胖页面换成了胖 ViewModel。第三种是反过来太保守，什么都不敢放进去，导致页面仍然自己发请求、自己处理状态。

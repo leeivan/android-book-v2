@@ -143,6 +143,65 @@ class ArticleListViewModel(
 
 《Thriving in Android Development Using Kotlin》里的 `ChatViewModel` 则把 `launch`、`withContext` 和取消放到一条完整链路里：`messageCollectionJob = viewModelScope.launch(Dispatchers.IO)` 负责长期收集消息流，`map { it.toUI() }` 在后台整理数据，只有真正写回 `_messages` 时才 `withContext(Dispatchers.Main)`，最后在 `onCleared()` 里取消 job 并调用 `disconnectMessages()`。这个例子很适合用来校准一个常被忽略的判断：协程不是“开起来就完了”，谁拥有任务的生命周期，谁就必须负责它的结束。
 
+如果想真正理解 `async` 在 Android 里的位置，可以再看一个“并发拿结果后汇合”的最小用例：
+
+```kotlin
+data class HomePayload(
+    val profile: UserProfile,
+    val notifications: List<NotificationItem>
+)
+
+class LoadHomeDataUseCase(
+    private val userRepository: UserRepository,
+    private val notificationRepository: NotificationRepository
+) {
+    suspend operator fun invoke(): HomePayload = coroutineScope {
+        val profileDeferred = async(Dispatchers.IO) {
+            userRepository.fetchProfile()
+        }
+        val notificationsDeferred = async(Dispatchers.IO) {
+            notificationRepository.fetchNotifications()
+        }
+
+        HomePayload(
+            profile = profileDeferred.await(),
+            notifications = notificationsDeferred.await()
+        )
+    }
+}
+
+class HomeViewModel(
+    private val loadHomeData: LoadHomeDataUseCase
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(HomeUiState())
+    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+            runCatching { loadHomeData() }
+                .onSuccess { payload ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            profile = payload.profile,
+                            notifications = payload.notifications
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(isLoading = false, errorMessage = error.message)
+                    }
+                }
+        }
+    }
+}
+```
+
+这个例子最重要的不是 `async` 写起来很像“同时发两个请求”，而是它把并发关系写得非常清楚：两个子任务都属于同一个 `coroutineScope`，只有在确实需要“并发拿两个结果再组合”时才使用 `async`；如果其中一个失败，另一个也会跟着取消，避免留下半截还在跑的工作。这正是结构化并发在工程里的真正价值。反过来说，如果你根本不需要两个返回值汇合，只是想启动一个动作，那就回到 `launch`；如果只是想在现有协程里切上下文完成一段 I/O，那就回到 `withContext`。把这三者分清，协程代码才不会慢慢滑回“写法变新了，结构却还是乱的”。
+
 ### 9. 协程不会自动给你合理架构
 
 这一点特别需要强调。很多项目迁移到协程后，以为异步问题已经解决，结果只是把原来的回调混乱换成了新的 `launch` 混乱。只要:

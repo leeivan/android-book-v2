@@ -117,6 +117,48 @@ class NewsRepository(
 - 明确了页面观察的主要出口是本地流。
 - 在刷新时决定如何把远程结果写回可信来源。
 
+如果把这条边界再往上接一层，你会更容易看清 Repository 和 UseCase / ViewModel 的分工：
+
+```kotlin
+class RefreshNewsUseCase(
+    private val repository: NewsRepository
+) {
+    suspend operator fun invoke(): ApiResult<Unit> {
+        return repository.refreshArticles()
+    }
+}
+
+class NewsViewModel(
+    private val repository: NewsRepository,
+    private val refreshNews: RefreshNewsUseCase
+) : ViewModel() {
+    val uiState: StateFlow<NewsUiState> = repository.observeArticles()
+        .map { articles ->
+            NewsUiState(
+                isLoading = false,
+                items = articles.map { it.toUiModel() },
+                errorMessage = null
+            )
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = NewsUiState(isLoading = true)
+        )
+
+    fun refresh() {
+        viewModelScope.launch {
+            val result = refreshNews()
+            if (result is ApiResult.Failure) {
+                // 这里通常还会进一步发出 Snackbar 或错误 effect
+            }
+        }
+    }
+}
+```
+
+这里真正值得观察的不是“类又多了一个”，而是每一层终于只回答一个问题。Repository 负责决定数据从哪里来、刷新后写回哪里；UseCase 负责承接一次明确业务动作；ViewModel 只消费 Repository 暴露出来的稳定数据入口，并把它翻译成页面状态。也正因为如此，当你怀疑某段逻辑该放哪一层时，最好先问：它是在回答“数据策略”，还是在回答“页面现在该显示什么”。这个问题一旦回答清楚，Repository 就不会再被写成既像 DAO、又像 ViewModel、还顺手包一点业务流程的混合体。
+
 ### 7. 不是什么都该放进 Repository
 
 Repository 也很容易被滥用。常见错误包括：

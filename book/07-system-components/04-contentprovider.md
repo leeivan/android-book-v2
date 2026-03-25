@@ -95,6 +95,136 @@ Neil Smyth 在 Jellyfish/Koala 这套教程里，又用一对 provider/client �
 
 这样学出来的 Provider 会更贴近真实项目，而不是停留在“为了学一个组件而学一个组件”。
 
+如果把“使用 Provider”和“编写 Provider”各写一个最小闭环，ContentProvider 这章会清楚得多。
+
+先看最常见、也最现实的一类：通过 `FileProvider` 把文件安全地交给别的应用处理。这种场景的重点不是 CRUD，而是临时 URI 授权边界。
+
+```xml
+<provider
+    android:name="androidx.core.content.FileProvider"
+    android:authorities="${applicationId}.fileprovider"
+    android:exported="false"
+    android:grantUriPermissions="true">
+    <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/share_paths" />
+</provider>
+```
+
+```xml
+<paths>
+    <cache-path
+        name="shared_reports"
+        path="reports/" />
+</paths>
+```
+
+```kotlin
+fun shareWeeklyReport(context: Context, reportFile: File) {
+    val reportUri = FileProvider.getUriForFile(
+        context,
+        "${BuildConfig.APPLICATION_ID}.fileprovider",
+        reportFile,
+    )
+
+    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "application/pdf"
+        putExtra(Intent.EXTRA_STREAM, reportUri)
+        clipData = ClipData.newUri(context.contentResolver, "weekly_report", reportUri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+
+    context.startActivity(Intent.createChooser(shareIntent, "分享周报"))
+}
+```
+
+这段代码几乎把“使用 Provider”这件事的现实价值讲完了。调用方没有暴露文件真实路径，只是把文件包装成一个内容 URI，再通过 `FLAG_GRANT_READ_URI_PERMISSION` 把一次临时读取能力交给真正的处理者。对大多数业务应用来说，这已经是最常见、也最值得先掌握的 Provider 用法。
+
+只有当你真的准备长期公开一套结构化数据协议时，才值得进入“编写 Provider”这条更重的路径。下面这个最小骨架，适合帮助你建立自定义 Provider 的接口直觉。
+
+```xml
+<provider
+    android:name=".task.TaskProvider"
+    android:authorities="${applicationId}.tasks"
+    android:exported="true"
+    android:readPermission="com.example.task.permission.READ_TASKS"
+    android:writePermission="com.example.task.permission.WRITE_TASKS" />
+```
+
+```kotlin
+class TaskProvider : ContentProvider() {
+
+    companion object {
+        private const val AUTHORITY = "com.example.task.tasks"
+        private const val TASKS = 1
+        private const val TASK_ID = 2
+
+        val CONTENT_URI: Uri = Uri.parse("content://$AUTHORITY/tasks")
+
+        private val uriMatcher = UriMatcher(UriMatcher.NO_MATCH).apply {
+            addURI(AUTHORITY, "tasks", TASKS)
+            addURI(AUTHORITY, "tasks/#", TASK_ID)
+        }
+    }
+
+    override fun query(
+        uri: Uri,
+        projection: Array<out String>?,
+        selection: String?,
+        selectionArgs: Array<out String>?,
+        sortOrder: String?,
+    ): Cursor {
+        val db = taskOpenHelper.readableDatabase
+        return when (uriMatcher.match(uri)) {
+            TASKS -> db.query("tasks", projection, selection, selectionArgs, null, null, sortOrder)
+            TASK_ID -> db.query(
+                "tasks",
+                projection,
+                "_id = ?",
+                arrayOf(ContentUris.parseId(uri).toString()),
+                null,
+                null,
+                sortOrder,
+            )
+            else -> error("Unknown uri: $uri")
+        }.apply {
+            setNotificationUri(context?.contentResolver, uri)
+        }
+    }
+
+    override fun getType(uri: Uri): String {
+        return when (uriMatcher.match(uri)) {
+            TASKS -> "vnd.android.cursor.dir/vnd.com.example.task.tasks"
+            TASK_ID -> "vnd.android.cursor.item/vnd.com.example.task.tasks"
+            else -> error("Unknown uri: $uri")
+        }
+    }
+}
+```
+
+```kotlin
+fun loadSharedTasks(context: Context): List<String> {
+    return context.contentResolver.query(
+        TaskProvider.CONTENT_URI,
+        arrayOf("title"),
+        null,
+        null,
+        "updated_at DESC",
+    )?.use { cursor ->
+        buildList {
+            val titleIndex = cursor.getColumnIndexOrThrow("title")
+            while (cursor.moveToNext()) {
+                add(cursor.getString(titleIndex))
+            }
+        }
+    }.orEmpty()
+}
+```
+
+这里真正需要你关注的，不是 `Cursor` 语法有多繁琐，而是三条外部边界已经被正式写出来了。第一，URI 结构定义了调用者能访问哪些集合和单项资源；第二，`readPermission` / `writePermission` 决定了谁有资格读写；第三，调用方只通过 `ContentResolver` 看到一个稳定协议，而看不到你内部到底是 SQLite、Room 还是别的存储实现。
+
+把 `FileProvider` 和自定义 `TaskProvider` 放在一起看，会很容易建立一个成熟判断：如果你只是做一次受控文件共享，就优先用系统已经给好的 Provider；如果你要长期对外开放一套结构化数据接口，才认真承担 URI 设计、权限门禁和协议维护的成本。ContentProvider 的难点从来不是“会不会写四个 CRUD 方法”，而是你是否真的准备好了这份对外承诺。
+
 ### 9. 实践任务
 
 起点条件:
@@ -143,8 +273,6 @@ ContentProvider 真正要解决的，是结构化数据在组件和应用边界�
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，ContentProvider、文件共享与 URI 边界相关章节。
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，系统数据访问与组件边界相关内容。
 - 参考并改写自：`Android Security - Attacks and Defenses`，ContentProvider 权限边界与访问控制相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，文件共享、媒体访问与真实项目集成相关章节。
-
 - 参考并改写自：James Steele、Nelson To，《The Android Developer's Cookbook》(2011)，自定义 ContentProvider 与跨应用查询相关 recipes。
 - 参考并改写自：Neil Smyth，《Android Studio Jellyfish Essentials》(2024)，Provider 客户端访问、内容 URI 与 query permission 相关章节。
 - Content providers overview: <https://developer.android.com/guide/topics/providers/content-providers>

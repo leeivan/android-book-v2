@@ -155,6 +155,84 @@ class NewsViewModel(
 
 Socorro 的聊天项目则把“状态”和“事件/消息流”分开的好处讲得很具体：`ChatViewModel` 不只暴露一个 `messages: StateFlow<List<Message>>`，还额外维护一个 `uiState: StateFlow<Chat>` 来承接聊天室标题、头像和初始化信息；Compose 侧再用 `collectAsState()` 分别收集它们，并用 `LaunchedEffect(Unit)` 触发首次加载。这个例子特别适合提醒读者：不是所有屏幕信息都该塞进同一个流里，稳定页面状态和持续到来的消息流往往需要分开建模。
 
+如果把“稳定状态”和“一次性事件”再压成一个完整示例，会更容易看清为什么它们必须分流：
+
+```kotlin
+data class ProfileUiState(
+    val isLoading: Boolean = false,
+    val username: String = "",
+    val isLoggedIn: Boolean = false
+)
+
+sealed interface ProfileEffect {
+    data class ShowSnackbar(val message: String) : ProfileEffect
+    data object OpenLogin : ProfileEffect
+}
+
+class ProfileViewModel(
+    private val repository: ProfileRepository
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(ProfileUiState(isLoading = true))
+    val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+
+    private val _effects = MutableSharedFlow<ProfileEffect>()
+    val effects: SharedFlow<ProfileEffect> = _effects.asSharedFlow()
+
+    fun refresh() {
+        viewModelScope.launch {
+            runCatching { repository.fetchProfile() }
+                .onSuccess { profile ->
+                    _uiState.value = ProfileUiState(
+                        isLoading = false,
+                        username = profile.username,
+                        isLoggedIn = true
+                    )
+                }
+                .onFailure {
+                    _uiState.update { it.copy(isLoading = false) }
+                    _effects.emit(ProfileEffect.ShowSnackbar("加载失败，请重试"))
+                }
+        }
+    }
+
+    fun requireLogin() {
+        viewModelScope.launch {
+            _effects.emit(ProfileEffect.OpenLogin)
+        }
+    }
+}
+```
+
+配套到 UI 层时，最稳的收集方式通常也是两条线分开：
+
+```kotlin
+viewLifecycleOwner.lifecycleScope.launch {
+    viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+        launch {
+            viewModel.uiState.collect { state ->
+                progressBar.isVisible = state.isLoading
+                usernameView.text = state.username
+            }
+        }
+
+        launch {
+            viewModel.effects.collect { effect ->
+                when (effect) {
+                    is ProfileEffect.ShowSnackbar -> {
+                        Snackbar.make(rootView, effect.message, LENGTH_SHORT).show()
+                    }
+                    ProfileEffect.OpenLogin -> {
+                        findNavController().navigate(R.id.loginFragment)
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+这里最关键的教学点是：新的观察者应该立刻拿到当前 `uiState`，却不应该把“刚刚弹过的 Snackbar”或“刚刚执行过的跳转”再重放一次。也正因为如此，稳定状态和 effect 通道不能混用。很多看起来像“Flow 又重复发了一次”的问题，根本不是 Flow 的错，而是建模时把状态和事件塞进了同一个出口。
+
 ### 9. Flow 并不会自动替你解决生命周期问题
 
 不少开发者从 `LiveData` 迁移到 `Flow` 时，会误以为“现在换成协程了，生命周期问题自然没了”。这是很危险的误解。`Flow` 负责的是数据如何流动，不负责 UI 应该在什么时候开始、什么时候停止收集。

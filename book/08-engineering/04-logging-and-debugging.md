@@ -133,6 +133,100 @@ Log.d(
 
 这套顺序看起来不复杂，但它能让调试从“随机试错”变成“有证据的排查”。
 
+下面这段最小代码，适合把“结构化日志 + 链路关联 + 脱敏”一次讲清楚。
+
+```kotlin
+object AppLogger {
+
+    fun d(tag: String, event: String, vararg fields: Pair<String, Any?>) {
+        if (!BuildConfig.DEBUG) return
+        Log.d(tag, "$event | ${fields.joinToString { "${it.first}=${sanitize(it.second)}" }}")
+    }
+
+    fun e(tag: String, event: String, throwable: Throwable, vararg fields: Pair<String, Any?>) {
+        Log.e(tag, "$event | ${fields.joinToString { "${it.first}=${sanitize(it.second)}" }}", throwable)
+    }
+
+    private fun sanitize(value: Any?): Any? {
+        val text = value?.toString().orEmpty()
+        return when {
+            text.startsWith("Bearer ") -> "Bearer ***"
+            text.length > 32 -> text.take(8) + "***"
+            else -> value
+        }
+    }
+}
+
+data class RefreshTrace(
+    val traceId: String,
+    val query: String,
+)
+
+class NewsViewModel(
+    private val repository: NewsRepository,
+) : ViewModel() {
+
+    fun refresh(query: String) {
+        val trace = RefreshTrace(
+            traceId = SystemClock.elapsedRealtimeNanos().toString(16).takeLast(6),
+            query = query,
+        )
+
+        AppLogger.d(
+            tag = "NewsList",
+            event = "refresh_start",
+            "traceId" to trace.traceId,
+            "query" to trace.query,
+        )
+
+        viewModelScope.launch {
+            runCatching { repository.refresh(trace) }
+                .onSuccess {
+                    AppLogger.d(
+                        tag = "NewsList",
+                        event = "refresh_success",
+                        "traceId" to trace.traceId,
+                    )
+                }
+                .onFailure { throwable ->
+                    AppLogger.e(
+                        tag = "NewsList",
+                        event = "refresh_failure",
+                        throwable = throwable,
+                        "traceId" to trace.traceId,
+                    )
+                }
+        }
+    }
+}
+
+class NewsRepository(
+    private val api: NewsApi,
+) {
+
+    suspend fun refresh(trace: RefreshTrace): List<Article> {
+        val startMs = SystemClock.elapsedRealtime()
+        AppLogger.d("NewsRepository", "request_start", "traceId" to trace.traceId)
+
+        return api.search(trace.query).also { response ->
+            AppLogger.d(
+                "NewsRepository",
+                "request_finish",
+                "traceId" to trace.traceId,
+                "elapsedMs" to (SystemClock.elapsedRealtime() - startMs),
+                "count" to response.size,
+            )
+        }
+    }
+}
+```
+
+这段代码最值得学的不是把 `Log.d()` 包了一层，而是它把日志真正组织成了可排障的证据。`traceId` 让 ViewModel 和 Repository 的日志能重新串回同一条刷新链路；`event` 让日志按动作而不是按自然语言碎片命名；`sanitize()` 则提醒你日志在帮助排障之前，先要避免成为新的泄露面。
+
+如果把这段链路放回真实问题里，你会发现它正好对应前面提到的调试顺序。列表刷新偶尔显示旧数据时，你不必先到处乱打日志，而是先提出“旧请求覆盖新请求”这种假设，再看同一个 `traceId` 下到底发生了什么。只要日志字段足够少、上下文足够清楚，Logcat 就会从噪音堆变回证据链。
+
+再往前走一步，结构化日志和断点其实不是替代关系，而是配合关系。日志帮助你先在时间线上缩小问题范围，断点再帮你看清“这一刻到底发生了什么”。真正高效的调试，往往都是先用日志找方向，再用断点看细节，而不是两边都盲用。
+
 ### 9. 实践任务
 
 起点条件：
@@ -181,7 +275,6 @@ Log.d(
 - 参考并改写自：Neil Smyth，`Android Studio Narwhal Essentials`，Logcat、Debugger、Inspector 与 Profiler 相关章节。
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，Profiler、Database Inspector 与运行时问题分析相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，结构化日志、状态排查与工程观测相关章节。
-
 - Debug your app: <https://developer.android.com/studio/debug>
 - Logcat guide: <https://developer.android.com/studio/debug/logcat>
 - Android Studio profilers: <https://developer.android.com/studio/profile>

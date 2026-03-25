@@ -54,6 +54,48 @@ Android 官方的 Material Design for Android 页面明确建议：如果应用�
 
 Vainigli 的 `CartScreen` 和 `AuthScreen` 又展示了主题与状态反馈怎样一起工作。前者用 `MaterialTheme.typography.headlineMedium` 突出总价，用 `enabled = isUserLoggedIn.value` 控制结算按钮，并在未登录时补上明确说明；后者则让 `TextField`、`Button` 和欢迎语随着认证状态切换。这里真正值得借鉴的不是“多用了几个 Material 组件”，而是排版层级、按钮可用性和反馈文案都被统一收进同一套设计语言里。
 
+把这两个教学点压缩成一个最小 Compose 片段，可以写成：
+
+```kotlin
+@Composable
+fun InboxScreen(
+    unreadCount: Int,
+    canStartChat: Boolean,
+    onNewChatClick: () -> Unit
+) {
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(onClick = onNewChatClick) {
+                Icon(Icons.Default.Add, contentDescription = "Start chat")
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "Unread: $unreadCount",
+                style = MaterialTheme.typography.headlineMedium
+            )
+            Button(
+                onClick = onNewChatClick,
+                enabled = canStartChat
+            ) {
+                Text("Start chat")
+            }
+
+            if (!canStartChat) {
+                Text("You need permission before creating a new chat.")
+            }
+        }
+    }
+}
+```
+
+这个例子里，`FloatingActionButton` 负责强调主操作，`headlineMedium` 负责建立信息层级，`enabled` 和条件文案负责把状态反馈说清楚。即使它很短，也已经体现了 Material 设计里最常见的三件事：层级、语义和反馈。
+
 ### 6. 从组件思维，走向设计令牌思维
 
 学习 Material 的更高阶目标，不是只会用组件，而是逐步理解设计令牌的思路。所谓设计令牌，简单说就是一组被统一管理的视觉规则，例如主色、辅色和语义色，标题、正文、说明文字的排版层级，页面间距和圆角的一致标准。只要这些规则先稳定下来，页面即使不断扩展，也更容易保持风格一致。
@@ -61,6 +103,42 @@ Vainigli 的 `CartScreen` 和 `AuthScreen` 又展示了主题与状态反馈怎�
 对当前阶段的读者来说，不必一开始就搭完整设计系统，但至少应养成两种习惯。第一，把零散的颜色、文字样式和间距从单个页面里抽出来。第二，不要每做一个新页面就重新发明一套按钮样式和留白规则。只要这两点做到位，页面一致性就会明显提升。
 
 从工程角度看，这一步通常意味着把视觉规则收进主题、样式、资源或设计系统模块，而不是继续散落在每个 XML 或 composable 里。这样做的价值，不只是“以后改主色更方便”，更重要的是组件之间开始共享同一套语义。例如主按钮为什么用这组颜色、错误文本为什么用那组排版、卡片和对话框为什么采用相近的间距体系，这些都不再依赖单个页面的临时决定。
+如果把“设计令牌”压缩成一个最小的 Compose 主题示例，可以写成：
+
+```kotlin
+private val BookColorScheme = lightColorScheme(
+    primary = Color(0xFF006C51),
+    secondary = Color(0xFF4E6357),
+    error = Color(0xFFBA1A1A)
+)
+
+private val BookTypography = Typography(
+    headlineMedium = TextStyle(
+        fontSize = 28.sp,
+        fontWeight = FontWeight.SemiBold
+    ),
+    bodyMedium = TextStyle(
+        fontSize = 16.sp,
+        lineHeight = 24.sp
+    ),
+    labelLarge = TextStyle(
+        fontWeight = FontWeight.Medium
+    )
+)
+
+@Composable
+fun BookAppTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = BookColorScheme,
+        typography = BookTypography,
+        content = content
+    )
+}
+```
+
+这段代码的意义不在于颜色值本身，而在于它把“主色是什么”“错误态用什么颜色”“标题和正文层级怎样区分”这些原本会散落在各个页面里的决定，收束成统一入口。之后页面只需要消费 `MaterialTheme.colorScheme` 和 `MaterialTheme.typography`，而不是每个 composable 都自己临时决定一套视觉规则。
+
+真正成熟的 Material 实践，通常就是这样逐步长出来的：先把高频使用的颜色、排版和状态语义抽出来，再让具体页面去复用它们。这样新增页面时，你写的就不只是“一个能跑的界面”，而是在扩展同一套设计系统。
 
 ### 7. 最小示例：同一个表单页面，为什么会有“能用”和“顺手”的区别
 

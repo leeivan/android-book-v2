@@ -138,6 +138,76 @@ startActivity(intent)
 - 参数只传完成动作所需的文章 ID。
 - 详情页根据自己的数据层能力再取完整信息，而不是完全依赖调用方塞给它。
 
+下面把显式跳转、Chooser 分享和结果回收写成同一条连续代码链路，Intent 的边界会清楚很多。
+
+```kotlin
+class ArticleDetailActivity : AppCompatActivity() {
+
+    companion object {
+        private const val EXTRA_ARTICLE_ID = "extra_article_id"
+
+        fun newIntent(context: Context, articleId: String): Intent {
+            return Intent(context, ArticleDetailActivity::class.java)
+                .putExtra(EXTRA_ARTICLE_ID, articleId)
+        }
+    }
+
+    private val articleId: String by lazy {
+        requireNotNull(intent.getStringExtra(EXTRA_ARTICLE_ID))
+    }
+}
+
+class ArticleListActivity : AppCompatActivity() {
+
+    private val speechLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != RESULT_OK) return@registerForActivityResult
+
+        val matches = result.data
+            ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            .orEmpty()
+
+        if (matches.isNotEmpty()) {
+            searchView.setQuery(matches.first(), true)
+        }
+    }
+
+    fun openDetail(articleId: String) {
+        startActivity(ArticleDetailActivity.newIntent(this, articleId))
+    }
+
+    fun shareArticle(article: Article) {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, article.title)
+            putExtra(Intent.EXTRA_TEXT, "${article.title}\n${article.url}")
+        }
+
+        startActivity(Intent.createChooser(shareIntent, "分享到"))
+    }
+
+    fun requestVoiceQuery() {
+        val speechIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
+            )
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "说出想搜索的关键词")
+        }
+
+        speechLauncher.launch(speechIntent)
+    }
+}
+```
+
+这段代码里其实放着三层完全不同的 Intent 边界。`openDetail()` 是显式 Intent，因为调用方明确知道目标组件就是 `ArticleDetailActivity`；而且它把参数组装收进 `newIntent()`，让调用方只保留“我要打开详情”这一层语义，不必知道 extra 键名细节。
+
+`shareArticle()` 则是典型隐式 Intent。调用方描述的是“把这篇文章作为文本分享出去”，并不知道最终会落到短信、邮件、浏览器还是别的应用。这里 `Intent.createChooser()` 的作用，不是再弹一次框，而是把跨应用动作的决策权明确交还给用户。
+
+`requestVoiceQuery()` 对应的又是第三层：动作描述依然由 Intent 完成，但结果回收已经换成了 Activity Result API。这个组合非常适合帮助读者建立现代直觉: Activity Result API 改进的是结果管理方式，而不是把 Intent 从动作表达层里拿掉。
+
+再往前走一步，你会发现真正让 Intent 设计长期可维护的，往往不是会不会写 `startActivity()`，而是这三条边界有没有守住。应用内显式跳转只传最小必要参数；跨应用动作只描述动作和必要数据；结果回收则通过现代 API 把生命周期问题收束到更清楚的位置。只要这三层不混，组件之间就不会越来越像“互相偷看内部实现”。
 ### 11. 实践任务
 
 起点条件:
@@ -185,8 +255,6 @@ Intent 真正的价值，不是让页面跳起来，而是用统一语义表达�
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 7 章与第 13 章。
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，Intent、Activity Result 与系统能力调用相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，应用内外导航与结果交互相关章节。
-
 - 参考并改写自：James Steele、Nelson To，《The Android Developer's Cookbook》(2011)，显式 Intent、结果回传与 `RecognizerIntent` 相关 recipes。
 - Intents and intent filters: <https://developer.android.com/guide/components/intents-filters>
 - Common intents: <https://developer.android.com/guide/components/intents-common>

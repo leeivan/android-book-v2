@@ -108,6 +108,94 @@
 
 如果小组件经常显示旧数据，或者快捷方式总是失效，这类入口会比“没有做”更伤害体验。因为用户会把它理解成应用在桌面上给出的正式承诺。所以在做这类能力之前，先问自己：你愿不愿意长期维护它？
 
+如果把小组件和快捷方式各写一条最小代码链，二者的分工会一下子变得很清楚。
+
+先看桌面小组件。它的重点不是“再做一个迷你页面”，而是把可信状态以前台之外的形式前移到桌面，同时把点击动作带回正确上下文。
+
+```xml
+<receiver
+    android:name=".widget.TodayTasksWidgetProvider"
+    android:exported="false">
+    <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+    </intent-filter>
+
+    <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/today_tasks_widget_info" />
+</receiver>
+```
+
+```kotlin
+class TodayTasksWidgetProvider : AppWidgetProvider() {
+
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray,
+    ) {
+        val repository = TaskRepository.get(context)
+
+        appWidgetIds.forEach { appWidgetId ->
+            val summary = repository.loadTodaySummary()
+            val openTodayIntent = PendingIntent.getActivity(
+                context,
+                appWidgetId,
+                TodayTasksActivity.newIntent(context),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+
+            val views = RemoteViews(context.packageName, R.layout.widget_today_tasks).apply {
+                setTextViewText(R.id.title, "今日待办")
+                setTextViewText(R.id.summary, "剩余 ${summary.remainingCount} 项")
+                setOnClickPendingIntent(R.id.widget_root, openTodayIntent)
+            }
+
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+        }
+    }
+}
+
+fun refreshTodayTaskWidgets(context: Context) {
+    val appWidgetManager = AppWidgetManager.getInstance(context)
+    val widgetIds = appWidgetManager.getAppWidgetIds(
+        ComponentName(context, TodayTasksWidgetProvider::class.java),
+    )
+    if (widgetIds.isNotEmpty()) {
+        TodayTasksWidgetProvider().onUpdate(context, appWidgetManager, widgetIds)
+    }
+}
+```
+
+这段代码最重要的教学点，不是 `RemoteViews` 细节，而是小组件更新应该依赖已有可信状态，并在关键状态变化后做必要刷新。`refreshTodayTaskWidgets()` 的存在，正是在提醒我们：桌面不是另一块可以任意轮询的 UI，而是应用数据层变化后的一次受控投影。
+
+再看动态快捷方式。它解决的不是“持续可见状态”，而是让高频动作少走几步。
+
+```kotlin
+fun publishTaskShortcuts(context: Context) {
+    val shortcuts = listOf(
+        ShortcutInfoCompat.Builder(context, "create-task")
+            .setShortLabel("新建待办")
+            .setLongLabel("快速创建一条待办")
+            .setIcon(IconCompat.createWithResource(context, R.drawable.ic_add_task))
+            .setIntent(TaskEditorActivity.newIntent(context).setAction(Intent.ACTION_VIEW))
+            .build(),
+        ShortcutInfoCompat.Builder(context, "today-tasks")
+            .setShortLabel("今天任务")
+            .setLongLabel("直接打开今天待办")
+            .setIcon(IconCompat.createWithResource(context, R.drawable.ic_today))
+            .setIntent(TodayTasksActivity.newIntent(context).setAction(Intent.ACTION_VIEW))
+            .build(),
+    )
+
+    ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts)
+}
+```
+
+这里真正要观察的，是快捷方式必须直接把用户带回一个明确任务，而不是回到模糊首页。`新建待办` 和 `今天任务` 都是高频、上下文非常清楚的动作，所以它们适合被放到启动器入口层；如果只是做一个“打开应用”快捷方式，那它往往没有多少真实价值。
+
+把两段代码放在一起，差异会非常鲜明：小组件是持续可见的状态投影，需要认真维护更新策略和点击后的上下文恢复；快捷方式则是高频动作入口，重点在于缩短路径而不是展示状态。只要按照这个分工去设计，桌面能力就不容易做成“看起来很丰富、实际上长期没人愿意维护”的负担。
+
 ### 8. 实践任务
 
 起点条件：
@@ -154,8 +242,6 @@
 ## 参考资料
 
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，App Widgets、快捷方式与启动器集成相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，高频入口、状态前移与真实项目 UI 组织相关章节。
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，系统入口与应用交互边界相关内容。
-
 - App widgets overview: <https://developer.android.com/develop/ui/views/appwidgets>
 - App shortcuts overview: <https://developer.android.com/develop/ui/views/launch/shortcuts>

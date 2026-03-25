@@ -150,6 +150,70 @@ override fun onReceive(context: Context, intent: Intent) {
 
 在现代 Android 项目里，应用内状态更常通过 ViewModel、`StateFlow`、`SharedFlow`、明确的接口调用或 Repository 更新来传播。广播仍然有位置，但它更适合“跨组件边界的外部事件”而不是“应用内所有状态通知的兜底方案”。如果一个功能完全发生在你自己应用的同一层级内部，那么优先检查是否存在更直接、更可测试的状态通道。
 
+如果一个事件真的要求应用未打开时也要接住，更完整的写法通常会像下面这样：清单接收器只负责接住系统事件，然后立刻把恢复工作交给后台调度层。
+
+```xml
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+<receiver
+    android:name=".reminder.BootCompletedReceiver"
+    android:exported="false">
+    <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+    </intent-filter>
+</receiver>
+```
+
+```kotlin
+class BootCompletedReceiver : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+
+        val request = OneTimeWorkRequestBuilder<RestoreReminderWorker>().build()
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            "restore-reminders-after-boot",
+            ExistingWorkPolicy.KEEP,
+            request,
+        )
+    }
+}
+
+class RestoreReminderWorker(
+    appContext: Context,
+    params: WorkerParameters,
+    private val repository: ReminderRepository,
+) : CoroutineWorker(appContext, params) {
+
+    override suspend fun doWork(): Result {
+        repository.restoreScheduledReminders()
+        return Result.success()
+    }
+}
+```
+
+这个例子最值得学的，不是 `BOOT_COMPLETED` 这个具体广播，而是它把清单注册的适用边界说得很清楚。只有当“应用没打开也必须接到这个事件”时，清单注册才有成立理由；而就算成立了，Receiver 本身仍然只负责接事件和快速转交，不直接把恢复逻辑整段塞进 `onReceive()`。
+
+少数情况下，你确实可能需要在 Receiver 里做一点很短的异步收尾，例如把通知操作写入日志、更新一个极轻量的本地标记。这个时候可以用 `goAsync()`，但它的边界仍然要非常克制。
+
+```kotlin
+override fun onReceive(context: Context, intent: Intent) {
+    if (intent.action != ACTION_MARK_AS_SEEN) return
+
+    val pendingResult = goAsync()
+    appScope.launch {
+        runCatching {
+            inboxRepository.markSeen(intent.getStringExtra(EXTRA_MESSAGE_ID).orEmpty())
+        }
+        pendingResult.finish()
+    }
+}
+```
+
+这段代码的教学点只有一个：`goAsync()` 允许你把“几乎立刻就能结束”的小尾巴安全收掉，但它仍然不是把 Receiver 变成长任务容器的许可。只要异步工作开始变重、开始依赖网络、开始需要可靠重试，就应该回到 `WorkManager` 或其他更合适的执行层。
+
+把运行时注册例子、`BOOT_COMPLETED` 例子和 `goAsync()` 放在一起看，广播接收器的角色就会非常稳定：它既不是万能后台入口，也不是只能写一句 `if (intent.action ...)` 的装饰层，而是一个需要认真控制作用域、导出边界和后续转交方式的事件入口组件。
+
 ### 10. 实践任务
 
 起点条件：
@@ -201,7 +265,6 @@ BroadcastReceiver 在现代 Android 里的真正角色，是接住“某件事�
 
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，广播接收器、系统事件与运行时注册相关章节。
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，Fragment 生命周期、事件入口与现代组件边界相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，通知动作与事件驱动 UI 相关章节。
 - 参考并改写自：`Android Security - Attacks and Defenses`，BroadcastReceiver、Manifest 与组件权限边界相关章节。
 - 参考并改写自：James Steele、Nelson To，《The Android Developer's Cookbook》(2011)，BroadcastReceiver 启动 Service 与组件分工相关 recipes。
 - Broadcasts overview: <https://developer.android.com/develop/background-work/background-tasks/broadcasts>

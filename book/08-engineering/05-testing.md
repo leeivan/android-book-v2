@@ -167,6 +167,68 @@ fun `article row shows title and supports click`() {
 
 这样做的好处是，每加一层测试都立刻能感受到收益，而且不会因为套件膨胀太快而失去维护意愿。
 
+很多团队真正缺的，不是“再多一个测试例子”，而是一套能反复复用的测试支架。下面这个最小组合很适合放进任何基于协程和 `StateFlow` 的项目里。
+
+```kotlin
+@OptIn(ExperimentalCoroutinesApi::class)
+class MainDispatcherRule(
+    private val dispatcher: TestDispatcher = StandardTestDispatcher(),
+) : TestWatcher() {
+
+    override fun starting(description: Description) {
+        Dispatchers.setMain(dispatcher)
+    }
+
+    override fun finished(description: Description) {
+        Dispatchers.resetMain()
+    }
+}
+
+class FakeTaskRepository : TaskRepository {
+
+    private val tasks = MutableStateFlow(
+        listOf(Task(id = "1", title = "Write chapter", done = false))
+    )
+
+    override fun observeTodayTasks(): Flow<List<Task>> = tasks
+
+    override suspend fun toggleDone(taskId: String) {
+        tasks.update { list ->
+            list.map { task ->
+                if (task.id == taskId) task.copy(done = !task.done) else task
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class TodayTasksViewModelTest {
+
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
+
+    private val repository = FakeTaskRepository()
+
+    @Test
+    fun `toggle done updates ui state`() = runTest {
+        val viewModel = TodayTasksViewModel(repository)
+
+        advanceUntilIdle()
+        viewModel.toggleDone("1")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value as TodayTasksUiState.Content
+        assertTrue(state.tasks.first().done)
+    }
+}
+```
+
+这段代码真正保护的，不是某个私有函数有没有被调用，而是“用户勾选完成以后，页面状态有没有跟着变化”。`MainDispatcherRule` 把协程测试的主线程环境收束起来，避免每个测试类都重复写 `Dispatchers.setMain()` / `resetMain()`；`FakeTaskRepository` 则把状态流做成可预测、可推进的最小数据源，让测试继续盯住行为，而不是盯住实现细节。
+
+这也是为什么很多现代 Android 项目越来越偏爱 fake 而不是大量 mock。只要 Repository 边界清楚，一个可预测的 fake 往往更能模拟真实数据流，也更不容易因为内部重构而把测试搞脆。测试真正要保护的是输入、状态变化和输出之间的契约，而不是“内部必须按某个顺序调了几个函数”。
+
+如果再把这条思路延伸到 UI 层，你会发现关键不是把 UI 测试写得越多越好，而是让不同层的测试各守一段边界：数据层守真实结构，ViewModel 守状态迁移，UI 测试守高价值主路径。只要这个分工稳定，测试就不会沦为一堆互相重复的脚本。
+
 ## 实践任务
 
 起点条件：
@@ -214,8 +276,6 @@ fun `article row shows title and supports click`() {
 
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，测试边界、fake 依赖与工程可测试性相关章节。
 - 参考并改写自：`Clean Android Architecture`，UseCase、Repository、状态层与测试设计相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，网络层、ViewModel 与 Compose UI 测试相关章节。
-
 - Test apps on Android: <https://developer.android.com/training/testing>
 - Test your app's architecture: <https://developer.android.com/topic/architecture/testing>
 - Testing in Jetpack Compose: <https://developer.android.com/develop/ui/compose/testing>

@@ -113,6 +113,72 @@ Android 安全首先不是一堆零散技巧，而是一套分层边界：应用
 
 只要这些问题进入日常开发，安全基线就会不断提高，而不是等出问题后再补。
 
+如果把组件边界、网络配置和 WebView 输入边界写成一条最小代码链，安全基础就不会只剩抽象原则。
+
+```xml
+<application
+    android:networkSecurityConfig="@xml/network_security_config"
+    android:usesCleartextTraffic="false">
+
+    <activity
+        android:name=".internal.DebugToolsActivity"
+        android:exported="false" />
+
+    <receiver
+        android:name=".sync.InternalRefreshReceiver"
+        android:exported="false" />
+</application>
+```
+
+```xml
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
+```
+
+这两段 XML 其实就已经把一大类基础风险收紧了。Manifest 明确把不该对外开放的组件关在应用内部；网络安全配置则明确表达“默认不接受明文流量”。安全基础最怕的不是你忘了某个高级技巧，而是这些默认边界从一开始就放得太宽。
+
+WebView 则是另一条很容易被低估的输入边界。下面这个最小例子，适合帮助读者建立“外部内容默认不可信”的直觉。
+
+```kotlin
+class TrustedArticleWebViewClient : WebViewClient() {
+
+    private val allowedHosts = setOf("developer.android.com", "example.com")
+
+    override fun shouldOverrideUrlLoading(
+        view: WebView,
+        request: WebResourceRequest,
+    ): Boolean {
+        val uri = request.url
+        val isAllowed = uri.scheme == "https" && uri.host in allowedHosts
+        return if (isAllowed) {
+            false
+        } else {
+            true
+        }
+    }
+}
+
+fun configureArticleWebView(webView: WebView) {
+    with(webView.settings) {
+        javaScriptEnabled = false
+        allowFileAccess = false
+        allowContentAccess = false
+    }
+
+    WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
+    webView.webViewClient = TrustedArticleWebViewClient()
+}
+```
+
+这段代码真正重要的，不是把所有 WebView 都写成这个样子，而是它把安全默认值翻了过来：只允许受信任的 `https` 主机；不随手开启 JavaScript；不开放文件和内容访问；调试能力只留在 `DEBUG` 构建里。只要默认值是“先收紧，再按需开放”，很多 WebView 相关风险会在入口处就被消掉。
+
+再往前走一步，你会发现这和前面的组件导出、本地文件共享、日志脱敏其实是同一套工程判断：不必要的能力不要开放，必要的能力要明确写清门禁。Android 安全基础并不是要求你到处加复杂机制，而是要求你别把系统已经给你的安全边界轻易撕开。
+
 ### 10. 实践任务
 
 起点条件：

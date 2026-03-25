@@ -83,6 +83,72 @@ Room 很少孤立存在。它通常会和 ViewModel、Flow、Repository、Paging
 
 也就是说，Room 不只是“把数据存一下”，而是成为稳定数据流的一部分。数据库变化通过 DAO 暴露给上层，Repository 决定本地与远程如何协作，ViewModel 再把结果组织成页面状态。只要这条链路清晰，页面就不再需要自己直接协调数据库细节。
 
+如果把这条链路真正补完整，一个最小待办应用的上层结构通常会长成这样：
+
+```kotlin
+class TaskRepository(
+    private val taskDao: TaskDao
+) {
+    fun observeTasks(): Flow<List<Task>> {
+        return taskDao.observeAll().map { entities ->
+            entities.map { entity ->
+                Task(
+                    id = entity.id,
+                    title = entity.title,
+                    isDone = entity.isDone
+                )
+            }
+        }
+    }
+
+    suspend fun addTask(title: String) {
+        taskDao.upsert(
+            TaskEntity(
+                id = System.currentTimeMillis(),
+                title = title,
+                isDone = false,
+                createdAt = System.currentTimeMillis()
+            )
+        )
+    }
+
+    suspend fun updateDone(taskId: Long, done: Boolean) {
+        taskDao.updateDone(taskId, done)
+    }
+}
+
+class TaskListViewModel(
+    private val repository: TaskRepository
+) : ViewModel() {
+    val uiState: StateFlow<TaskListUiState> = repository.observeTasks()
+        .map { tasks ->
+            TaskListUiState(
+                isLoading = false,
+                items = tasks
+            )
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = TaskListUiState(isLoading = true)
+        )
+
+    fun addTask(title: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.addTask(title)
+        }
+    }
+
+    fun toggleDone(taskId: Long, done: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.updateDone(taskId, done)
+        }
+    }
+}
+```
+
+这段代码把 Room 在现代项目里的位置说明得很清楚：DAO 不直接面对页面，ViewModel 也不直接操作 SQL；Room 先通过 DAO 暴露本地数据流，Repository 再决定如何把 Entity 变成上层可消费对象，ViewModel 只关心“当前页面状态是什么”。也正因为如此，Room 真正稳定的地方不是注解，而是这条链路的职责顺序。
+
 ### 7. 查询设计和迁移，决定 Room 能不能撑住长期演进
 
 很多本地数据库设计失败，不是因为存不进去，而是因为最常见的读取场景没有被提前考虑，或者数据库结构一变化就缺乏明确迁移策略。Android 官方 Room 文档把迁移路径列为它的重要价值之一，这一点非常值得重视。数据库不是永远不变的，新增字段、调整默认值、增加索引、重构关系，这些变化在长期项目里迟早都会出现。

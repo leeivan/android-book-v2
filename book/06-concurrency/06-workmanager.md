@@ -113,6 +113,116 @@ Big Nerd Ranch 的 `PhotoGallery` 例子还给出了一个很适合教学的渐�
 
 同样，WorkManager 支持你观察任务状态，这一点对真实项目很有价值。页面不一定要实时盯着后台任务，但当用户主动回到某个界面时，你可能希望告诉他：同步还在排队、同步已经开始、同步刚刚失败、同步已经完成。后台任务之所以最终能被产品接受，不只因为它跑了，而是因为它的状态能被解释。
 
+下面给一个更完整的链式任务例子，把“压缩图片 -> 上传草稿 -> 更新本地状态”写成同一条后台流水线。
+
+```kotlin
+class CompressPhotoWorker(
+    appContext: Context,
+    params: WorkerParameters,
+    private val repository: DraftRepository
+) : CoroutineWorker(appContext, params) {
+
+    override suspend fun doWork(): Result {
+        val draftId = inputData.getString(KEY_DRAFT_ID) ?: return Result.failure()
+        repository.compressPendingImages(draftId)
+        return Result.success()
+    }
+}
+
+class UploadDraftWorker(
+    appContext: Context,
+    params: WorkerParameters,
+    private val repository: DraftRepository
+) : CoroutineWorker(appContext, params) {
+
+    override suspend fun doWork(): Result {
+        val draftId = inputData.getString(KEY_DRAFT_ID) ?: return Result.failure()
+        return runCatching { repository.uploadDraft(draftId) }
+            .fold(
+                onSuccess = { Result.success() },
+                onFailure = { Result.retry() }
+            )
+    }
+}
+
+class MarkDraftSyncedWorker(
+    appContext: Context,
+    params: WorkerParameters,
+    private val repository: DraftRepository
+) : CoroutineWorker(appContext, params) {
+
+    override suspend fun doWork(): Result {
+        val draftId = inputData.getString(KEY_DRAFT_ID) ?: return Result.failure()
+        repository.markDraftAsSynced(draftId)
+        return Result.success()
+    }
+}
+
+fun enqueuePublishDraft(context: Context, draftId: String) {
+    val compress = OneTimeWorkRequestBuilder<CompressPhotoWorker>()
+        .setInputData(workDataOf(KEY_DRAFT_ID to draftId))
+        .build()
+
+    val upload = OneTimeWorkRequestBuilder<UploadDraftWorker>()
+        .setInputData(workDataOf(KEY_DRAFT_ID to draftId))
+        .setConstraints(
+            Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+        )
+        .build()
+
+    val markSynced = OneTimeWorkRequestBuilder<MarkDraftSyncedWorker>()
+        .setInputData(workDataOf(KEY_DRAFT_ID to draftId))
+        .build()
+
+    WorkManager.getInstance(context)
+        .beginUniqueWork(
+            "publish_draft_$draftId",
+            ExistingWorkPolicy.REPLACE,
+            compress
+        )
+        .then(upload)
+        .then(markSynced)
+        .enqueue()
+}
+```
+
+这类链式表达最适合处理“每个步骤都应该足够单纯，但整个流程要稳定串起来”的后台工作。压缩失败就不要进入上传；上传失败可以按网络错误重试；只有真正成功后才更新本地同步标记。把每一步拆开之后，出错位置、重试行为和后续维护都会清楚得多。
+
+```kotlin
+sealed interface PublishUiState {
+    data object Idle : PublishUiState
+    data object Enqueued : PublishUiState
+    data object Running : PublishUiState
+    data object Succeeded : PublishUiState
+    data object Failed : PublishUiState
+}
+
+class PublishStatusViewModel(app: Application) : AndroidViewModel(app) {
+
+    private val workManager = WorkManager.getInstance(app)
+
+    fun observePublish(draftId: String): LiveData<PublishUiState> {
+        return Transformations.map(
+            workManager.getWorkInfosForUniqueWorkLiveData("publish_draft_$draftId")
+        ) { infos ->
+            when {
+                infos.isEmpty() -> PublishUiState.Idle
+                infos.any { it.state == WorkInfo.State.RUNNING } -> PublishUiState.Running
+                infos.any { it.state == WorkInfo.State.FAILED } -> PublishUiState.Failed
+                infos.all { it.state == WorkInfo.State.SUCCEEDED } -> PublishUiState.Succeeded
+                else -> PublishUiState.Enqueued
+            }
+        }
+    }
+}
+```
+
+这里的状态观察同样重要。页面并不需要一直盯着后台流水线，但当用户重新回到发布页时，你可以把“正在排队”“正在上传”“刚刚失败”“已经完成”这些状态重新解释给他。WorkManager 真正适合生产环境的一点，不只是它能跑，而是它能把系统调度的结果重新折回页面状态层。
+
+再往前走一步，你会发现 `beginUniqueWork()` 里的唯一名称其实也是建模的一部分。对“发布同一条草稿”这种需求来说，使用 `publish_draft_$draftId` 作为唯一键，表达的就是“同一个草稿只应该保留一条有效流水线”。这比事后排查重复上传要便宜得多。
+
 ### 8. 实践任务
 
 起点条件：

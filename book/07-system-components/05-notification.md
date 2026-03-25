@@ -123,6 +123,119 @@ fun buildMessageNotification(
 
 这两个场景最大的区别，不在于技术复杂度，而在于用户是否在等待这个信息。通知该不该发，很多时候就是这样判断出来的：如果用户正在等，它很可能值得通知；如果只是系统内部流程走到某一步了，它大概率不该打断用户。
 
+如果把权限申请、点击路径和动作按钮放进同一条代码链里，通知设计会比单看 `Builder` 清楚得多。
+
+```kotlin
+class ReminderActivity : ComponentActivity() {
+
+    private val requestNotificationsPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            publishReminder("task-42", "提交周报")
+        } else {
+            reminderViewModel.onNotificationsPermissionDenied()
+        }
+    }
+
+    fun onEnableReminderClicked(taskId: String, title: String) {
+        if (
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            publishReminder(taskId, title)
+        } else {
+            requestNotificationsPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    private fun publishReminder(taskId: String, title: String) {
+        ReminderNotifier(this).showTaskDue(taskId, title)
+    }
+}
+
+class ReminderNotifier(private val context: Context) {
+
+    fun showTaskDue(taskId: String, title: String) {
+        ensureReminderChannel(context)
+
+        val contentIntent = TaskStackBuilder.create(context)
+            .addNextIntentWithParentStack(TaskDetailActivity.newIntent(context, taskId))
+            .getPendingIntent(
+                taskId.hashCode(),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+
+        val snoozeIntent = Intent(context, SnoozeReminderReceiver::class.java).apply {
+            action = ACTION_SNOOZE_REMINDER
+            putExtra(EXTRA_TASK_ID, taskId)
+        }
+        val snoozePendingIntent = PendingIntent.getBroadcast(
+            context,
+            taskId.hashCode(),
+            snoozeIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_REMINDERS)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("待办即将到期")
+            .setContentText(title)
+            .setContentIntent(contentIntent)
+            .setAutoCancel(true)
+            .addAction(R.drawable.ic_snooze, "10 分钟后提醒", snoozePendingIntent)
+            .build()
+
+        NotificationManagerCompat.from(context)
+            .notify(taskId.hashCode(), notification)
+    }
+}
+
+class SnoozeReminderReceiver : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != ACTION_SNOOZE_REMINDER) return
+        val taskId = intent.getStringExtra(EXTRA_TASK_ID) ?: return
+
+        val request = OneTimeWorkRequestBuilder<RescheduleReminderWorker>()
+            .setInitialDelay(10, TimeUnit.MINUTES)
+            .setInputData(workDataOf(EXTRA_TASK_ID to taskId))
+            .build()
+
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            "snooze-reminder-$taskId",
+            ExistingWorkPolicy.REPLACE,
+            request,
+        )
+    }
+}
+```
+
+这条链路里每一层都对应着通知设计里的一个真实判断。`ReminderActivity` 负责在用户已经看见价值的时刻请求 `POST_NOTIFICATIONS`，而不是在冷启动第一秒就机械弹框；`ReminderNotifier` 负责把通知内容、渠道和点击返回路径组织完整；`SnoozeReminderReceiver` 则把动作按钮收到的事件快速转交给后台调度层，而不是在广播入口里自己做长任务。
+
+如果场景是消息而不是待办，还可以把 Direct Reply 再往前推进一步。它的意义不是“让通知更花哨”，而是让用户在最短路径里处理这件事。
+
+```kotlin
+class ReplyMessageReceiver : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        val replyText = RemoteInput.getResultsFromIntent(intent)
+            ?.getCharSequence(KEY_REPLY_TEXT)
+            ?.toString()
+            ?.takeIf { it.isNotBlank() }
+            ?: return
+
+        val conversationId = intent.getStringExtra(EXTRA_CONVERSATION_ID) ?: return
+        messageRepository.sendQuickReply(conversationId, replyText)
+    }
+}
+```
+
+这里最重要的教学点并不是 `RemoteInput` 的语法，而是通知动作也应该继续遵守同一套边界: 入口短、动作明确、结果回到正确上下文、必要时交给更稳定的执行层。只要把权限、渠道、返回路径和动作转交一起设计，通知就不会再退化成“系统层弹一条字”。
+
 ### 9. 实践任务
 
 起点条件：

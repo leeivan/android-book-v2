@@ -108,6 +108,131 @@ Neil Smyth 在 `Android Studio Narwhal Essentials` 里用一个很典型的 `Per
 
 这也是为什么现代权限设计越来越强调“被拒绝后仍然可解释”。如果用户拒绝了位置、通知或媒体访问权限，应用不应只剩下一句模糊报错，而应明确告诉用户当前缺少什么能力、还能做什么、如果愿意开启应去哪里重新授权。权限被拒绝不是异常分支，而是必须提前设计的常态路径。
 
+把“优先绕开权限”和“确实需要权限时怎样请求”写成同一条代码链，现代权限思维会更容易落地。
+
+```kotlin
+class NoteComposerActivity : ComponentActivity() {
+
+    private val pickPhoto = registerForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.onPhotoPicked(uri)
+        }
+    }
+
+    private val requestRecordAudioPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.onRecordAudioPermissionResult(
+            granted = granted,
+            shouldShowRationale = shouldShowRequestPermissionRationale(
+                Manifest.permission.RECORD_AUDIO,
+            ),
+        )
+        if (granted) {
+            viewModel.startVoiceRecording()
+        }
+    }
+
+    fun onAttachPhotoClicked() {
+        pickPhoto.launch(
+            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        )
+    }
+
+    fun onRecordVoiceClicked() {
+        when {
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.RECORD_AUDIO,
+            ) == PackageManager.PERMISSION_GRANTED -> {
+                viewModel.startVoiceRecording()
+            }
+
+            shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) -> {
+                viewModel.showMicrophoneRationale()
+            }
+
+            else -> {
+                requestRecordAudioPermission.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        }
+    }
+
+    fun onOpenSettingsClicked() {
+        val intent = Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", packageName, null),
+        )
+        startActivity(intent)
+    }
+}
+```
+
+这段代码里最关键的对比是：`onAttachPhotoClicked()` 完全没有权限请求，因为选图已经优先走了 Photo Picker；而 `onRecordVoiceClicked()` 则明确表明“录音”是一个真的需要运行时授权的能力。把这两个入口并排写出来，比单独背权限 API 更能帮助读者建立现代直觉：权限管理的第一步永远是先看能不能不申请。
+
+权限真正进入现代项目时，还应该被拉进页面状态模型，而不是停留在回调函数里一闪而过。
+
+```kotlin
+enum class AudioPermissionState {
+    Unknown,
+    Granted,
+    ShowRationale,
+    Denied,
+    PermanentlyDenied,
+}
+
+data class NoteComposerUiState(
+    val audioPermissionState: AudioPermissionState = AudioPermissionState.Unknown,
+    val canRecordVoice: Boolean = false,
+    val permissionMessage: String? = null,
+)
+
+class NoteComposerViewModel : ViewModel() {
+
+    private val _uiState = MutableStateFlow(NoteComposerUiState())
+    val uiState: StateFlow<NoteComposerUiState> = _uiState.asStateFlow()
+
+    fun showMicrophoneRationale() {
+        _uiState.update {
+            it.copy(
+                audioPermissionState = AudioPermissionState.ShowRationale,
+                permissionMessage = "为了录制语音备注，我们需要麦克风权限。",
+            )
+        }
+    }
+
+    fun onRecordAudioPermissionResult(granted: Boolean, shouldShowRationale: Boolean) {
+        _uiState.update {
+            when {
+                granted -> it.copy(
+                    audioPermissionState = AudioPermissionState.Granted,
+                    canRecordVoice = true,
+                    permissionMessage = null,
+                )
+
+                shouldShowRationale -> it.copy(
+                    audioPermissionState = AudioPermissionState.Denied,
+                    canRecordVoice = false,
+                    permissionMessage = "你可以稍后再次授权来使用语音备注。",
+                )
+
+                else -> it.copy(
+                    audioPermissionState = AudioPermissionState.PermanentlyDenied,
+                    canRecordVoice = false,
+                    permissionMessage = "如果你想开启语音备注，需要前往系统设置重新授权。",
+                )
+            }
+        }
+    }
+}
+```
+
+这部分代码真正解决的是“权限结果应该落到哪里”。一旦把它收进 `NoteComposerUiState`，页面就能自然地表达“现在可以录音”“应该显示简短说明”“需要引导去设置页重新授权”这些状态，而不是在某个回调里临时弹一条 Toast 就结束。
+
+把 Photo Picker、`RequestPermission()` 和页面状态放在一起看，权限管理的主线就会变得非常稳定：先优先采用更小范围的系统入口；只有在能力确实需要授权时，才围绕用户当前动作申请；申请结果则继续作为页面能力边界的一部分被建模和解释。这样写出来的权限流程，才真正符合今天 Android 的设计方向。
+
 ### 9. 实践任务
 
 起点条件：
@@ -156,7 +281,6 @@ Neil Smyth 在 `Android Studio Narwhal Essentials` 里用一个很典型的 `Per
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，权限请求、媒体访问与系统能力调用相关章节。
 - 参考并改写自：`Android Security - Attacks and Defenses`，权限边界、最小授权与平台安全模型相关章节。
 - 参考并改写自：`The Android Malware Handbook`，权限滥用、风险面与安全判断相关章节。
-
 - Request app permissions: <https://developer.android.com/training/permissions/requesting>
 - App permission best practices: <https://developer.android.com/privacy-and-security/minimize-permission-requests>
 - Photo Picker: <https://developer.android.com/training/data-storage/shared/photopicker>

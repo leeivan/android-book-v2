@@ -135,6 +135,65 @@ Flow 本身不是页面状态容器，但它很适合成为页面状态的上游
 
 Socorro 在聊天页里没有让界面直接面对一组零散回调，而是把“会话头部信息”和“消息列表”拆成 `uiState` 与 `messages` 两个 `StateFlow` 出口。`loadChatInformation(id)` 先在 `Dispatchers.IO` 拉取初始会话，再回到主线程一次性写入 `_uiState` 和 `_messages`；页面最终消费的不是仓库、WebSocket 和本地缓存的细节，而是两个已经整理好的状态入口。这个例子很适合说明 Flow / StateFlow 在工程里的真正作用：它们不只是“会持续发值”的类型，更是把多个异步来源收束成稳定 UI 合约的方式。
 
+对应的最小 Kotlin 结构可以写成：
+
+```kotlin
+data class ChatUiState(
+    val title: String = "",
+    val avatarUrl: String? = null
+)
+
+class ChatViewModel(
+    private val repository: ChatRepository
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(ChatUiState())
+    val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+
+    private val _messages = MutableStateFlow<List<MessageUi>>(emptyList())
+    val messages: StateFlow<List<MessageUi>> = _messages.asStateFlow()
+
+    fun loadChatInformation(id: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val room = repository.getInitialChatRoom(id)
+            withContext(Dispatchers.Main) {
+                _uiState.value = room.toUiState()
+                _messages.value = room.lastMessages.map { it.toUi() }
+            }
+        }
+    }
+}
+```
+
+这里的重点不是机械地拆成两个 `StateFlow`，而是让“页面整体状态”和“持续滚动变化的消息列表”各自有清楚出口，UI 收集时才不会重新拼装一堆来源关系。
+
+如果把这条链路补完整，UI 侧的收集边界也应该写得同样明确：
+
+```kotlin
+override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    super.onViewCreated(view, savedInstanceState)
+
+    viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            launch {
+                viewModel.uiState.collect { state ->
+                    binding.toolbar.title = state.title
+                }
+            }
+
+            launch {
+                viewModel.messages.collect { messages ->
+                    messagesAdapter.submitList(messages)
+                }
+            }
+        }
+    }
+}
+```
+
+这一段代码经常被低估，但它其实正好说明了 Flow 的另一半价值。`repeatOnLifecycle(...)` 保证页面不可见时自动停止收集、可见时再恢复；两个 `collect` 被分别放进子 `launch`，是因为每个收集都是长生命周期操作，如果写在同一个协程里，前一个 `collect` 就会一直挂住，后一个根本执行不到。也就是说，Flow 不只是“上游怎么发数据”，还包括“下游怎样在正确生命周期里接数据”。
+
+当上游的 `StateFlow` 边界已经清楚，下游的收集边界也写对时，Flow 才会真正体现出它的工程价值：数据变化路径清晰，生命周期行为明确，UI 只消费整理后的状态，而不是自己重新发明一套订阅逻辑。
+
 ### 8. 什么情况下不必强行上 Flow
 
 Flow 很强，但不是所有异步问题都需要它。以下场景通常不必硬用 Flow:

@@ -85,6 +85,45 @@ Android 的主线程承担着几乎所有用户直接能感知到的工作:
 
 Socorro 在一个消息备份案例里把 `AWSS3Provider.uploadFile()` 设计成 `suspend` 函数，并在内部用 `withContext(Dispatchers.IO)` 包住真正的 S3 上传。这样一来，调用方表达的是“我要上传文件”这个业务动作，而不是每次都要先记得手动切到 I/O 线程；上传进度、成功与失败的边界也继续留在存储模块内部。这个例子很适合说明 main-safe 的真实含义：耗时的网络 I/O 应该由拥有这段工作的实现自己切上下文，而不是把“别忘了后台调用我”这种隐含前提丢给页面层。
 
+如果把这个约束压缩成一个最小 Kotlin 示例，可以写成：
+
+```kotlin
+data class BackupUiState(
+    val isUploading: Boolean = false,
+    val message: String? = null
+)
+
+class BackupRepository(
+    private val storage: StorageDataSource
+) {
+    suspend fun upload(file: File) = withContext(Dispatchers.IO) {
+        storage.upload(file)
+    }
+}
+
+class BackupViewModel(
+    private val repository: BackupRepository
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(BackupUiState())
+    val uiState: StateFlow<BackupUiState> = _uiState.asStateFlow()
+
+    fun upload(file: File) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUploading = true, message = null) }
+            runCatching { repository.upload(file) }
+                .onSuccess { _uiState.update { it.copy(isUploading = false) } }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(isUploading = false, message = error.message)
+                    }
+                }
+        }
+    }
+}
+```
+
+这个片段里最值得观察的是：`ViewModel` 不需要亲自决定 I/O 线程细节，它只负责发起任务和更新状态；真正保证 main-safe 的责任在 `Repository` 内部。
+
 ### 7. 一个典型误区: 把所有耗时工作都当成同一种后台任务
 
 例如:
@@ -104,6 +143,57 @@ Socorro 在一个消息备份案例里把 `AWSS3Provider.uploadFile()` 设计成
 - 返回结果是否仍属于当前输入条件。
 
 这正说明，并发问题真正复杂的部分是任务关系，而不只是线程位置。
+
+如果把“旧结果覆盖新结果”这个问题再往前推进一步，可以得到一个更完整的页面内异步示例：
+
+```kotlin
+data class SearchUiState(
+    val query: String = "",
+    val isLoading: Boolean = false,
+    val items: List<ArticleUi> = emptyList(),
+    val errorMessage: String? = null
+)
+
+class SearchViewModel(
+    private val repository: ArticleRepository
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(SearchUiState())
+    val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
+
+    private var searchJob: Job? = null
+
+    fun search(query: String) {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            _uiState.update {
+                it.copy(query = query, isLoading = true, errorMessage = null)
+            }
+
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    repository.searchArticles(query)
+                }
+            }.onSuccess { articles ->
+                if (_uiState.value.query == query) {
+                    _uiState.update {
+                        it.copy(isLoading = false, items = articles)
+                    }
+                }
+            }.onFailure { error ->
+                if (_uiState.value.query == query) {
+                    _uiState.update {
+                        it.copy(isLoading = false, errorMessage = error.message)
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+这段代码比“把请求丢到后台线程”多做了三件关键的事。第一，`searchJob?.cancel()` 让新搜索可以主动使旧任务失效；第二，真正的 I/O 仍然被压在 `Dispatchers.IO` 上执行；第三，返回结果写回状态前，会再次确认它是否仍属于当前查询。也就是说，线程切换、取消旧任务和结果归属检查，三者必须一起出现，页面状态才会真正稳定。
+
+这也是为什么现代 Android 并发实践越来越强调“让调用方表达意图，让作用域和状态决定边界”。如果页面只会一股脑地启动后台任务，却没有取消、去重和状态校验，并发 bug 迟早会出现，只是早晚的问题。
 
 ### 9. 实践任务
 
