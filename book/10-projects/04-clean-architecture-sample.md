@@ -21,7 +21,7 @@
 
 ### 1. Clean Architecture 试图解决的，是复杂度失控
 
-项目小的时候，页面层多写一点判断、数据层顺手塞一点业务规则、网络响应直接映射给 UI，往往也不会立刻出大问题。真正的问题出现在项目开始持续演进以后。列表和详情开始共享数据，收藏、同步、搜索、分页、权限、后台任务逐渐叠加，多个开发者同时修改同一条功能链路，这时原来“凑合能跑”的结构会迅速暴露出代价：
+项目小的时候，页面层多写一点判断、数据层再塞一点业务规则、网络响应直接映射给 UI，往往也不会立刻出大问题。真正的问题出现在项目开始持续演进以后。列表和详情开始共享数据，收藏、同步、搜索、分页、权限、后台任务逐渐叠加，多个开发者同时修改同一条功能链路，这时原来“凑合能跑”的结构会迅速暴露出代价：
 
 - 页面层混入越来越多业务判断。
 - 数据来源策略泄漏到 UI，导致页面必须知道“从网还是从库拿”。
@@ -270,15 +270,15 @@ class TaskListViewModel(
 
 预期结果：
 
-- 你会更清楚地知道哪些边界值得保护。
-- 你会把 Clean Architecture 理解成依赖治理，而不是分层模板。
-- 你会发现测试和模块化会自然跟着变容易。
+- 读者会更清楚地知道哪些边界值得保护。
+- 读者会把 Clean Architecture 理解成依赖治理，而不是分层模板。
+- 读者会发现测试和模块化会自然跟着变容易。
 
 自检方式：
 
-- 你能说明为什么 Domain 层在没有业务逻辑时是可选的。
-- 你能区分 UseCase、Repository 接口、DTO 和 Domain model 各自承接什么问题。
-- 你能判断某个抽象到底是在减耦合，还是只是在增加文件数量。
+- 读者应能说明为什么 Domain 层在没有业务逻辑时是可选的。
+- 读者应能区分 UseCase、Repository 接口、DTO 和 Domain model 各自承接什么问题。
+- 读者应能判断某个抽象到底是在减耦合，还是只是在增加文件数量。
 
 调试提示：
 
@@ -304,3 +304,4 @@ Clean Architecture 真正要保护的，不是某张教科书架构图，而是�
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
 - Guide to app modularization: <https://developer.android.com/topic/modularization>
 - Now in Android: <https://github.com/android/nowinandroid>
+

@@ -241,15 +241,15 @@ fun loadSharedTasks(context: Context): List<String> {
 
 预期结果:
 
-- 你会把 Provider 看成共享边界，而不是本地 CRUD 组件。
-- 你能更清晰地区分“用 Provider”和“写 Provider”。
-- 你会更谨慎地对待自定义 Provider 的对外承诺。
+- 读者会把 Provider 看成共享边界，而不是本地 CRUD 组件。
+- 读者应能更清晰地区分“用 Provider”和“写 Provider”。
+- 读者会更谨慎地对待自定义 Provider 的对外承诺。
 
 自检方式:
 
-- 你能解释 ContentResolver、URI 和 Provider 的关系。
-- 你能判断某个需求为什么不需要自定义 Provider。
-- 你能说明为什么 FileProvider 是更现实、更常用的入门点。
+- 读者应能解释 ContentResolver、URI 和 Provider 的关系。
+- 读者应能判断某个需求为什么不需要自定义 Provider。
+- 读者应能说明为什么 FileProvider 是更现实、更常用的入门点。
 
 调试提示:
 

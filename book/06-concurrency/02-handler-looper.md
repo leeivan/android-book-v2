@@ -141,15 +141,15 @@ fun scheduleHint() {
 
 预期结果:
 
-- 你会把 Handler 看成消息循环机制的一部分，而不是孤立 API。
-- 你能更清楚地理解主线程“稍后执行”的本质。
+- 读者会把 Handler 看成消息循环机制的一部分，而不是孤立 API。
+- 读者应能更清楚地理解主线程“稍后执行”的本质。
 - 你也会更容易判断什么时候不该再硬用 Handler。
 
 自检方式:
 
-- 你能解释 `Looper`、`MessageQueue`、`Handler` 三者的关系。
-- 你能说明 `postDelayed` 背后真正发生了什么。
-- 你能判断一段 `Handler` 代码是否缺少生命周期清理。
+- 读者应能解释 `Looper`、`MessageQueue`、`Handler` 三者的关系。
+- 读者应能说明 `postDelayed` 背后真正发生了什么。
+- 读者应能判断一段 `Handler` 代码是否缺少生命周期清理。
 
 调试提示:
 

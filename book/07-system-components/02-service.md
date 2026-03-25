@@ -180,7 +180,7 @@ class NowPlayingActivity : AppCompatActivity() {
 }
 ```
 
-这种组合也顺手解释了 started service 和 bound service 为什么经常一起出现。started service 解决的是“播放能力应该继续存在”，bound service 解决的是“当前界面怎样和这项持续能力交互”。两者关注的是不同问题，所以完全可以同时存在。
+这种组合也解释了 started service 和 bound service 为什么经常一起出现。started service 解决的是“播放能力应该继续存在”，bound service 解决的是“当前界面怎样和这项持续能力交互”。两者关注的是不同问题，所以完全可以同时存在。
 
 反过来看，如果一个需求只是“页面关闭后把待发送草稿补传到服务器”，那它通常只需要可靠调度，而不需要把自己包装成用户可感知的持续能力。把这种任务做成 Service，大概率只是在拿更重的组件解决更轻的问题。
 
@@ -200,15 +200,15 @@ class NowPlayingActivity : AppCompatActivity() {
 
 预期结果:
 
-- 你会先从任务性质判断 Service，而不是从“后台”这个词直接跳过去。
-- 你能更清晰地区分前台服务和延迟后台任务。
-- 你会更少把 Service 当成万能异步解。
+- 读者会先从任务性质判断 Service，而不是从“后台”这个词直接跳过去。
+- 读者应能更清晰地区分前台服务和延迟后台任务。
+- 读者会更少把 Service 当成万能异步解。
 
 自检方式:
 
-- 你能解释 Service 为什么不是线程。
-- 你能判断某个任务为什么适合或不适合前台服务。
-- 你能说明为什么很多同步任务更适合 WorkManager。
+- 读者应能解释 Service 为什么不是线程。
+- 读者应能判断某个任务为什么适合或不适合前台服务。
+- 读者应能说明为什么很多同步任务更适合 WorkManager。
 
 调试提示:
 
@@ -237,4 +237,5 @@ Service 在 Android 中真正的角色，是承载某些脱离界面但仍需要
 - Services overview: <https://developer.android.com/develop/background-work/services>
 - Foreground services overview: <https://developer.android.com/develop/background-work/services/foreground-services>
 - Background work overview: <https://developer.android.com/develop/background-work>
+
 

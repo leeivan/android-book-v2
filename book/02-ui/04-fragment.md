@@ -136,7 +136,7 @@ class TaskListFragment : Fragment(R.layout.fragment_task_list) {
 
 这组代码把 Fragment 最关键的边界写实了。Activity 负责提供宿主和更高层级的页面容器，Fragment 负责自己的内容渲染与交互，`FragmentManager` 负责把内容区真正替换到页面里。只要这三层职责分开，Fragment 就不会再被误解成“比 Activity 小一点的 Activity”，而会更像可组合的界面单元。
 
-这里还顺手解释了为什么 `savedInstanceState == null` 这个判断总是反复出现。它不是样板代码装饰，而是为了避免 Activity 因配置变化重建后重复把同一个 Fragment 再塞一遍。Fragment 一旦进入真实项目，这类“系统已经帮你恢复的内容，不要再手工重复创建”的边界意识会非常重要。
+这里也解释了为什么 `savedInstanceState == null` 这个判断总是反复出现。它不是样板代码装饰，而是为了避免 Activity 因配置变化重建后重复把同一个 Fragment 再塞一遍。Fragment 一旦进入真实项目，这类“系统已经帮你恢复的内容，不要再手工重复创建”的边界意识会非常重要。
 
 ### 9. 实践任务
 
@@ -156,14 +156,14 @@ class TaskListFragment : Fragment(R.layout.fragment_task_list) {
 预期结果：
 
 - 页面结构比“所有内容都在 Activity”更清晰。
-- 你能感受到 Activity 和 Fragment 的职责边界开始分化。
+- 读者应能感受到 Activity 和 Fragment 的职责边界开始分化。
 - 你对“Fragment 自己有生命周期，View 也有生命周期”会有更具体的理解。
 
 自检方式：
 
-- 你能解释：为什么 Fragment 不是“缩小版 Activity”。
-- 你能说出：为什么 `viewLifecycleOwner` 重要。
-- 你能判断：当前页面是真的需要 Fragment，还是只是为了拆而拆。
+- 读者应能解释：为什么 Fragment 不是“缩小版 Activity”。
+- 读者应能说出：为什么 `viewLifecycleOwner` 重要。
+- 读者应能判断：当前页面是真的需要 Fragment，还是只是为了拆而拆。
 
 调试提示：
 
@@ -182,8 +182,7 @@ class TaskListFragment : Fragment(R.layout.fragment_task_list) {
 
 Fragment 的意义不在于“多学一个组件”，而在于它提供了更灵活的界面组织能力。只要你理解了 Fragment 与 Activity 的边界，以及 Fragment 自己和其 View 的双重生命周期，后面的 Navigation、多页面结构和大屏适配就会更容易站稳。
 
-下一章我们会在这个基础上继续讨论页面流转，也就是导航。到那时，你会看到 Fragment 不只是“内容单元”，更是现代 Navigation 结构中的主要目的地承载者。
-
+下一章将在这个基础上继续讨论页面流转，也就是导航。到那时，你会看到 Fragment 不只是“内容单元”，更是现代 Navigation 结构中的主要目的地承载者。
 
 ## 参考资料
 
@@ -196,4 +195,5 @@ Fragment 的意义不在于“多学一个组件”，而在于它提供了更�
 - Fragment 生命周期：<https://developer.android.com/guide/fragments/lifecycle>
 - FragmentManager：<https://developer.android.com/guide/fragments/fragmentmanager>
 - Fragment 事务：<https://developer.android.com/guide/fragments/transactions>
+
 

@@ -34,7 +34,7 @@
 
 `onCreate()` 最适合承担“页面建立所必需的一次性初始化”。典型内容包括绑定布局、准备页面级依赖、建立与 ViewModel 的连接，以及恢复最基础的轻量 UI 状态。它适合做“页面从无到有”必须完成的事，但不适合把所有和页面有关的逻辑无差别塞进去。
 
-初学者最常见的问题，就是把 `onCreate()` 当成一个万能入口：请求数据、注册监听、启动动画、创建长生命周期对象、订阅所有事件、甚至开启后台任务都往里堆。短期看这样写很顺手，长期看却会迅速失控。因为页面每次重建时，这些逻辑都会被重新执行，而你自己很快就分不清哪些行为是“页面第一次建立必须做”，哪些行为其实只应该在用户真正回到前台后才启动。
+初学者最常见的问题，就是把 `onCreate()` 当成一个万能入口：请求数据、注册监听、启动动画、创建长生命周期对象、订阅所有事件、甚至开启后台任务都往里堆。短期看这样写确实省事，长期看却会迅速失控。因为页面每次重建时，这些逻辑都会被重新执行，而你自己很快就分不清哪些行为是“页面第一次建立必须做”，哪些行为其实只应该在用户真正回到前台后才启动。
 
 ### 4. 为什么要区分“已创建”“可见”“可交互”
 
@@ -60,7 +60,7 @@
 
 `Head First Android Development` 里用 `StopwatchActivity` 做了一个特别适合入门的案例：页面里只有秒表文本和开始、停止、重置三个按钮，但一旦旋转屏幕，`seconds` 和 `running` 这两个变量就会随着 Activity 重建而回到默认值。作者先用这个例子暴露“配置变化会让页面实例失效”，再引出 `onSaveInstanceState()` 保存轻量状态，以及用 `onPause()` / `onResume()` 让秒表在失去和恢复前台焦点时暂停与继续。这个案例的价值不在秒表本身，而在于它把生命周期最核心的三件事放到了同一条线上：页面实例并不稳定、轻量状态需要明确保存、前台交互资源必须跟随可见性和焦点变化调整。
 
-`Android Application Development Cookbook, 2nd Edition` 则用两个很适合并读的小例子把这条线补得更完整。第一个是 `StateSaver`：页面里放一个计数器、`EditText` 和 `TextView`，通过 `onSaveInstanceState()` / `onRestoreInstanceState()` 手动保存计数器，同时顺手暴露一个很容易忽略的事实：像 `EditText` 这样带唯一 ID 的控件，系统往往会自动恢复部分视图状态，但 `TextView` 这类显示结果并不会替你兜底。第二个是 `ActivityLifecycle`：把 `onCreate()`、`onStart()`、`onResume()`、`onPause()`、`onStop()`、`onRestart()`、`onDestroy()` 依次写到界面上，再结合 `isFinishing()` 区分“真的要结束”还是“只是暂时离开前台”。这两个例子放在一起，很适合帮助读者把“状态保存”和“回调顺序观察”分成两件不同但相关的事。
+`Android Application Development Cookbook, 2nd Edition` 则用两个很适合并读的小例子把这条线补得更完整。第一个是 `StateSaver`：页面里放一个计数器、`EditText` 和 `TextView`，通过 `onSaveInstanceState()` / `onRestoreInstanceState()` 手动保存计数器，同时也暴露一个很容易忽略的事实：像 `EditText` 这样带唯一 ID 的控件，系统往往会自动恢复部分视图状态，但 `TextView` 这类显示结果并不会替你兜底。第二个是 `ActivityLifecycle`：把 `onCreate()`、`onStart()`、`onResume()`、`onPause()`、`onStop()`、`onRestart()`、`onDestroy()` 依次写到界面上，再结合 `isFinishing()` 区分“真的要结束”还是“只是暂时离开前台”。这两个例子放在一起，很适合帮助读者把“状态保存”和“回调顺序观察”分成两件不同但相关的事。
 
 生命周期真正难的地方，不在于方法名，而在于状态该放在哪里。工程上可以把页面状态大致分成三类。第一类是很轻、很短暂的 UI 状态，例如输入框当前内容、滚动位置或临时筛选项。第二类是与页面逻辑紧密相关、但不应随着 Activity 重建而丢失的屏幕状态。第三类则是需要长期保存的业务数据，例如本地记录、账户信息、离线内容或数据库实体。
 
@@ -144,15 +144,15 @@ class MainActivity : AppCompatActivity() {
 
 预期结果：
 
-- 你能清楚看到不同场景下生命周期回调并不完全相同。
-- 你会发现配置变化可能导致 Activity 重建。
-- 你能观察到轻量状态在保存与不保存时的差异。
+- 读者应能清楚看到不同场景下生命周期回调并不完全相同。
+- 读者会发现配置变化可能导致 Activity 重建。
+- 读者应能观察到轻量状态在保存与不保存时的差异。
 
 自检方式：
 
-- 你能用自己的话解释：页面切后台不一定等于页面销毁。
-- 你能指出：为什么 Activity 成员变量不适合承担长期状态保存。
-- 你能说出：哪些内容更适合 `onSaveInstanceState()`，哪些内容更适合 ViewModel 或数据层。
+- 读者应能用自己的话解释：页面切后台不一定等于页面销毁。
+- 读者应能指出：为什么 Activity 成员变量不适合承担长期状态保存。
+- 读者应能说出：哪些内容更适合 `onSaveInstanceState()`，哪些内容更适合 ViewModel 或数据层。
 
 调试提示：
 
@@ -173,7 +173,6 @@ Activity 生命周期是 Android 开发的第一道真正门槛，因为它迫�
 
 下一章及后续相关章节里，我们会继续把这个判断扩展到 Fragment、ViewModel、导航和数据层。只有在生命周期这一层打稳基础，后面的现代 Android 结构才不会变成一堆互不相干的 API。
 
-
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 3-4 章。
@@ -183,4 +182,6 @@ Activity 生命周期是 Android 开发的第一道真正门槛，因为它迫�
 - 参考并改写自：Rick Boyer、Kyle Mew，《Android Application Development Cookbook, 2nd Edition》(2016)，`StateSaver` 与 `ActivityLifecycle` 相关 recipes。
 - Activity 生命周期：<https://developer.android.com/guide/components/activities/activity-lifecycle>
 - 保存 UI 状态：<https://developer.android.com/topic/libraries/architecture/saving-states>
+
+
 

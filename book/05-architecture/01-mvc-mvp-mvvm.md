@@ -98,7 +98,7 @@ Luca Vainigli 在同一本书里用同一个 articles 场景连续演示了三�
 
 为了把区别看得更清楚，可以用同一个列表页来对比。
 
-在 `MVC` 里，Activity 或 Fragment 往往既接按钮点击，又发请求，又更新列表，还顺手处理错误提示。
+在 `MVC` 里，Activity 或 Fragment 往往既接按钮点击，又发请求，又更新列表，还直接处理错误提示。
 
 在 `MVP` 里，这些流程会被 Presenter 接走，页面类主要负责把事件交给 Presenter，再接收 Presenter 的显示指令。
 
@@ -147,15 +147,15 @@ Luca Vainigli 在同一本书里用同一个 articles 场景连续演示了三�
 
 预期结果:
 
-- 你会把架构模式理解成职责分配问题，而不是缩写背诵题。
-- 你能更清楚地解释为什么现代 Android 经常走向 `MVVM`。
-- 你会为后续章节中的具体模式落地建立判断基线。
+- 读者会把架构模式理解成职责分配问题，而不是缩写背诵题。
+- 读者应能更清楚地解释为什么现代 Android 经常走向 `MVVM`。
+- 读者会为后续章节中的具体模式落地建立判断基线。
 
 自检方式:
 
-- 你能说出 `MVC` 在 Android 中为什么容易让页面类膨胀。
-- 你能解释 `MVP` 试图解决什么问题，以及它后来为什么也容易变重。
-- 你能判断 `MVVM` 为什么更适合和现代 Android 组件配套。
+- 读者应能说出 `MVC` 在 Android 中为什么容易让页面类膨胀。
+- 读者应能解释 `MVP` 试图解决什么问题，以及它后来为什么也容易变重。
+- 读者应能判断 `MVVM` 为什么更适合和现代 Android 组件配套。
 
 调试提示:
 
@@ -183,4 +183,5 @@ Luca Vainigli 在同一本书里用同一个 articles 场景连续演示了三�
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
 - State holders and UI state: <https://developer.android.com/topic/architecture/ui-layer/stateholders>
 - Architecture Samples: <https://github.com/android/architecture-samples>
+
 

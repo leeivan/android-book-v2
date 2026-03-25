@@ -201,15 +201,15 @@ class ArticleListViewModel(
 
 预期结果:
 
-- 你能把 MVVM 真正落到 Android 组件上，而不是停留在抽象名词。
+- 读者应能把 MVVM 真正落到 Android 组件上，而不是停留在抽象名词。
 - 页面层会更聚焦于显示和交互。
-- 你会更容易发现哪些逻辑该留在 ViewModel，哪些该下沉到数据层。
+- 读者会更容易发现哪些逻辑该留在 ViewModel，哪些该下沉到数据层。
 
 自检方式:
 
-- 你能解释为什么 Android 中的 ViewModel 对 MVVM 特别关键。
-- 你能判断某段逻辑属于页面状态组织，还是数据来源协调。
-- 你能说出 `uiState` 为什么是 MVVM 的关键接口。
+- 读者应能解释为什么 Android 中的 ViewModel 对 MVVM 特别关键。
+- 读者应能判断某段逻辑属于页面状态组织，还是数据来源协调。
+- 读者应能说出 `uiState` 为什么是 MVVM 的关键接口。
 
 调试提示:
 

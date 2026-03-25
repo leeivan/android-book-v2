@@ -20,7 +20,7 @@
 
 ### 1. 协程为什么不是“线程换个写法”
 
-很多人第一次看到协程，会被它的顺序写法吸引，误以为它最大的价值是“少写回调”。这当然是优点，但真正更重要的是，协程把异步任务的几个关键问题统一到了同一个模型中:
+很多人第一次看到协程，会被它的顺序写法吸引，误以为它最大的价值是“少写回调”。这当然是优点，但真正进一步看，协程把异步任务的几个关键问题统一到了同一个模型中:
 
 - 任务是谁启动的。
 - 它属于哪个作用域。
@@ -211,7 +211,7 @@ class HomeViewModel(
 - 取消边界不清楚。
 - 数据层和页面层职责仍旧混乱。
 
-那协程只是让异步写起来更顺手了一点，并没有真正带来稳定结构。
+那协程只是让异步写起来更自然了一点，并没有真正带来稳定结构。
 
 ### 10. 实践任务
 
@@ -229,15 +229,15 @@ class HomeViewModel(
 
 预期结果:
 
-- 你会把协程看成任务组织工具，而不是线程替代名词。
-- 你能更自然地把异步任务和状态边界放在一起思考。
+- 读者会把协程看成任务组织工具，而不是线程替代名词。
+- 读者应能更自然地把异步任务和状态边界放在一起思考。
 - 后面学习 Flow 和 WorkManager 时，你会更容易看出它们与协程的关系。
 
 自检方式:
 
-- 你能解释协程为什么不是线程本身。
-- 你能判断某个任务更适合用 `launch`、`async` 还是 `withContext`。
-- 你能说出结构化并发为什么比“随手启动任务”更适合 Android。
+- 读者应能解释协程为什么不是线程本身。
+- 读者应能判断某个任务更适合用 `launch`、`async` 还是 `withContext`。
+- 读者应能说出结构化并发为什么比“随手启动任务”更适合 Android。
 
 调试提示:
 
@@ -254,7 +254,7 @@ class HomeViewModel(
 
 ## 小结
 
-协程在现代 Android 中真正提供的，不只是更顺手的异步写法，而是一套更统一的任务组织方式。它把作用域、取消、上下文和结果归属放进了同一个模型里，因此特别适合和页面状态、ViewModel、Repository 一起工作。只要这条结构主线建立起来，协程就会成为 Android 异步开发里最稳的一块基础设施。
+协程在现代 Android 中真正提供的，不只是更自然的异步写法，而是一套更统一的任务组织方式。它把作用域、取消、上下文和结果归属放进了同一个模型里，因此特别适合和页面状态、ViewModel、Repository 一起工作。只要这条结构主线建立起来，协程就会成为 Android 异步开发里最稳的一块基础设施。
 
 ## 参考资料
 
@@ -265,4 +265,5 @@ class HomeViewModel(
 - Kotlin coroutines on Android: <https://developer.android.com/kotlin/coroutines>
 - Coroutines best practices: <https://developer.android.com/kotlin/coroutines/coroutines-best-practices>
 - Kotlin coroutines guide: <https://kotlinlang.org/docs/coroutines-overview.html>
+
 

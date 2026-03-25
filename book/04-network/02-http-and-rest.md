@@ -123,7 +123,7 @@ suspend fun loadArticlePage(api: NewsApi, page: Int): ArticleListResult {
 
 这段代码正好把 HTTP 章节里最容易被忽略的两层结果拆开了。`response.isSuccessful` 只回答“这次 HTTP 交互在协议层是否成功”；而 `errorCode`、空列表和空响应体这些判断，则在回答“这份结果是否真的满足当前业务需求”。只要两层不拆，客户端就会很容易把“接口返回 200 但页面没法正常显示”这种情况误判成成功。
 
-同时，这段代码也顺手说明了为什么请求头和内容协商不该被当成边角知识。`Accept-Language` 不是为了让示例看起来更复杂，而是在提醒读者：一次请求的语义并不只由 URL 和方法决定，头信息同样在表达客户端期望。你忽略它们，就会在认证、语言、缓存和内容类型这些现实问题上一再吃亏。
+同时，这段代码也说明了为什么请求头和内容协商不该被当成边角知识。`Accept-Language` 不是为了让示例看起来更复杂，而是在提醒读者：一次请求的语义并不只由 URL 和方法决定，头信息同样在表达客户端期望。你忽略它们，就会在认证、语言、缓存和内容类型这些现实问题上一再吃亏。
 
 把这段结果包装链路放回 REST 语境里，资源式接口的价值也会更容易理解。`GET /articles` 代表的是“读取文章集合”这一种操作意图；但“读到了什么”和“这些内容能不能直接驱动页面”，仍然需要客户端继续往上层判断。HTTP 和 REST 提供的是协议与资源语义，不是最终 UI 状态的自动答案。
 
@@ -142,15 +142,15 @@ suspend fun loadArticlePage(api: NewsApi, page: Int): ArticleListResult {
 
 预期结果：
 
-- 你能从方法、状态码和头信息角度读懂一次请求。
-- 你能区分协议语义和业务语义。
-- 你会更容易看懂后面的 Retrofit 接口声明和错误包装设计。
+- 读者应能从方法、状态码和头信息角度读懂一次请求。
+- 读者应能区分协议语义和业务语义。
+- 读者会更容易看懂后面的 Retrofit 接口声明和错误包装设计。
 
 自检方式：
 
-- 你能解释：为什么请求方法不是随便挑一个。
-- 你能说出：状态码分类为什么比“200/非200”更有工程价值。
-- 你能判断：一个 HTTP 成功响应为什么仍可能导致页面进入空状态或业务失败状态。
+- 读者应能解释：为什么请求方法不是随便挑一个。
+- 读者应能说出：状态码分类为什么比“200/非200”更有工程价值。
+- 读者应能判断：一个 HTTP 成功响应为什么仍可能导致页面进入空状态或业务失败状态。
 
 调试提示：
 
@@ -171,7 +171,6 @@ HTTP 和 REST 提供的是网络交互的基本语义框架。理解了请求方
 
 下一章开始，我们会落到更具体的客户端工具层，先看 OkHttp 这样的底层请求库在 Android 中到底承担什么角色。
 
-
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，网络请求与接口交互相关章节。
@@ -179,4 +178,5 @@ HTTP 和 REST 提供的是网络交互的基本语义框架。理解了请求方
 
 - Connect to the network：<https://developer.android.com/develop/connectivity/network-ops/connecting>
 - RFC 9110: HTTP Semantics：<https://www.rfc-editor.org/rfc/rfc9110>
+
 

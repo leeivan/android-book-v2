@@ -1,4 +1,4 @@
-﻿# UseCase / Domain 层
+# UseCase / Domain 层
 
 当项目还比较小时，ViewModel 调 Repository 往往已经够用。但只要功能开始变复杂，你很快会遇到另一类问题: 一个动作不再只是“拿数据”，而是要跨多个 Repository 协作、做一串业务规则判断、决定失败时怎么退让、成功后怎么回写。到了这个阶段，如果所有流程都继续留在 ViewModel 里，页面状态层很快又会膨胀。
 
@@ -31,7 +31,7 @@
 
 - ViewModel 开始知道越来越多业务细节。
 - 同一动作如果在别的页面也要用，很难复用。
-- 测试页面状态时，不得不顺手测试整段业务流程。
+- 测试页面状态时，不得不连带测试整段业务流程。
 
 UseCase 往往就是在这种时刻出现的。
 
@@ -159,9 +159,9 @@ UseCase 也很容易被过度设计。最常见的错误包括:
 
 自检方式:
 
-- 你能解释 Repository 和 UseCase 的根本区别。
-- 你能判断某段逻辑为什么适合抽成 UseCase。
-- 你能说出什么时候不需要强行引入 Domain 层。
+- 读者应能解释 Repository 和 UseCase 的根本区别。
+- 读者应能判断某段逻辑为什么适合抽成 UseCase。
+- 读者应能说出什么时候不需要强行引入 Domain 层。
 
 调试提示:
 
@@ -187,4 +187,5 @@ UseCase / Domain 层真正要解决的，是复杂业务动作应该放在哪里
 - Domain layer guide: <https://developer.android.com/topic/architecture/domain-layer>
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
 - Now in Android: <https://github.com/android/nowinandroid>
+
 

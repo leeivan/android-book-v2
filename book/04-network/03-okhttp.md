@@ -191,16 +191,16 @@ fun provideHttpClient(tokenProvider: () -> String?): OkHttpClient {
 
 预期结果：
 
-- 你能明确区分客户端配置、单次请求描述和单次调用实例。
-- 你会开始把横切能力收回到 OkHttp 层，而不是散落在页面和 Repository。
-- 你能更容易看懂后面 Retrofit 为什么要复用 OkHttpClient。
+- 读者应能明确区分客户端配置、单次请求描述和单次调用实例。
+- 读者会开始把横切能力收回到 OkHttp 层，而不是散落在页面和 Repository。
+- 读者应能更容易看懂后面 Retrofit 为什么要复用 OkHttpClient。
 
 自检方式：
 
-- 你能解释：为什么 `OkHttpClient` 应该长期复用。
-- 你能说出：拦截器适合处理什么，不适合处理什么。
-- 你能判断：什么时候需要 application interceptor，什么时候才需要 network interceptor。
-- 你能确认：网络调用没有运行在主线程，响应体也被正确关闭。
+- 读者应能解释：为什么 `OkHttpClient` 应该长期复用。
+- 读者应能说出：拦截器适合处理什么，不适合处理什么。
+- 读者应能判断：什么时候需要 application interceptor，什么时候才需要 network interceptor。
+- 读者应能确认：网络调用没有运行在主线程，响应体也被正确关闭。
 
 调试提示：
 

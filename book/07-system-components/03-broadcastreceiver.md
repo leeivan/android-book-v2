@@ -1,6 +1,6 @@
 # BroadcastReceiver
 
-学 `BroadcastReceiver` 时，很多人最先记住的是“收到系统事件以后会回调 `onReceive()`”。这句话不算错，但如果只停在这里，就很容易继续沿着旧教程的思路，把接收器当成一个“后台顺手干活”的地方。到了现代 Android，这种理解已经明显不够用了。平台一方面限制了大量后台执行和隐式广播，另一方面又要求我们更明确地声明组件边界和导出行为。于是，真正应该先建立的认知不是“怎么收广播”，而是“广播在系统里到底承担什么角色”。
+学 `BroadcastReceiver` 时，很多人最先记住的是“收到系统事件以后会回调 `onReceive()`”。这句话不算错，但如果只停在这里，就很容易继续沿着旧教程的思路，把接收器当成一个“在后台直接干活”的地方。到了现代 Android，这种理解已经明显不够用了。平台一方面限制了大量后台执行和隐式广播，另一方面又要求我们更明确地声明组件边界和导出行为。于是，真正应该先建立的认知不是“怎么收广播”，而是“广播在系统里到底承担什么角色”。
 
 放在本书的上下文里看，这一章承接前面的 `Intent` 和 `Service`。`Intent` 讲的是动作表达，`Service` 讲的是持续能力的组件外壳，而 `BroadcastReceiver` 讲的是“某件事已经发生了”这一类事件入口。它不负责长时间执行，也不负责存储共享数据；下一章的 `ContentProvider` 才是结构化数据边界。只要先把这几种组件边界区分清楚，你就不会再把广播、后台任务和普通应用内通知混成一团。
 
@@ -231,15 +231,15 @@ override fun onReceive(context: Context, intent: Intent) {
 
 预期结果：
 
-- 你能把接收器从“执行现场”改回“事件入口”。
-- 你能判断一个场景到底该运行时注册还是清单注册。
-- 你能说清接收器对谁可见，以及它收到事件后要把工作交给谁。
+- 读者应能把接收器从“执行现场”改回“事件入口”。
+- 读者应能判断一个场景到底该运行时注册还是清单注册。
+- 读者应能说清接收器对谁可见，以及它收到事件后要把工作交给谁。
 
 自检方式：
 
-- 你能解释为什么 `onReceive()` 不适合承载长时间工作。
-- 你能判断某个广播场景是否真的需要在应用未启动时也响应。
-- 你能说明 `RECEIVER_NOT_EXPORTED` 或 `android:exported` 在当前场景里的意义。
+- 读者应能解释为什么 `onReceive()` 不适合承载长时间工作。
+- 读者应能判断某个广播场景是否真的需要在应用未启动时也响应。
+- 读者应能说明 `RECEIVER_NOT_EXPORTED` 或 `android:exported` 在当前场景里的意义。
 
 调试提示：
 
@@ -271,3 +271,4 @@ BroadcastReceiver 在现代 Android 里的真正角色，是接住“某件事�
 - BroadcastReceiver reference: <https://developer.android.com/reference/android/content/BroadcastReceiver>
 - Background work overview: <https://developer.android.com/develop/background-work>
 - Android 14 behavior changes for runtime-registered receivers: <https://developer.android.com/about/versions/14/behavior-changes-14#runtime-registered-broadcasts-receivers-exported>
+

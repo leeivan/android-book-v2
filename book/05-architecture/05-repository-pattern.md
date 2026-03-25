@@ -157,7 +157,7 @@ class NewsViewModel(
 }
 ```
 
-这里真正值得观察的不是“类又多了一个”，而是每一层终于只回答一个问题。Repository 负责决定数据从哪里来、刷新后写回哪里；UseCase 负责承接一次明确业务动作；ViewModel 只消费 Repository 暴露出来的稳定数据入口，并把它翻译成页面状态。也正因为如此，当你怀疑某段逻辑该放哪一层时，最好先问：它是在回答“数据策略”，还是在回答“页面现在该显示什么”。这个问题一旦回答清楚，Repository 就不会再被写成既像 DAO、又像 ViewModel、还顺手包一点业务流程的混合体。
+这里真正值得观察的不是“类又多了一个”，而是每一层终于只回答一个问题。Repository 负责决定数据从哪里来、刷新后写回哪里；UseCase 负责承接一次明确业务动作；ViewModel 只消费 Repository 暴露出来的稳定数据入口，并把它翻译成页面状态。也正因为如此，当你怀疑某段逻辑该放哪一层时，最好先问：它是在回答“数据策略”，还是在回答“页面现在该显示什么”。这个问题一旦回答清楚，Repository 就不会再被写成既像 DAO、又像 ViewModel、还额外包一点业务流程的混合体。
 
 ### 7. 不是什么都该放进 Repository
 
@@ -193,15 +193,15 @@ Bennett 在购物车示例里强调了另一个边界：像 `AddToCartUseCase` �
 
 预期结果:
 
-- 你会更清楚页面到底该从哪里拿数据。
+- 读者会更清楚页面到底该从哪里拿数据。
 - 数据来源策略会从上层回收到数据层。
 - 上层状态组织会更容易保持稳定。
 
 自检方式:
 
-- 你能解释 Repository 和数据源之间的区别。
-- 你能说明为什么“多来源直接驱动页面”很危险。
-- 你能判断某段逻辑属于数据策略还是页面状态逻辑。
+- 读者应能解释 Repository 和数据源之间的区别。
+- 读者应能说明为什么“多来源直接驱动页面”很危险。
+- 读者应能判断某段逻辑属于数据策略还是页面状态逻辑。
 
 调试提示:
 
@@ -227,4 +227,5 @@ Repository 模式真正解决的是“数据入口和数据策略混乱”的问
 - Data layer guide: <https://developer.android.com/topic/architecture/data-layer>
 - Offline-first architecture: <https://developer.android.com/topic/architecture/data-layer/offline-first>
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
+
 
