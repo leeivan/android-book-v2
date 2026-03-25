@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="430" viewBox="0 0 940 430" role="img" aria-labelledby="title desc">
+  <title id="title">Repository 多来源数据流示意图</title>
+  <desc id="desc">展示页面、Repository、内存缓存、本地数据库和远程接口之间的边界关系。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4338ca"/>
+    </marker>
+    <style>
+      .bg { fill: #faf8ff; }
+      .card { fill: #ffffff; stroke: #4338ca; stroke-width: 2; rx: 16; ry: 16; }
+      .soft { fill: #eef2ff; stroke: #6366f1; stroke-width: 2; rx: 16; ry: 16; }
+      .trusted { fill: #dcfce7; stroke: #15803d; stroke-width: 2; rx: 16; ry: 16; }
+      .label { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 24px; fill: #1f2937; font-weight: 700; }
+      .small { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 18px; fill: #312e81; }
+      .tiny { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 16px; fill: #475569; }
+      .line { stroke: #4338ca; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #15803d; stroke-width: 2.5; fill: none; stroke-dasharray: 10 8; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="940" height="430"/>
+  <text class="label" x="40" y="52">Repository：多来源并存，但上层只盯住一条稳定出口</text>
+
+  <rect class="card" x="42" y="118" width="200" height="112"/>
+  <text class="label" x="80" y="160">ViewModel</text>
+  <text class="small" x="80" y="192">observe uiState</text>
+
+  <rect class="card" x="308" y="92" width="270" height="168"/>
+  <text class="label" x="336" y="136">Repository</text>
+  <text class="small" x="336" y="168">组合缓存、数据库和远程刷新</text>
+  <text class="tiny" x="336" y="208">对上层只暴露稳定读路径</text>
+  <text class="tiny" x="336" y="234">对下层决定 refresh / merge / fallback</text>
+
+  <rect class="soft" x="650" y="52" width="212" height="92"/>
+  <text class="small" x="694" y="106">Memory Cache</text>
+  <text class="tiny" x="682" y="128">缩短重复读取路径</text>
+
+  <rect class="trusted" x="650" y="168" width="212" height="92"/>
+  <text class="small" x="695" y="222">Room / Local DB</text>
+  <text class="tiny" x="668" y="244">持续观察的可信来源</text>
+
+  <rect class="soft" x="650" y="284" width="212" height="92"/>
+  <text class="small" x="710" y="338">Remote API</text>
+  <text class="tiny" x="671" y="360">刷新最新结果，再写回本地</text>
+
+  <path class="line" d="M 242 174 L 308 174"/>
+  <path class="line" d="M 578 120 L 650 98"/>
+  <path class="line" d="M 578 184 L 650 214"/>
+  <path class="line" d="M 578 230 L 650 330"/>
+  <path class="dash" d="M 756 284 C 756 264, 756 260, 756 260"/>
+  <path class="dash" d="M 650 214 C 600 214, 590 214, 578 214"/>
+  <text class="tiny" x="408" y="322">页面读取：ViewModel -&gt; Repository -&gt; Local DB</text>
+  <text class="tiny" x="638" y="396">刷新路径：Remote API -&gt; Repository -&gt; Local DB -&gt; UI</text>
+</svg>

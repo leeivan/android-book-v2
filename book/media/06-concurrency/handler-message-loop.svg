@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="420" viewBox="0 0 940 420" role="img" aria-labelledby="title desc">
+  <title id="title">Handler 与 Looper 消息循环示意图</title>
+  <desc id="desc">展示 Handler 投递任务、MessageQueue 排队、Looper 取出消息并在主线程回调的关系。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#234e52"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fcfb; }
+      .card { fill: #ffffff; stroke: #234e52; stroke-width: 2; rx: 16; ry: 16; }
+      .queue { fill: #ecfeff; stroke: #0f766e; stroke-width: 2; rx: 16; ry: 16; }
+      .accent { fill: #fef3c7; stroke: #d97706; stroke-width: 2; rx: 16; ry: 16; }
+      .label { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 24px; fill: #102a43; font-weight: 700; }
+      .small { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 18px; fill: #1f2937; }
+      .tiny { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 16px; fill: #365062; }
+      .line { stroke: #234e52; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #0f766e; stroke-width: 2.5; fill: none; stroke-dasharray: 10 8; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="940" height="420"/>
+  <text class="label" x="40" y="52">主线程消息循环：任务如何排队、取出与回调</text>
+
+  <rect class="card" x="36" y="92" width="220" height="230"/>
+  <text class="label" x="64" y="132">Handler</text>
+  <text class="small" x="64" y="164">post()</text>
+  <text class="small" x="64" y="192">postDelayed()</text>
+  <text class="small" x="64" y="220">sendMessage()</text>
+  <text class="tiny" x="64" y="268">负责把 Runnable 或 Message</text>
+  <text class="tiny" x="64" y="292">投递到绑定的 Looper</text>
+
+  <rect class="queue" x="314" y="92" width="260" height="230"/>
+  <text class="label" x="340" y="132">MessageQueue</text>
+  <rect class="accent" x="346" y="170" width="74" height="76"/>
+  <text class="small" x="366" y="214">msg</text>
+  <rect class="accent" x="432" y="170" width="90" height="76"/>
+  <text class="small" x="449" y="214">delay</text>
+  <rect class="accent" x="534" y="170" width="74" height="76"/>
+  <text class="small" x="551" y="214">task</text>
+  <text class="tiny" x="340" y="284">消息和任务先排队，再等待执行时机</text>
+
+  <rect class="card" x="626" y="92" width="126" height="230"/>
+  <text class="label" x="653" y="132">Looper</text>
+  <text class="tiny" x="652" y="172">loop()</text>
+  <text class="tiny" x="652" y="198">next()</text>
+  <text class="tiny" x="652" y="224">dispatch</text>
+  <text class="tiny" x="648" y="284">持续取出下一条可执行消息</text>
+
+  <rect class="card" x="782" y="92" width="122" height="230"/>
+  <text class="label" x="804" y="132">UI Thread</text>
+  <text class="small" x="803" y="174">onClick</text>
+  <text class="small" x="803" y="202">draw</text>
+  <text class="small" x="803" y="230">lifecycle</text>
+  <text class="tiny" x="796" y="284">真正执行回调与界面更新</text>
+
+  <path class="line" d="M 256 206 L 314 206"/>
+  <path class="line" d="M 574 206 L 626 206"/>
+  <path class="line" d="M 752 206 L 782 206"/>
+  <path class="dash" d="M 842 334 C 646 384, 364 382, 154 334"/>
+  <text class="tiny" x="388" y="392">postDelayed 本质上是把“稍后执行”重新送回同一条消息循环</text>
+</svg>

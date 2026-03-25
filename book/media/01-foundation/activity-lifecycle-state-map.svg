@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="430" viewBox="0 0 940 430" role="img" aria-labelledby="title desc">
+  <title id="title">Activity 生命周期状态图</title>
+  <desc id="desc">展示创建、可见、可交互、后台和重建之间的关系，以及适合放置的逻辑类型。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7f1d1d"/>
+    </marker>
+    <style>
+      .bg { fill: #fffaf7; }
+      .card { fill: #ffffff; stroke: #7f1d1d; stroke-width: 2.2; rx: 16; ry: 16; }
+      .soft { fill: #fee2e2; stroke: #b91c1c; stroke-width: 2; rx: 16; ry: 16; }
+      .hint { fill: #ecfccb; stroke: #4d7c0f; stroke-width: 2; rx: 16; ry: 16; }
+      .label { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 24px; fill: #1f2937; font-weight: 700; }
+      .small { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 18px; fill: #7f1d1d; }
+      .tiny { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 16px; fill: #475569; }
+      .line { stroke: #7f1d1d; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #4d7c0f; stroke-width: 2.4; fill: none; stroke-dasharray: 10 8; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="940" height="430"/>
+  <text class="label" x="40" y="52">Activity 生命周期：页面实例不稳定，状态托管才是主线</text>
+  <rect class="soft" x="48" y="102" width="160" height="96"/>
+  <text class="small" x="82" y="142">onCreate</text>
+  <text class="tiny" x="72" y="170">一次性初始化</text>
+  <rect class="card" x="268" y="102" width="170" height="96"/>
+  <text class="small" x="305" y="142">onStart</text>
+  <text class="tiny" x="290" y="170">页面可见，开始观察</text>
+  <rect class="card" x="500" y="102" width="172" height="96"/>
+  <text class="small" x="536" y="142">onResume</text>
+  <text class="tiny" x="530" y="170">前台交互，用户正在操作</text>
+  <rect class="card" x="500" y="262" width="172" height="96"/>
+  <text class="small" x="540" y="302">onPause</text>
+  <text class="tiny" x="520" y="330">尽快保存输入，释放前台资源</text>
+  <rect class="card" x="268" y="262" width="170" height="96"/>
+  <text class="small" x="311" y="302">onStop</text>
+  <text class="tiny" x="286" y="330">页面不可见，停止可见性相关工作</text>
+  <rect class="soft" x="48" y="262" width="160" height="96"/>
+  <text class="small" x="79" y="302">onDestroy</text>
+  <text class="tiny" x="70" y="330">销毁或为重建让路</text>
+  <rect class="hint" x="730" y="120" width="162" height="84"/>
+  <text class="small" x="758" y="158">Bundle</text>
+  <text class="tiny" x="748" y="184">轻量 UI 状态兜底</text>
+  <rect class="hint" x="730" y="246" width="162" height="84"/>
+  <text class="small" x="748" y="284">ViewModel / Data</text>
+  <text class="tiny" x="754" y="310">屏幕状态与长期数据</text>
+  <path class="line" d="M 208 150 L 268 150"/>
+  <path class="line" d="M 438 150 L 500 150"/>
+  <path class="line" d="M 586 198 L 586 262"/>
+  <path class="line" d="M 500 310 L 438 310"/>
+  <path class="line" d="M 268 310 L 208 310"/>
+  <path class="dash" d="M 158 262 C 128 232, 128 228, 156 198"/>
+  <path class="dash" d="M 672 150 L 730 150"/>
+  <path class="dash" d="M 672 310 L 730 288"/>
+  <text class="tiny" x="76" y="388">旋转屏幕或进程恢复时，系统可能重新走创建链路</text>
+</svg>

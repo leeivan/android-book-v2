@@ -82,6 +82,11 @@ Narwhal 的 `RoomDemo` 很适合把这条链路看完整：`ProductDao.getAllPro
 Room 很少孤立存在。它通常会和 ViewModel、Flow、Repository、Paging 等能力一起工作。原因很直接：本地数据库里的变化，本身就适合作为页面可观察的状态来源。Android 官方 Room 文档也明确把“离线浏览内容缓存”作为常见用例，这与现代 ViewModel 和状态流组织方式天然契合。
 
 也就是说，Room 不只是“把数据存一下”，而是成为稳定数据流的一部分。数据库变化通过 DAO 暴露给上层，Repository 决定本地与远程如何协作，ViewModel 再把结果组织成页面状态。只要这条链路清晰，页面就不再需要自己直接协调数据库细节。
+把这条链路画出来之后，Room 在现代项目里的位置会清楚很多。它并不是一块孤立数据库语法，而是本地可信来源在工程结构中的一个稳定落点。
+
+![Room 本地数据链路图](../media/03-data/room-data-chain.svg)
+
+图：Room 本地数据链路图。Entity、DAO 和 Database 负责把本地结构化数据组织稳定，Repository 再决定如何与远程和映射协作，最终由 ViewModel 把持续变化的本地数据翻译成页面状态。
 
 如果把这条链路真正补完整，一个最小待办应用的上层结构通常会长成这样：
 

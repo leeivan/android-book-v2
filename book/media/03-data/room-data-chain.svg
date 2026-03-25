@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="420" viewBox="0 0 940 420" role="img" aria-labelledby="title desc">
+  <title id="title">Room 本地数据链路图</title>
+  <desc id="desc">展示 Entity、DAO、Database、Repository、ViewModel 与 UI 状态之间的连接关系。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0f4c5c"/>
+    </marker>
+    <style>
+      .bg { fill: #f7fcfd; }
+      .card { fill: #ffffff; stroke: #0f4c5c; stroke-width: 2.2; rx: 16; ry: 16; }
+      .soft { fill: #e0fbfc; stroke: #3d5a80; stroke-width: 2; rx: 16; ry: 16; }
+      .trusted { fill: #ecfccb; stroke: #4d7c0f; stroke-width: 2; rx: 16; ry: 16; }
+      .label { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 24px; fill: #1f2937; font-weight: 700; }
+      .small { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 18px; fill: #0f4c5c; }
+      .tiny { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 16px; fill: #475569; }
+      .line { stroke: #0f4c5c; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #4d7c0f; stroke-width: 2.4; fill: none; stroke-dasharray: 10 8; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="940" height="420"/>
+  <text class="label" x="40" y="52">Room 在现代数据层中的位置</text>
+  <rect class="soft" x="56" y="118" width="142" height="94"/>
+  <text class="small" x="94" y="156">Entity</text>
+  <text class="tiny" x="76" y="184">表结构与本地记录</text>
+  <rect class="card" x="250" y="118" width="150" height="94"/>
+  <text class="small" x="302" y="156">DAO</text>
+  <text class="tiny" x="275" y="184">查询、插入、更新</text>
+  <rect class="trusted" x="456" y="104" width="170" height="122"/>
+  <text class="small" x="504" y="146">RoomDatabase</text>
+  <text class="tiny" x="488" y="174">统一数据库入口</text>
+  <text class="tiny" x="484" y="198">本地可信来源</text>
+  <rect class="card" x="682" y="118" width="156" height="94"/>
+  <text class="small" x="712" y="156">Repository</text>
+  <text class="tiny" x="697" y="184">映射与远程协作</text>
+  <rect class="soft" x="692" y="270" width="146" height="88"/>
+  <text class="small" x="724" y="308">ViewModel</text>
+  <text class="tiny" x="722" y="334">uiState</text>
+  <rect class="soft" x="462" y="270" width="142" height="88"/>
+  <text class="small" x="507" y="308">Flow</text>
+  <text class="tiny" x="480" y="334">observeAll() 持续发射</text>
+  <path class="line" d="M 198 165 L 250 165"/>
+  <path class="line" d="M 400 165 L 456 165"/>
+  <path class="line" d="M 626 165 L 682 165"/>
+  <path class="line" d="M 760 212 L 760 270"/>
+  <path class="dash" d="M 542 226 L 542 270"/>
+  <path class="dash" d="M 604 314 L 692 314"/>
+  <text class="tiny" x="56" y="388">页面通常不直接碰 SQL，而是沿着 Database -&gt; Repository -&gt; ViewModel 读取状态</text>
+</svg>

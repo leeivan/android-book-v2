@@ -48,6 +48,12 @@ Navigation 组件真正带来的，不只是一个 `navigate()` 方法，而是�
 
 把这套结构再拆细一点，会更容易掌握。导航宿主负责提供一块可替换的内容区域；导航图负责声明有哪些目的地、起点是谁、它们之间如何连通；`NavController` 负责在运行时解释这些规则并维护 back stack。只要这三层角色分清，你就不会把“页面容器”“页面本身”和“跳转动作”混成一团。很多导航代码之所以后来越来越乱，根源就是这三种职责一开始没有被拆开。
 
+如果把宿主、导航图和 back stack 放到同一张图里，结构会更容易在脑中固定下来。读者真正要看清的，不是哪条箭头怎么画，而是“页面承载位置”“目的地关系”和“用户已经走过的历史路径”这三件事始终是分开的。
+
+![结构化导航示意图](../media/02-ui/navigation-structure.svg)
+
+图：结构化导航示意图。左侧是承载导航的 `NavHostFragment`，中间是显式声明目的地关系的导航图，右侧是运行时不断变化的 back stack。只有把这三层分开，`Back` 和 `Up` 的语义才容易保持稳定。
+
 Neil Smyth 在 `Android Studio Koala Essentials` 的 Navigation tutorial 里，则把这套现代结构拆成了一个很清楚的最小样板：`activity_main` 里声明 `nav_host_fragment_content_main` 作为 Navigation Host，Activity 通过 `AppBarConfiguration(navController.graph)` 和 `setupActionBarWithNavController(...)` 接管 Up 行为，`FirstFragment` 再用 `findNavController().navigate(...)` 或 `FirstFragmentDirections.mainToSecond()` 触发动作和传参。这个例子适合补在这里，是因为它把宿主、导航图、控制器、参数和 action bar 的职责都收进同一个小工程里，读者更容易看到“结构化导航”到底具体长什么样。
 
 ### 5. 页面职责不清，导航一定会跟着混乱
