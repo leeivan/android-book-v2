@@ -126,7 +126,66 @@ class ArticleRepository(
 因此 JSON 解析不该只被理解成“用哪个库把字符串转成对象”。真正困难的部分，是你要不要让原始字段一路穿透到 UI。只要页面开始直接消费 `published_at`、`source_name` 这种接口语义，解析工具越方便，结构反而越容易被耦合住。
 
 再往前走一步，这种“先解析成 DTO，再映射成内部模型”的做法，也是在为后面的 Retrofit、Repository 和本地缓存做准备。只要数据入口的第一道边界站稳，后面网络层和数据层就更容易各守其位，而不会让一个接口字段的变化把整条链路都摇动起来。
-### 7. 最小实践任务
+
+### 7. 一个更稳的解析器，不只做 `decode`
+
+如果把 `kotlinx.serialization`、旧版 `JSONObject` 教程和现代数据层做法放在一起看，一个更稳的解析器通常至少要做三件事：限定入口、保留错误上下文，以及只在必要时才回到动态 JSON 树。
+
+```kotlin
+sealed interface ParseResult<out T> {
+    data class Success<T>(val value: T) : ParseResult<T>
+    data class Failure(
+        val preview: String,
+        val throwable: Throwable,
+    ) : ParseResult<Nothing>
+}
+
+@Serializable
+private data class ArticleFeedDto(
+    val items: List<ArticleDto> = emptyList(),
+    val meta: ArticleMetaDto? = null,
+)
+
+@Serializable
+private data class ArticleMetaDto(
+    @SerialName("next_page") val nextPage: Int? = null,
+)
+
+class ArticleFeedJsonParser(
+    private val json: Json = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+        explicitNulls = false
+    },
+) {
+
+    fun parse(rawJson: String): ParseResult<List<ArticleDto>> {
+        return runCatching {
+            json.decodeFromString<ArticleFeedDto>(rawJson).items
+        }.fold(
+            onSuccess = { ParseResult.Success(it) },
+            onFailure = { ParseResult.Failure(rawJson.take(200), it) },
+        )
+    }
+
+    fun parseDynamicTitles(rawJson: String): List<String> {
+        val root = JSONObject(rawJson)
+        val items = root.optJSONArray("items") ?: return emptyList()
+
+        return buildList {
+            for (index in 0 until items.length()) {
+                val item = items.optJSONObject(index) ?: continue
+                add(item.optString("title", "未命名文章"))
+            }
+        }
+    }
+}
+```
+
+这段代码里，`parse()` 是主路径，负责把稳定的接口结构转成类型安全的 DTO，并且把解析失败时的一小段原始内容一起带出来，方便日志和排障。`parseDynamicTitles()` 则故意保留为辅路径，只在响应结构不稳定、字段完全动态，或者你只是做一次性调试时才回到 `JSONObject` 树遍历。早期 Android 资料里大量使用 `JSONObject` / `JSONArray`，它们对入门理解键值结构很有帮助；但一旦项目开始长期维护，稳定主路径仍然应尽量回到可静态检查的 DTO 和映射函数。
+
+这也是为什么现代章节里会反复强调 `ignoreUnknownKeys`、`@SerialName` 和中间转换层。它们不是语法偏好，而是在帮你把接口演进、字段改名和临时脏数据都挡在数据入口附近，而不是让 UI 层自己去猜一个字段到底该不该为 `null`。
+### 8. 最小实践任务
 
 起点条件：
 
@@ -157,7 +216,7 @@ class ArticleRepository(
 - 如果你开始在页面里处理大量空值和字段拼装，说明解析层和转换层职责可能过弱。
 - 如果你只关注“库能不能解析”，而没问“解析后数据该去哪一层”，后面问题往往会堆到 Repository 和 UI。
 
-### 8. 常见误区
+### 9. 常见误区
 
 - 把 JSON 解析理解成单纯字符串转对象。
 - 接口模型直接在整个项目里到处传递。
@@ -174,8 +233,13 @@ JSON 解析的重点，不是你会不会用某个库，而是你是否能把外
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，网络数据、JSON 解析与模型转换相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，DTO、Repository 与模型转换边界相关章节。
+- 参考并改写自：Wangereka H.，《Mastering Kotlin for Android 14》(2024)，kotlinx.serialization、@SerialName 与 JSON 转换配置相关章节。
 
 - Kotlin Serialization：<https://kotlinlang.org/docs/serialization.html>
 - `Json` API：<https://kotlinlang.org/api/kotlinx.serialization/kotlinx-serialization-json/kotlinx.serialization.json/-json/>
 - `JSONTokener`：<https://developer.android.com/reference/kotlin/org/json/JSONTokener>
+
+
+
+
 

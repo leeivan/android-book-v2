@@ -162,7 +162,56 @@ class SettingsViewModel(
 
 一个很常见的误区是“反正不多，先塞进 DataStore 再说”。这类决定短期省事，长期很容易演变成难以维护的混合状态。键值存储的优势在于简单，一旦你的数据不再简单，它的优势就开始变成边界风险。
 
-### 9. 实践任务
+### 9. 当一组设置需要整体更新时，Proto DataStore 会比多个键更稳
+
+Preferences DataStore 很适合轻量键值配置，但只要你开始遇到“这一组字段本来就属于同一个概念，而且更新时必须一起变化”的场景，Proto DataStore 往往会更稳。比如同步设置同时包含“是否自动同步”“仅 Wi-Fi 同步”“同步时间窗口”和“上次成功同步版本”，如果继续拆成四五个独立键，就很容易在演进时出现默认值不一致、遗漏字段或局部更新后语义失真的问题。
+
+```kotlin
+object UserSettingsSerializer : Serializer<UserSettings> {
+    override val defaultValue: UserSettings = UserSettings.getDefaultInstance()
+
+    override suspend fun readFrom(input: InputStream): UserSettings = try {
+        UserSettings.parseFrom(input)
+    } catch (exception: InvalidProtocolBufferException) {
+        throw CorruptionException("Cannot read user settings.", exception)
+    }
+
+    override suspend fun writeTo(t: UserSettings, output: OutputStream) {
+        t.writeTo(output)
+    }
+}
+
+val Context.userSettingsDataStore: DataStore<UserSettings> by dataStore(
+    fileName = "user_settings.pb",
+    serializer = UserSettingsSerializer,
+)
+
+class UserSettingsStore(
+    private val dataStore: DataStore<UserSettings>,
+) {
+    val settingsFlow: Flow<UserSettings> = dataStore.data
+
+    suspend fun updateSyncSettings(
+        enabled: Boolean,
+        wifiOnly: Boolean,
+        hourOfDay: Int,
+    ) {
+        dataStore.updateData { current ->
+            current.toBuilder()
+                .setAutoSyncEnabled(enabled)
+                .setWifiOnly(wifiOnly)
+                .setSyncHour(if (enabled) hourOfDay else 9)
+                .build()
+        }
+    }
+}
+```
+
+这里的 `UserSettings` 不是手写的 Kotlin `data class`，而是由 `.proto` 定义生成的类型。Proto DataStore 的意义，不是“写起来更高级”，而是它把一组本来就属于同一语义边界的设置收成一个正式对象，再通过 `updateData()` 以整体方式更新。这样一来，默认值、解析错误、字段演进和多字段一致性都会更容易管理。
+
+这也正是 Preferences DataStore 和 Proto DataStore 的真实分工。前者更像“轻量键值偏好箱”，适合几个独立设置项；后者更像“被正式建模的小型配置对象”，适合字段彼此有关联、更新要保持整体一致的场景。只要读者把这条边界立起来，后面就不容易把所有配置都塞回一堆零散 key 里。
+
+### 10. 实践任务
 
 起点条件：
 
@@ -194,7 +243,7 @@ class SettingsViewModel(
 - 如果某个值每次读取都想直接同步拿出来，先问自己它是不是其实更适合进入状态流。
 - 如果你开始往 DataStore 里塞越来越复杂的对象，通常说明边界已经错了。
 
-### 10. 常见误区
+### 11. 常见误区
 
 - 把 SharedPreferences 当成所有小数据的永久默认答案。
 - 用键值存储承载已经明显结构化的业务数据。
@@ -212,8 +261,8 @@ class SettingsViewModel(
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 21 章及 DataStore 相关内容。
 - 参考并改写自：Neil Smyth，`Android Studio Narwhal Essentials`，SharedPreferences、DataStore 与设置项持久化相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，配置状态、单一事实来源与状态持有相关章节。
+- 参考并改写自：Gustavo Socorro，《Thriving in Android Development Using Kotlin》(2024)，Preferences DataStore、Proto DataStore 与本地偏好建模相关章节。
 
 - DataStore guide：<https://developer.android.com/topic/libraries/architecture/datastore>
 - SharedPreferences：<https://developer.android.com/training/data-storage/shared-preferences>
 - Preferences DataStore codelab：<https://developer.android.com/codelabs/android-preferences-datastore>
-

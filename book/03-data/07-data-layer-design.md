@@ -78,6 +78,50 @@ class TaskRepository(
 
 这个例子故意保持简单，但已经体现了几个关键点。上层观察的是本地数据流，而不是直接盯着网络结果；刷新动作由 Repository 协调，而不是由页面自己同时调网络和写数据库；本地数据库在这里更接近单一可信来源。你未来当然会加入错误处理、冲突策略和模型转换细节，但这条结构主线不应改变。
 
+如果把这条链路再往上接到 ViewModel，Repository 的边界会更具体：
+
+```kotlin
+class TaskRepository(
+    private val local: TaskDao,
+    private val remote: TaskRemoteDataSource,
+) {
+    val tasks: Flow<List<Task>> = local.observeAll().map { entities ->
+        entities.map { entity -> entity.toDomain() }
+    }
+
+    suspend fun refresh() {
+        val remoteTasks = remote.fetchTasks()
+        local.replaceAll(remoteTasks.map { dto -> dto.toEntity() })
+    }
+}
+
+data class TaskListUiState(
+    val isLoading: Boolean = false,
+    val items: List<Task> = emptyList(),
+)
+
+@HiltViewModel
+class TaskListViewModel @Inject constructor(
+    private val repository: TaskRepository,
+) : ViewModel() {
+    val uiState: StateFlow<TaskListUiState> = repository.tasks
+        .map { tasks -> TaskListUiState(items = tasks) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = TaskListUiState(isLoading = true),
+        )
+
+    fun refresh() {
+        viewModelScope.launch {
+            repository.refresh()
+        }
+    }
+}
+```
+
+这段代码把数据层设计里最关键的边界真正串起来了：页面不再直接碰远程数据源，ViewModel 也不再自己决定“是先读网络还是先读数据库”，它只消费 Repository 暴露出来的稳定结果。与此同时，实体转领域模型的映射被留在数据层内部，UI 层终于不必同时理解网络 DTO、数据库实体和页面状态三套东西。
+
 《Thriving in Android Development Using Kotlin》里的消息功能把这条主线进一步做实了：一开始 `MessagesRepository` 只依赖 `MessagesSocketDataSource`，对外暴露 `getMessages()`、`sendMessage()`、`disconnect()`；随后作者把这些能力上提成领域层接口 `IMessagesRepository`，再让 `RetrieveMessages`、`SendMessage`、`DisconnectMessages` 这些 UseCase 依赖抽象而不是具体实现。再往后，当聊天功能需要离线能力时，仓库同时接入 socket 数据源和本地 `MessageDao`，在线时把新消息写入数据库并继续向上游发射，断线时则直接回退到数据库流。这个例子很适合拿来理解 Repository 的真实工作：它不是“代替页面转发一下请求”，而是在不同来源之间协调、兜底并维持边界。
 
 ### 8. 数据层为什么直接影响测试和迭代效率
@@ -142,5 +186,6 @@ class TaskRepository(
 - Guide to app architecture：<https://developer.android.com/topic/architecture>
 - Recommendations for Android architecture：<https://developer.android.com/topic/architecture/recommendations>
 - Build an offline-first app：<https://developer.android.com/topic/architecture/data-layer/offline-first>
+
 
 

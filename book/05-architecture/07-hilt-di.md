@@ -108,6 +108,40 @@ class ArticleListViewModel @Inject constructor(
 
 这段代码最重要的不是注解名字，而是组装边界终于被收回来了:
 
+如果把 Hilt 放回一个最小页面链路里，它的装配路径会更清楚：
+
+```kotlin
+@HiltAndroidApp
+class TodoBookApp : Application()
+
+interface ArticleRepository {
+    suspend fun getArticles(): List<Article>
+}
+
+class DefaultArticleRepository @Inject constructor(
+    private val service: ArticleService,
+) : ArticleRepository {
+    override suspend fun getArticles(): List<Article> = service.fetchArticles()
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class RepositoryModule {
+    @Binds
+    @Singleton
+    abstract fun bindArticleRepository(
+        impl: DefaultArticleRepository,
+    ): ArticleRepository
+}
+
+@AndroidEntryPoint
+class ArticleListActivity : AppCompatActivity() {
+    private val viewModel: ArticleListViewModel by viewModels()
+}
+```
+
+这组代码把 Hilt 在 Android 里的最小闭环串起来了：`Application` 打开注入系统，`Module` 或 `@Binds` 决定接口该绑定到哪个实现，`ViewModel` 只声明依赖，Activity 则通过 `@AndroidEntryPoint` 接入这条装配链。这样一来，对象创建终于不再散落在页面里，而是沿着统一入口流动。
+
 - 页面不再负责 new Repository。
 - 网络客户端有统一入口和统一生命周期。
 - ViewModel 只声明自己需要什么。
@@ -134,7 +168,89 @@ Hilt 很强，但不是所有东西都该丢给它。更适合交给 Hilt 的通
 
 这也是 Hilt 的工程价值之一: 它让“替换一个实现”变成架构允许的事情，而不是测试里的特殊黑科技。
 
-### 9. 实践任务
+### 9. 当同一种类型有多个实现时，要靠限定符和测试模块保持依赖图清晰
+
+真正稍微复杂一点的项目，很快就会遇到一个问题：两个依赖类型明明一样，但角色完全不同。最典型的是多个 `OkHttpClient`、多个 `String` 配置值，或者同一个接口在生产和测试环境下有不同实现。这时如果只靠“类型相同就自动注入”，依赖图会立刻变得模糊，所以必须用限定符和测试替换把意图写明白。
+
+```kotlin
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class AuthClient
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class UploadClient
+
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkClientsModule {
+
+    @AuthClient
+    @Provides
+    @Singleton
+    fun provideAuthClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .callTimeout(10, TimeUnit.SECONDS)
+            .build()
+    }
+
+    @UploadClient
+    @Provides
+    @Singleton
+    fun provideUploadClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .build()
+    }
+}
+
+class SessionApi @Inject constructor(
+    @AuthClient private val client: OkHttpClient,
+)
+
+class AttachmentUploader @Inject constructor(
+    @UploadClient private val client: OkHttpClient,
+)
+```
+
+这段代码的重点不是“又多写了两个注解”，而是同样是 `OkHttpClient`，现在终于写清楚了谁服务登录鉴权，谁服务大文件上传。限定符一旦站稳，依赖图就不会再退化成“只看类型猜语义”。Socorro 用 `@Named` 区分 API client 和 websocket client，Codwell 用 Hilt testing 替换模块，它们其实都在强调同一件事：依赖图要能表达角色，而不只是表达类型。
+
+如果再往测试走一步，`@TestInstallIn` 会把这种清晰度继续延伸到测试环境：
+
+```kotlin
+@Module
+@TestInstallIn(
+    components = [SingletonComponent::class],
+    replaces = [NetworkClientsModule::class],
+)
+object TestNetworkClientsModule {
+
+    @AuthClient
+    @Provides
+    @Singleton
+    fun provideFakeAuthClient(): OkHttpClient {
+        return OkHttpClient.Builder().build()
+    }
+}
+
+@HiltAndroidTest
+class LoginRepositoryTest {
+    @get:Rule
+    val hiltRule = HiltAndroidRule(this)
+
+    @Inject
+    lateinit var repository: LoginRepository
+
+    @Before
+    fun setUp() {
+        hiltRule.inject()
+    }
+}
+```
+
+这组测试代码说明，测试替换不该靠“偷偷改构造链”来完成，而应当仍然沿着同一套依赖图去做。只要生产实现和测试实现都通过 Hilt 明确声明，Repository 和 ViewModel 的代码就不用因为测试而额外开后门。
+
+### 10. 实践任务
 
 起点条件:
 
@@ -166,7 +282,7 @@ Hilt 很强，但不是所有东西都该丢给它。更适合交给 Hilt 的通
 - 如果页面里到处都是手工装配链，说明 Hilt 还没有真正落地。
 - 如果你把局部临时对象也都强行注入，说明依赖注入已经开始过度。
 
-### 10. 常见误区
+### 11. 常见误区
 
 - 把 Hilt 理解成“自动生成对象”的黑盒。
 - 只记注解，不理解作用域。
@@ -181,7 +297,13 @@ Hilt 与依赖注入真正解决的，是对象创建、复用、替换和生命
 
 - 参考并改写自本地 PDF：Bennett M.，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，依赖注入、模块层级与多模块应用装配相关章节。
 - 参考并整理自本地 PDF：`Clean Android Architecture`，依赖方向、UseCase/Repository 组装与可替换实现相关章节。
+- 参考并整理自本地 PDF：Socorro G.，《Thriving in Android Development Using Kotlin》(2024)，`@Named`、接口绑定与 Hilt 模块职责相关章节。
+- 参考并整理自本地 PDF：Codwell H.，《Kotlin Development Complete Guide Create 45 Android Apps》(2025)，Hilt 限定符、`@TestInstallIn` 与测试替换相关章节。
 - Hilt on Android: <https://developer.android.com/training/dependency-injection/hilt-android>
 - Hilt and Jetpack integrations: <https://developer.android.com/training/dependency-injection/hilt-jetpack>
 - Dependency injection guide: <https://developer.android.com/training/dependency-injection>
+
+
+
+
 

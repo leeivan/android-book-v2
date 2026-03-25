@@ -144,7 +144,47 @@ android {
 
 这里还值得同时建立一个判断：`compileSdk` 比 `targetSdk` 更新，并不奇怪。前者首先是编译坐标，后者首先是平台行为承诺；它们虽然常常一起升级，但不必在语义上混成同一个数字。只要这条边界立住，后面面对版本升级、行为变更和兼容策略时，读者就不会把所有问题都粗暴归因成“Android 版本太乱”。
 
-### 12. 最小实践任务
+### 12. 把“没有 `main()`”落实成一条最小入口链路
+
+很多读者第一次真正理解 Android 的“平台性”，不是在概念图上，而是在看到代码时突然意识到：这里根本没有一个由我亲自调用的 `main()`。系统创建进程、初始化 `Application`、决定什么时候拉起 Activity，也决定什么时候把广播送进 Receiver。换句话说，应用代码从一开始就是以“被系统回调”的方式进入执行流。
+
+```kotlin
+class TodoBookApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        Log.d("TodoBookApp", "Application created")
+    }
+}
+
+class MainActivity : AppCompatActivity() {
+    private lateinit var binding: ActivityMainBinding
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        binding.openTasksButton.setOnClickListener {
+            startActivity(Intent(this, TaskListActivity::class.java))
+        }
+    }
+}
+
+class BootReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
+            Log.d("BootReceiver", "System delivered boot broadcast")
+            ReminderRestoreCoordinator.restore(context)
+        }
+    }
+}
+```
+
+这段代码真正想说明的，不是你现在就该去写 `BootReceiver`，而是 Android 应用从第一天起就不是“我调用自己”，而是“系统按规则进入我的组件”。`Application.onCreate()` 对应进程级入口，`Activity.onCreate()` 对应界面场景入口，`BroadcastReceiver.onReceive()` 对应事件入口。只要把这条最小链路看清楚，后面生命周期、权限、后台任务和系统组件为什么总在强调“不要假设流程永远由你掌控”，就会自然很多。
+
+这也是为什么官方样例和 Android Studio 模板代码总是围绕 `Activity`、`Application`、Manifest 和回调方法展开，而不是教你去找一个主函数。从平台角度看，Android 的真正入口不是一行固定函数声明，而是一组受系统调度的组件边界。
+
+### 13. 最小实践任务
 
 起点条件：
 
@@ -179,7 +219,7 @@ android {
 - 如果对某个 Jetpack 组件完全陌生，先把它记成“后续会展开的工程问题解决方案”，不要急着查完所有 API。
 - 如果刚打开 Android Developers 就感到信息过密，先回到 codelab 跑通一个最小练习，再回来看规则定义，理解会更稳。
 
-### 13. 常见误区
+### 14. 常见误区
 
 - 认为 Android 开发就是“会写 Activity 就够了”。
 - 先完整学一套旧 Java 教程，再考虑现代化。
@@ -197,6 +237,7 @@ android {
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，“Learning Android”“The Necessary Tools”与第 1 章。
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，当前工具链、平台版本与项目创建相关章节。
+- 参考并改写自：Neil Smyth，《Android Studio Jellyfish Essentials, Java Edition》(2024)，`MainActivity` 模板、Activity 入口与组件概览相关章节。
 
 - Android 应用基础：<https://developer.android.com/guide/components/fundamentals>
 - `uses-sdk` 与 API Level：<https://developer.android.com/guide/topics/manifest/uses-sdk-element>
@@ -208,3 +249,4 @@ android {
 - Kotlin Documentation：<https://kotlinlang.org/docs/home.html>
 - Architecture Samples：<https://github.com/android/architecture-samples>
 - Now in Android：<https://github.com/android/nowinandroid>
+

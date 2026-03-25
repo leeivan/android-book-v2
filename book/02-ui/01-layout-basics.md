@@ -164,7 +164,59 @@
 
 这里也能把扁平层级的价值讲透。`ConstraintLayout` 并不只是“语法更现代”，而是它允许你在较少嵌套层级下表达更明确的空间关系。页面越接近真实业务，这种扁平结构带来的可维护性和性能收益就越明显；反过来，如果同一页不断被多层 `LinearLayout` 套住，后面一加列表、一加错误态、一加底部按钮，布局就会迅速变得很难推理。
 
-### 9. 实践任务
+### 9. `ConstraintLayout` 真正强的地方，是运行时还能保持结构语义
+
+很多人学 `ConstraintLayout` 时，只把它当成“写 XML 时更少嵌套”的工具。这个理解只说对了一半。它更有价值的一面，是页面进入空状态、错误状态或编辑状态时，你仍然可以沿着同一套约束语义去调整结构，而不是重新套一层布局把问题掩过去。Neil Smyth 在 Jellyfish 版教程里专门把 `ConstraintSet` 拿出来讲，正是因为它让约束不只存在于 XML，还能在代码里保持结构化表达。
+
+```kotlin
+private fun showEmptyState(showEmpty: Boolean) {
+    val root = binding.root
+    val constraintSet = ConstraintSet().apply {
+        clone(root)
+    }
+
+    constraintSet.setVisibility(
+        R.id.emptyState,
+        if (showEmpty) View.VISIBLE else View.GONE
+    )
+    constraintSet.setVisibility(
+        R.id.taskList,
+        if (showEmpty) View.GONE else View.VISIBLE
+    )
+
+    if (showEmpty) {
+        val margin = (24 * root.resources.displayMetrics.density).toInt()
+        constraintSet.connect(
+            R.id.emptyState,
+            ConstraintSet.TOP,
+            R.id.summaryText,
+            ConstraintSet.BOTTOM,
+            margin,
+        )
+        constraintSet.connect(
+            R.id.emptyState,
+            ConstraintSet.START,
+            ConstraintSet.PARENT_ID,
+            ConstraintSet.START,
+        )
+        constraintSet.connect(
+            R.id.emptyState,
+            ConstraintSet.END,
+            ConstraintSet.PARENT_ID,
+            ConstraintSet.END,
+        )
+    }
+
+    TransitionManager.beginDelayedTransition(root)
+    constraintSet.applyTo(root)
+}
+```
+
+这段代码里最值得学习的，不是 `ConstraintSet` 的具体方法名，而是“空状态仍然沿用原来的页面分区语义”。`summaryText` 还是信息区的锚点，`taskList` 和 `emptyState` 只是互相替换主内容区的承载者，而不是新建一层父布局再把整个页面包起来。只要你开始用这种方式思考，布局状态切换就不再是“出现问题时再补一个容器”，而是在同一套结构上做演化。
+
+这也解释了为什么好的布局代码常常比看起来更“克制”。它不是能力不够，而是一直在尽量维护页面的结构语义：谁是顶部信息区，谁是主内容区，谁是底部操作区。只要这个骨架不乱，后面的空态、错误态和加载态通常都能比较稳地接上去。
+
+### 10. 实践任务
 
 起点条件：
 
@@ -196,7 +248,7 @@
 - 如果 `ConstraintLayout` 中某个控件“贴到左上角”，通常说明约束没有补完整。
 - 如果你发现要靠很多临时 margin 才能勉强摆正位置，往往说明结构设计本身有问题。
 
-### 10. 常见误区
+### 11. 常见误区
 
 - 先想到控件，再临时补结构。
 - 所有页面都无脑堆多层 `LinearLayout`。
@@ -214,9 +266,11 @@
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 1-2 章中关于 UI、资源与交互界面的部分。
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，布局编辑器、View 布局与页面结构相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，页面结构、设计系统与真实项目 UI 组织相关章节。
+- 参考并改写自：Neil Smyth，《Android Studio Jellyfish Essentials, Kotlin Edition》(2024)，`ConstraintSet` 与 `ConstraintLayout` 运行时约束相关章节。
 
 - 布局基础：<https://developer.android.com/guide/topics/ui/declaring-layout.html>
 - ConstraintLayout：<https://developer.android.com/develop/ui/views/layout/constraint-layout>
 - 自适应 View 布局：<https://developer.android.com/develop/ui/views/layout/responsive-adaptive-design-with-views>
 - 布局层级优化：<https://developer.android.com/develop/ui/views/layout/improving-layouts/optimizing-layouts>
+
 

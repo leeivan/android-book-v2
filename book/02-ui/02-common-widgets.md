@@ -198,7 +198,69 @@
 
 这里也正好能补一句真实项目里的取舍标准。很多团队后期表单难维护，不是因为不会校验，而是一开始就把不同语义的问题塞进了同一种控件里。输入、选择、确认这三类意图如果没有被控件层明确区分，后面的事件处理、错误提示和可访问性都会跟着一起混乱。
 
-### 9. 实践任务
+### 9. 表单真正难的部分，是校验和状态反馈要跟控件语义对齐
+
+很多页面把控件都摆出来以后，看起来像“表单已经完成”，但真正困难的部分这时才刚开始：输入错误要怎么提示，按钮什么时候可点击，二元状态切换后页面要不要补说明，图片如果只是装饰和如果承载信息又该怎样处理。这些问题决定了控件是否真的表达了自己的语义，而不只是占了个位置。
+
+```kotlin
+class ProfileFormActivity : AppCompatActivity() {
+    private lateinit var binding: ActivityProfileFormBinding
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityProfileFormBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        binding.avatarImage.contentDescription = getString(R.string.profile_avatar)
+
+        binding.nameInput.doAfterTextChanged {
+            validateForm(forceShowErrors = false)
+        }
+        binding.emailInput.doAfterTextChanged {
+            validateForm(forceShowErrors = false)
+        }
+        binding.notifySwitch.setOnCheckedChangeListener { _, checked ->
+            binding.notifyHint.isVisible = checked
+        }
+        binding.saveButton.setOnClickListener {
+            validateForm(forceShowErrors = true)
+            if (binding.saveButton.isEnabled) {
+                saveProfile()
+            }
+        }
+    }
+
+    private fun validateForm(forceShowErrors: Boolean) {
+        val nameValid = !binding.nameInput.text.isNullOrBlank()
+        val emailText = binding.emailInput.text?.toString().orEmpty()
+        val emailValid = Patterns.EMAIL_ADDRESS.matcher(emailText).matches()
+
+        binding.nameInputLayout.error = if (!nameValid && forceShowErrors) {
+            "请输入姓名"
+        } else {
+            null
+        }
+
+        binding.emailInputLayout.error = if (!emailValid && (forceShowErrors || emailText.isNotBlank())) {
+            "请输入有效邮箱"
+        } else {
+            null
+        }
+
+        binding.saveButton.isEnabled = nameValid && emailValid
+    }
+
+    private fun saveProfile() {
+        // Persist profile data.
+    }
+}
+```
+
+这段代码真正补强的是控件之间的分工。`TextInputLayout` 不再只是输入框外面的壳，而是负责承接错误文案；`SwitchMaterial` 的切换结果会立即影响说明文字；`ImageView` 的 `contentDescription` 说明图像是否真的承载信息；提交按钮则根据表单有效性决定是否可点。也就是说，页面不是“等用户点保存再一起报错”，而是在输入、提示和操作三条线上同步维护语义。
+
+这也是为什么成熟表单看起来往往比“所有控件都放好了”的版本更顺手。顺手感并不是来自更多组件，而是来自用户每走一步都能收到清楚反馈：这个输入对不对、这个开关会影响什么、这个按钮为什么现在能点或不能点。控件一旦和状态反馈绑在一起，页面才真正开始变得可靠。
+
+### 10. 实践任务
 
 起点条件：
 
@@ -231,7 +293,7 @@
 - 如果键盘类型不对，先检查 `android:inputType` 是否与场景匹配。
 - 如果页面看起来“能用但很乱”，优先回头检查控件职责是否清楚，而不是先补动画和颜色。
 
-### 10. 常见误区
+### 11. 常见误区
 
 - 把控件学习理解成控件名字背诵。
 - 所有操作都用按钮，所有状态都用文本伪装。
@@ -249,10 +311,12 @@
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 1-2 章中关于 View、资源与交互的部分。
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，常用控件、输入组件与表单界面相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，真实页面中的组件组合、状态反馈与表单组织相关章节。
+- 参考并改写自：Dawn Griffiths、David Griffiths，《Head First Android Development, 3rd Edition》(2021)，`ImageView` 与 `contentDescription` 相关示例。
 
 - 按钮：<https://developer.android.com/develop/ui/views/components/button>
 - 切换控件：<https://developer.android.com/develop/ui/views/components/togglebutton>
 - 输入类型：<https://developer.android.com/training/keyboard-input/style>
 - TextInputLayout：<https://developer.android.com/reference/com/google/android/material/textfield/TextInputLayout>
 - TextInputEditText：<https://developer.android.com/reference/com/google/android/material/textfield/TextInputEditText>
+
 

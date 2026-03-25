@@ -88,9 +88,94 @@ class TodoStorageFacade(
 
 只要把这种分类习惯建立起来，后面很多具体实现问题都会更顺。你不会再想把“附件原图”和“缩略图缓存”随手塞进同一目录，也不会把待办列表本身硬塞进键值存储里。存储设计真正保护的，往往不是第一次保存有没有成功，而是半年以后你还能不能说清每份数据为什么在这里、为什么可以删或不能删。
 
+如果把“存什么”和“存在哪”先写成一套可判断的规则，后面具体选 API 会更稳：
+
+```kotlin
+data class DataAsset(
+    val name: String,
+    val simpleKeyValue: Boolean,
+    val structured: Boolean,
+    val sharedWithOtherApps: Boolean,
+    val rebuildable: Boolean,
+)
+
+enum class StorageBucket {
+    PREFERENCES,
+    DATABASE,
+    APP_PRIVATE_FILE,
+    SHARED_DOCUMENT,
+    CACHE,
+}
+
+fun chooseStorageBucket(asset: DataAsset): StorageBucket = when {
+    asset.rebuildable -> StorageBucket.CACHE
+    asset.simpleKeyValue -> StorageBucket.PREFERENCES
+    asset.structured -> StorageBucket.DATABASE
+    asset.sharedWithOtherApps -> StorageBucket.SHARED_DOCUMENT
+    else -> StorageBucket.APP_PRIVATE_FILE
+}
+```
+
+这段代码不是为了真的在项目里做一套“存储路由器”，而是为了把本章最重要的判断过程显式化：先看它是不是可重建缓存，再看它是不是轻量配置，然后再区分结构化记录、共享内容和应用私有文件。只要这套顺序成立，具体落到 DataStore、Room、私有目录还是系统文档入口，通常都只是下一步实现问题。
+
 再往前走一步，这也是为什么存储决策最好在功能设计早期就明确下来。一次性的 `putString()` 或 `writeText()` 看起来都很便宜，但只要数据分类一开始就错，后面迁移、清理和共享边界几乎都会一起变贵。好的存储设计，常常不是“会更多 API”，而是更早把语义和生命周期对齐。
 
-### 7. 实践任务
+### 7. 导入同一份附件时，私有文件、缓存和共享 `Uri` 往往会同时出现
+
+很多真实场景并不是“选一种存储方案然后结束”，而是同一条导入链路里同时出现外部 `Uri`、应用私有文件和缓存预览。比如用户从系统选择器里挑一张附件图：入口是平台授予的受控 `Uri`，长期业务资产应复制进应用私有目录，而为了快速预览生成的缩略图又更适合放缓存。这种场景特别能说明，存储边界的关键不是文件类型，而是语义和生命周期。
+
+```kotlin
+data class ImportedAttachment(
+    val originalUri: Uri,
+    val persistedFile: File?,
+    val previewFile: File,
+)
+
+class AttachmentImportCoordinator(
+    private val appContext: Context,
+) {
+
+    suspend fun import(source: Uri, keepAsBusinessAsset: Boolean): ImportedAttachment =
+        withContext(Dispatchers.IO) {
+            val previewFile = copyTo(
+                target = File(appContext.cacheDir, "preview-${System.currentTimeMillis()}.jpg"),
+                source = source,
+            )
+
+            val persistedFile = if (keepAsBusinessAsset) {
+                val attachmentDir = File(appContext.filesDir, "attachments").apply { mkdirs() }
+                copyTo(
+                    target = File(attachmentDir, "attach-${System.currentTimeMillis()}.jpg"),
+                    source = source,
+                )
+            } else {
+                null
+            }
+
+            ImportedAttachment(
+                originalUri = source,
+                persistedFile = persistedFile,
+                previewFile = previewFile,
+            )
+        }
+
+    private fun copyTo(target: File, source: Uri): File {
+        appContext.contentResolver.openInputStream(source).use { input ->
+            requireNotNull(input) { "Cannot open uri: $source" }
+            target.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+        return target
+    }
+}
+```
+
+这段代码把三件经常被混掉的事情拆得很清楚：`originalUri` 表示这份内容来自外部授权入口；`previewFile` 放在 `cacheDir`，因为预览图本质上可以重建；`persistedFile` 只有在它确实是长期业务资产时，才会复制进 `filesDir/attachments`。只要这层区分建立起来，你就不会再把“用户随手挑来预览的一张图”和“必须长期保存的证据附件”混成同一种文件。
+
+这也解释了为什么现代 Android 越来越强调受控入口而不是裸路径。外部 `Uri` 代表的是授权边界，应用私有文件代表的是长期保管责任，而缓存目录代表的是可重建的临时副本。真正稳妥的存储设计，往往不是少做一次复制，而是先弄清楚哪份数据值得长期持有、哪份数据只是为了当前显示方便。
+
+### 8. 实践任务
 
 起点条件：
 
@@ -121,7 +206,7 @@ class TodoStorageFacade(
 - 如果你总想直接处理路径，先检查这份数据是否其实属于共享媒体或用户授权文档访问场景。
 - 如果某类数据未来需要筛选、排序和历史记录，通常就不该再停留在简单键值或单文件整体保存层。
 
-### 8. 常见误区
+### 9. 常见误区
 
 - 所有数据都想塞进同一种存储方案。
 - 只关心能不能存，不关心未来怎么读、怎么维护。
@@ -139,8 +224,13 @@ class TodoStorageFacade(
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，DataStore、File Storage 与数据库相关章节。
 - 参考并改写自：Neil Smyth，`Android Studio Narwhal Essentials`，应用私有存储、共享文件访问与本地数据库相关章节。
 - 参考并改写自：`Android Security - Attacks And Defenses`，文件暴露、共享边界与安全存储相关章节。
+- 参考并改写自：Rick Boyer、Kyle Mew，《Android Application Development Cookbook, 2nd Edition》(2016)，`cacheDir` 使用、缓存与正式文件边界相关 recipes。
 
 - Data and file storage overview：<https://developer.android.com/training/data-storage>
 - Storage use cases and best practices：<https://developer.android.com/training/data-storage/use-cases>
+
+
+
+
 
 

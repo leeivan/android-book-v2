@@ -163,7 +163,62 @@ Room 虽然很适合本地数据库开发，但它不是所有数据问题的终
 
 这条边界一旦清楚，Room 反而会更稳定。数据库相关代码专注在实体、查询和本地写入上，Repository 再去承担多数据源协调和单一可信来源的组织。下一章的数据层设计，其实就是在这层边界上继续展开。
 
-### 9. 实践任务
+### 9. 当页面读取的是聚合对象时，`@Transaction` 和 `@Relation` 会比手工拼装更稳
+
+前面的示例主要停留在单表 CRUD，这足以帮助读者理解 Room 的骨架，但真实页面经常读取的不是“一张表里的单条记录”，而是一个带上下文的聚合对象。比如聊天详情页读取一条会话时，页面真正需要的往往是“会话头部信息 + 消息列表”这一整组数据。如果这时还让 ViewModel 自己先查会话、再查消息、再手工拼接，数据库层的结构语义就又被上层偷走了。
+
+Socorro 在聊天数据库示例里把 `Conversation` 和 `Message` 通过外键连在一起，这特别适合拿来说明 Room 的第二层价值：它不只擅长单表访问，也适合把“天然属于一起读取的本地结构”组织成一个稳定聚合。只要你开始这样思考，DAO 设计就不会再停留在“每张表写几个方法”上，而会更像“页面真正想观察什么”。
+
+```kotlin
+@Entity(tableName = "conversation")
+data class ConversationEntity(
+    @PrimaryKey val id: Long,
+    val title: String,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)
+
+@Entity(
+    tableName = "message",
+    foreignKeys = [
+        ForeignKey(
+            entity = ConversationEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["conversation_id"],
+            onDelete = ForeignKey.CASCADE,
+        )
+    ],
+    indices = [Index("conversation_id")],
+)
+data class MessageEntity(
+    @PrimaryKey val id: Long,
+    @ColumnInfo(name = "conversation_id") val conversationId: Long,
+    val sender: String,
+    val content: String,
+    val timestamp: Long,
+)
+
+data class ConversationWithMessages(
+    @Embedded val conversation: ConversationEntity,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "conversation_id",
+    )
+    val messages: List<MessageEntity>,
+)
+
+@Dao
+interface ConversationDao {
+    @Transaction
+    @Query("SELECT * FROM conversation WHERE id = :conversationId")
+    fun observeConversation(conversationId: Long): Flow<ConversationWithMessages?>
+}
+```
+
+这里最值得学的不是注解名本身，而是 Room 已经在数据库层把“会话详情”定义成了一个完整读取单位。`@Relation` 让父子记录的组织方式留在 DAO 附近，`@Transaction` 则保证这组读取在同一数据库快照里完成。这样一来，ViewModel 消费到的就不再是两份彼此分离的底层记录，而是一份更接近页面语义的本地聚合对象。
+
+这会直接影响后续架构稳定性。只要聚合读取留在 Room 层，Repository 才能继续思考“这组本地数据什么时候同步远程、什么时候作为可信来源暴露给上层”；而不是让 ViewModel 一边管状态，一边手工拼数据库结果。Room 真正成熟的地方，不只是减少样板代码，而是让本地结构语义有地方稳定落下去。
+
+### 10. 实践任务
 
 起点条件：
 
@@ -195,7 +250,7 @@ Room 虽然很适合本地数据库开发，但它不是所有数据问题的终
 - 如果 Entity 开始混入大量页面瞬时状态，先回头区分“持久化记录”和“UI 状态”。
 - 如果你还没想清读取场景，就不要急着设计很多复杂关系和注解。
 
-### 10. 常见误区
+### 11. 常见误区
 
 - 只关注注解写法，不关注实体和查询设计。
 - 把 Room 当成会自动替你解决所有数据库问题的黑盒。

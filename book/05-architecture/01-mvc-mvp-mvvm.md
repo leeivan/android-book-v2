@@ -106,6 +106,62 @@ Luca Vainigli 在同一本书里用同一个 articles 场景连续演示了三�
 
 这就是三种模式的核心差别: 不是谁更高级，而是谁更适合当前平台和状态复杂度。
 
+如果把同一个“文章列表页”压成最小对照代码，三种写法的差别会更直观：
+
+```kotlin
+// MVC: 页面自己既拿数据又改界面
+class ArticleListActivity : AppCompatActivity() {
+    private val repository = ArticleRepository()
+
+    fun onRefreshClicked() {
+        showLoading()
+        repository.getArticles(
+            onSuccess = { articles -> renderArticles(articles) },
+            onError = { message -> showError(message) },
+        )
+    }
+}
+
+// MVP: Presenter 接走流程，页面退成指令接收者
+interface ArticleListView {
+    fun showLoading()
+    fun showArticles(items: List<Article>)
+    fun showError(message: String)
+}
+
+class ArticleListPresenter(
+    private val view: ArticleListView,
+    private val repository: ArticleRepository,
+) {
+    fun refresh() {
+        view.showLoading()
+        repository.getArticles(
+            onSuccess = { view.showArticles(it) },
+            onError = { view.showError(it) },
+        )
+    }
+}
+
+// MVVM: 页面只发事件并消费 uiState
+@HiltViewModel
+class ArticleListViewModel @Inject constructor(
+    private val repository: ArticleRepository,
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(ArticleListUiState())
+    val uiState: StateFlow<ArticleListUiState> = _uiState.asStateFlow()
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val articles = repository.getArticles()
+            _uiState.update { it.copy(isLoading = false, articles = articles) }
+        }
+    }
+}
+```
+
+这组代码最值得比较的，不是类名，而是状态到底停在哪一层。MVC 里，页面本身就是流程中心；MVP 里，页面把流程让给 Presenter，但页面仍然要接收一连串命令式回调；MVVM 里，页面不再逐条接命令，而是只消费 `uiState`。这就是为什么现代 Android 一旦进入状态驱动 UI，MVVM 会显得更顺手。
+
 ### 8. 为什么现代 Android 更强调单向数据流
 
 只要项目进入 `MVVM` 主线，就几乎一定会遇到“单向数据流”这个概念。原因很现实: 如果页面、ViewModel、数据层都能随手改同一份状态，状态来源很快就会变得不可追踪。
@@ -120,7 +176,67 @@ Luca Vainigli 在同一本书里用同一个 articles 场景连续演示了三�
 
 也正因为如此，架构模式不应被机械翻译成文件夹模仿游戏。一个项目把目录命名成 `model/view/viewmodel`，并不代表职责真的已经拆开；真正关键的是状态是否有单一出口、页面是否仍然直接协调多个数据来源、以及某个类是否同时承担了不止一种生命周期和抽象层级的责任。模式名称只是提示，状态边界才是落地标准。
 
-### 9. 不要把架构模式理解成模板答案
+### 9. 真正让 MVVM 稳下来的，是状态合同而不是多一个 ViewModel
+
+如果把单向数据流继续往下落，`MVVM` 最关键的其实不是“页面拿到了一个 ViewModel”，而是页面和 ViewModel 之间有没有一份稳定合同。Vainigli、Bennett 和 Big Nerd Ranch 的例子虽然语法风格不同，但共同点都很明确：页面不再直接读写零散字段，而是围绕 `uiState`、用户 action 和一次性 effect 协作。
+
+```kotlin
+data class ArticleListUiState(
+    val isLoading: Boolean = false,
+    val keyword: String = "",
+    val articles: List<Article> = emptyList(),
+)
+
+sealed interface ArticleListAction {
+    data object Refresh : ArticleListAction
+    data class KeywordChanged(val value: String) : ArticleListAction
+    data class ArticleClicked(val id: Long) : ArticleListAction
+}
+
+sealed interface ArticleListEffect {
+    data class OpenArticle(val id: Long) : ArticleListEffect
+    data class ShowMessage(val text: String) : ArticleListEffect
+}
+
+@HiltViewModel
+class ArticleListViewModel @Inject constructor(
+    private val repository: ArticleRepository,
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(ArticleListUiState())
+    val uiState: StateFlow<ArticleListUiState> = _uiState.asStateFlow()
+
+    private val _effect = MutableSharedFlow<ArticleListEffect>()
+    val effect: SharedFlow<ArticleListEffect> = _effect.asSharedFlow()
+
+    fun onAction(action: ArticleListAction) {
+        when (action) {
+            ArticleListAction.Refresh -> refresh()
+            is ArticleListAction.KeywordChanged -> {
+                _uiState.update { it.copy(keyword = action.value) }
+            }
+            is ArticleListAction.ArticleClicked -> {
+                viewModelScope.launch {
+                    _effect.emit(ArticleListEffect.OpenArticle(action.id))
+                }
+            }
+        }
+    }
+
+    private fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val articles = repository.getArticles(keyword = _uiState.value.keyword)
+            _uiState.update { it.copy(isLoading = false, articles = articles) }
+        }
+    }
+}
+```
+
+这段代码真正强化的，是“稳定状态”和“一次性动作”终于被拆开了。`uiState` 负责页面持续可见的状态，例如加载中、搜索词和列表内容；`effect` 负责页面不该重复消费的一次性动作，例如导航和提示消息。只要这层合同清楚，ViewModel 就不会再退化成“把原来 Activity 的代码平移过去”。
+
+这也是为什么今天很多团队虽然口头上说自己在用 `MVVM`，但项目里仍然会失控。只要页面继续直接改多个数据源、ViewModel 同时输出稳定状态和一次性事件却没有边界、或 UI 要靠大量命令式回调才能工作，那么代码只是换了类名，并没有真正进入状态驱动结构。
+
+### 10. 不要把架构模式理解成模板答案
 
 这一章最容易产生的误解，是把三种模式当成“必须选一个照搬”的固定模板。真实项目里，架构模式更像一组取舍原则:
 
@@ -131,7 +247,7 @@ Luca Vainigli 在同一本书里用同一个 articles 场景连续演示了三�
 
 如果这些问题已经回答清楚，那么模式名称本身反而没有那么重要。相反，如果这些问题没有解决，哪怕满项目都在写 `ViewModel`，也不代表真的进入了良好架构。
 
-### 10. 实践任务
+### 11. 实践任务
 
 起点条件:
 
@@ -163,7 +279,7 @@ Luca Vainigli 在同一本书里用同一个 articles 场景连续演示了三�
 - 如果你把所有逻辑都搬进 ViewModel，只是把页面类问题换了位置，不算真正落地 `MVVM`。
 - 如果项目里状态来源超过两个且没有单一出口，优先补状态设计，而不是继续加类。
 
-### 11. 常见误区
+### 12. 常见误区
 
 - 把架构模式当成缩写记忆题。
 - 以为用了某个模式名字，代码自然就会变好。
@@ -183,5 +299,8 @@ Luca Vainigli 在同一本书里用同一个 articles 场景连续演示了三�
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
 - State holders and UI state: <https://developer.android.com/topic/architecture/ui-layer/stateholders>
 - Architecture Samples: <https://github.com/android/architecture-samples>
+
+
+
 
 

@@ -168,7 +168,39 @@ class TaskLocalDataSource(
 
 一旦把这条底层链路看清楚，再回头看 Room 就不会把它误解成“魔法注解”。Room 的价值不是替你发明数据库，而是把编译期校验、对象映射和迁移入口这些高频样板收束起来，让你能把更多注意力放回数据建模本身。
 
-### 9. 实践任务
+### 9. 真正进入同步场景后，事务才会显出 SQLite 的价值
+
+很多入门例子只演示“插入一条、查出一条”，这会让读者误以为 SQLite 的价值只是把记录一行行存进去。真正到了离线同步、批量刷新或本地草稿替换这类场景，事务才会突然变得非常重要。因为这时问题不再是“某条语句能不能执行”，而是“这一批变化要么全部成立，要么一次都不要让页面看到”。
+
+```kotlin
+suspend fun replaceTasksFromServer(tasks: List<Task>) = withContext(ioDispatcher) {
+    val db = dbHelper.writableDatabase
+    db.beginTransaction()
+    try {
+        db.delete("task", null, null)
+
+        tasks.forEach { task ->
+            val values = ContentValues().apply {
+                put("id", task.id)
+                put("title", task.title)
+                put("is_done", if (task.isDone) 1 else 0)
+                put("created_at", task.createdAt)
+            }
+            db.insertOrThrow("task", null, values)
+        }
+
+        db.setTransactionSuccessful()
+    } finally {
+        db.endTransaction()
+    }
+}
+```
+
+这段代码最值得学的，不是 `beginTransaction()` 和 `endTransaction()` 这两个方法名，而是它背后的语义：服务端快照替换本地数据时，页面不应该看到“旧数据删掉了一半、新数据只写进来一半”的中间状态。事务把这一整批写入变成一个原子动作，只有在全部成功后，本地数据库才真正切到新快照。
+
+一旦把这条边界看清楚，SQLite 的底层价值就会变得具体起来。它不只是“一个能存表的东西”，还是本地一致性的重要基础设施。Room 后面虽然会把事务写法收束得更优雅，但它依赖的仍然是同一条底层原则：结构化数据不只要能写进去，还要能在失败、重试和同步过程中保持一致。
+
+### 10. 实践任务
 
 起点条件：
 
@@ -200,7 +232,7 @@ class TaskLocalDataSource(
 - 如果你想一开始就设计很多复杂关系，先回到当前真实读取场景，不要为了完整而过度设计。
 - 如果你觉得 SQLite 很繁琐，那正是 Room 后面值得出现的原因，但不要因此跳过底层概念。
 
-### 10. 常见误区
+### 11. 常见误区
 
 - 把 SQLite 学成“数据库命令大全”而忽略实际场景。
 - 认为有了 Room 就完全不需要理解 SQL。
@@ -218,8 +250,8 @@ SQLite 是 Android 本地结构化存储的重要底层基础。理解它的价�
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 12 章与数据库相关章节。
 - 参考并改写自：Neil Smyth，`Android Studio Narwhal Essentials`，SQLite、数据库创建与查询相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，本地持久化、数据建模与演进相关章节。
+- 参考并改写自：Uchenna Wangereka，《Mastering Kotlin for Android 14》(2024)，Database Inspector 与本地数据库调试相关章节。
 
 - Save data using SQLite：<https://developer.android.com/training/data-storage/sqlite>
 - Database Inspector：<https://developer.android.com/studio/inspect/database>
-
 

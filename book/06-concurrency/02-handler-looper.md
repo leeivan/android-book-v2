@@ -114,7 +114,68 @@ fun scheduleHint() {
 
 还有一个很常见但不够显眼的误用，是把 `Handler` 当成跨层通信总线。页面、ViewModel、Repository 之间如果开始互相丢 `post {}` 或 message code 来维持流程，短期看似灵活，长期却会让数据关系和线程边界变得不可推理。`Handler` 更适合表达“这条消息循环上的调度动作”，而不是承担整个应用的异步架构。
 
-### 8. 什么场景下不必优先选择 Handler
+除了主线程延迟动作，`Handler` 还有一个很典型的老场景：把一串串行后台任务绑定到同一个 `Looper` 上。这时常见的搭配是 `HandlerThread`：
+
+```kotlin
+class ThumbnailDecoder {
+    private val workerThread = HandlerThread("thumbnail-decoder").apply { start() }
+    private val workerHandler = Handler(workerThread.looper)
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    fun decode(path: String, onDone: (Bitmap) -> Unit) {
+        workerHandler.post {
+            val bitmap = BitmapFactory.decodeFile(path)
+            mainHandler.post {
+                onDone(bitmap)
+            }
+        }
+    }
+
+    fun shutdown() {
+        workerThread.quitSafely()
+    }
+}
+```
+
+这个例子特别适合帮助读者建立第二层直觉：`Handler` 不只是在主线程上“晚一点做事”，它也可以绑定到专门的工作线程，把一类任务排队串行处理。与此同时，`quitSafely()` 又提醒我们，消息循环一旦被自己创建出来，就必须由自己负责结束，这和主线程 Looper 由系统托管形成了非常清楚的对比。
+
+### 8. `Runnable` 是简化入口，`Message` 更适合表达“协议”
+
+如果只是“一段稍后执行的代码”，`post {}` 和 `postDelayed()` 的确最顺手。但当两端开始约定消息类型、携带数据、反复转发结果时，老式的 `Message` / `handleMessage()` 模型反而更清楚。这也是很多旧项目、Messenger 通信和 Apress 里的 Handler 示例，仍然坚持用 `Message.obtain()`、`what` 和 `Bundle` 的原因。
+
+```kotlin
+private const val MSG_SHOW_RESULT = 1
+private const val MSG_RETRY = 2
+private const val KEY_TEXT = "text"
+
+class SearchUiHandler(
+    private val render: (String) -> Unit,
+    private val scheduleRetry: () -> Unit,
+) : Handler(Looper.getMainLooper()) {
+
+    override fun handleMessage(msg: Message) {
+        when (msg.what) {
+            MSG_SHOW_RESULT -> render(msg.data.getString(KEY_TEXT).orEmpty())
+            MSG_RETRY -> scheduleRetry()
+        }
+    }
+}
+
+fun dispatchSearchResult(handler: Handler, text: String) {
+    val message = handler.obtainMessage(MSG_SHOW_RESULT).apply {
+        data = Bundle().apply {
+            putString(KEY_TEXT, text)
+        }
+    }
+    handler.sendMessageDelayed(message, 250)
+}
+```
+
+这段代码最值得理解的地方有三层。第一，`obtainMessage()` 会从 Handler 一侧拿到一个已经绑定目标处理者的 `Message`，这比自己随手 new 一个对象更符合消息队列模型。第二，`what` 和 `Bundle` 让消息有了“协议”意味，接收方可以区分不同动作并读取不同负载。第三，只要这个 Handler 仍然绑定 `Looper.getMainLooper()`，那么 `handleMessage()` 依旧运行在主线程上，它并不会自动把耗时工作搬去后台。
+
+这也是很多旧代码最容易被误读的地方：看到 `sendMessage()` 就以为已经“异步化”了。实际上，如果消息只是被投递回主线程，那它解决的只是调度顺序问题，不是耗时执行问题。真正的后台工作仍然必须在 worker thread、协程或其他后台机制里完成，Handler 只负责把结果或控制信号送回合适的消息循环。
+
+### 9. 什么场景下不必优先选择 Handler
 
 现代 Android 中，很多原本能用 `Handler` 的场景，现在更适合交给:
 
@@ -125,7 +186,7 @@ fun scheduleHint() {
 
 这并不是说 `Handler` 被淘汰了，而是说明你要先判断问题本质。如果问题是页面内延迟动作，`Handler` 可以很好用；如果问题已经涉及生命周期复杂协作、后台执行或流式操作，别硬把它扛成万能解。
 
-### 9. 实践任务
+### 10. 实践任务
 
 起点条件:
 
@@ -157,7 +218,7 @@ fun scheduleHint() {
 - 代码只会写 `post`，却解释不清主线程为什么能收到它，说明消息模型还没立稳。
 - 如果一个需求本质是后台可靠执行，就不要再往 Handler 上硬靠。
 
-### 10. 常见误区
+### 11. 常见误区
 
 - 把 Handler 只当成过时 API。
 - 只会用 `post`，但不理解消息循环。
@@ -173,8 +234,13 @@ fun scheduleHint() {
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 12 章异步基础部分。
 - 参考并改写自：Dawn Griffiths、David Griffiths，《Head First Android Development》，Stopwatch 与 `Handler.postDelayed()` 相关示例。
 - 参考并改写自：James Steele、Nelson To，《The Android Developer's Cookbook》(2011)，`BackgroundTimer`、`Handler.postDelayed()` 与生命周期取消相关 recipes。
+- 参考并改写自：Satya Komatineni、Dave MacLean，《Apress Pro Android 4》(2012)，`Message.obtain()`、`sendMessageDelayed()` 与 `handleMessage()` 协作相关章节。
 
 - Processes and threads overview: <https://developer.android.com/guide/components/processes-and-threads>
 - Handler reference: <https://developer.android.com/reference/android/os/Handler>
 - Looper reference: <https://developer.android.com/reference/android/os/Looper>
+
+
+
+
 

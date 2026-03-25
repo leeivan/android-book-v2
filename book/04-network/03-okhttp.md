@@ -175,7 +175,59 @@ fun provideHttpClient(tokenProvider: () -> String?): OkHttpClient {
 这也解释了为什么 application interceptor 往往是最先该用好的那一个扩展点。它处理的是“应用视角的一次请求应该默认带什么规则”，而不是某个页面级业务要不要弹错误插图。只要拦截器开始承担页面语义，OkHttp 这层就会从基础设施退化成混合层。
 
 当你把这段构建逻辑和前面的最小请求例子放在一起看，就会更容易理解一句很重要的话：OkHttp 解决的不是“把 URL 发出去”，而是“为整个应用建立稳定、统一、可复用的 HTTP 运行时”。这也是它在整条网络链路里最值钱的地方。
-### 9. 实践任务
+
+### 9. 认证刷新和缓存，也应该留在客户端层
+
+如果再往真实项目走一步，最容易被写错的通常是 token 刷新和缓存。它们都属于“很多请求共同依赖的通信规则”，因此更适合继续留在 OkHttp 层，而不是散到每个 Repository 里：
+
+```kotlin
+class SessionAuthenticator(
+    private val sessionStore: SessionStore,
+    private val tokenApi: TokenApi,
+) : Authenticator {
+
+    override fun authenticate(route: Route?, response: Response): Request? {
+        if (responseCount(response) >= 2) return null
+
+        val refreshToken = sessionStore.refreshToken ?: return null
+        val refreshedToken = tokenApi.refreshToken(refreshToken) ?: return null
+        sessionStore.accessToken = refreshedToken
+
+        return response.request.newBuilder()
+            .header("Authorization", "Bearer $refreshedToken")
+            .build()
+    }
+
+    private fun responseCount(response: Response): Int {
+        var count = 1
+        var previous = response.priorResponse
+        while (previous != null) {
+            count++
+            previous = previous.priorResponse
+        }
+        return count
+    }
+}
+
+fun provideHttpClient(
+    context: Context,
+    sessionStore: SessionStore,
+    tokenApi: TokenApi,
+): OkHttpClient {
+    val cache = Cache(File(context.cacheDir, "http-cache"), 10L * 1024 * 1024)
+
+    return OkHttpClient.Builder()
+        .cache(cache)
+        .authenticator(SessionAuthenticator(sessionStore, tokenApi))
+        .addInterceptor(AuthInterceptor { sessionStore.accessToken })
+        .build()
+}
+```
+
+这里最关键的不是“又多写了几个类”，而是职责重新收束了：普通请求头追加仍由 `Interceptor` 完成，遇到 `401` 后的凭证刷新则交给 `Authenticator`，而缓存目录和大小也在客户端构建阶段一次性确定。这样一来，Repository 仍然只关心“拿到什么数据”，不用每个接口都自己判断 token 过期或缓存放哪儿。`Clean Android Architecture` 和近年的网络工程资料反复强调的一点，就是把这类横切规则尽量收回基础设施层。
+
+如果把这些能力散到页面或 Repository，最典型的后果就是：某些请求会忘记带新 token，某些请求重试次数不一致，某些接口缓存规则又和其他地方冲突。只有客户端层保持统一，后面的 Retrofit 和数据层才能真正建立在同一套网络规则之上。
+### 10. 实践任务
 
 起点条件：
 
@@ -209,7 +261,7 @@ fun provideHttpClient(tokenProvider: () -> String?): OkHttpClient {
 - 如果响应体读取后还想再次读取，或忘记关闭 body，后面会出现很难查的资源问题。
 - 如果你把大量业务判断放进拦截器，后续排查错误时会发现通信层和业务层边界非常模糊。
 
-### 10. 常见误区
+### 11. 常见误区
 
 - 把 OkHttp 当成“一次性发请求的小工具”。
 - 每个请求都重新创建 `OkHttpClient`。
@@ -226,7 +278,12 @@ OkHttp 是网络栈的基础设施层。它的价值不在于“语法会不会�
 
 - 参考并整理自本地 PDF：N. Smyth，《Android Studio Narwhal Essentials: Java Edition》(2025)，现代 Android 网络请求、权限与工程组织相关章节。
 - 参考并整理自本地 PDF：Bennett M.，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，网络基础设施、依赖注入与模块化工程中的数据入口相关章节。
+- 参考并整理自本地 PDF：Clean Android Architecture，OkHttp、Retrofit 与客户端基础设施装配相关章节。
 - OkHttp Overview：<https://square.github.io/okhttp/>
 - OkHttp Calls：<https://square.github.io/okhttp/features/calls/>
 - OkHttp Interceptors：<https://square.github.io/okhttp/features/interceptors/>
+
+
+
+
 

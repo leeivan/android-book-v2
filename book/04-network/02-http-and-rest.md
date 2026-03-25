@@ -30,6 +30,27 @@ Android 开发者并不需要把自己训练成协议工程师，但如果不理
 
 请求对应的响应也有类似结构：状态码、响应头和响应体。状态码告诉你这次协议交互处于什么结果类别，响应头提供更多协商与上下文信息，响应体则承载内容或错误详情。理解这套结构后，你再去看 OkHttp 或 Retrofit，就不会只看到一堆封装函数，而能看到它们背后真正处理的是哪一层网络语义。
 
+如果把一次最小请求直接写成原始报文，HTTP 各部分的职责会更清楚：
+
+```http
+GET /articles?page=1 HTTP/1.1
+Host: api.example.com
+Accept: application/json
+Accept-Language: zh-CN
+Authorization: Bearer <token>
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: max-age=60
+
+{
+  "items": [],
+  "page": 1
+}
+```
+
+这段报文里，每一行都在表达不同层的语义。第一行同时给出了方法、资源和协议版本；`Accept` 和 `Accept-Language` 在表达客户端期望；`Authorization` 在表达身份上下文；响应里的 `200 OK` 只说明协议层成功，`Content-Type` 和 `Cache-Control` 则继续告诉客户端“拿到的是什么内容、这份内容多久还能被复用”。很多客户端问题之所以难排查，正是因为开发者只盯住 URL，却忽略了这些同样在影响结果的上下文字段。
+
 ### 3. 请求方法为什么不是随便挑一个
 
 RFC 9110 对标准方法的语义定义得很清楚：GET 用于获取目标资源的当前表示，POST 请求目标资源按其特定语义处理请求内容，PUT 用于替换目标资源的当前表示，DELETE 则用于删除目标资源。对客户端来说，这些方法不是不同名字的“发请求方式”，而是在表达不同意图。
@@ -178,5 +199,6 @@ HTTP 和 REST 提供的是网络交互的基本语义框架。理解了请求方
 
 - Connect to the network：<https://developer.android.com/develop/connectivity/network-ops/connecting>
 - RFC 9110: HTTP Semantics：<https://www.rfc-editor.org/rfc/rfc9110>
+
 
 

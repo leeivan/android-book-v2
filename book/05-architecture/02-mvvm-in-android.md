@@ -185,7 +185,84 @@ class ArticleListViewModel(
 
 《Thriving in Android Development Using Kotlin》里的聊天页又把这个结构往真实项目推了一步：`ChatViewModel` 同时暴露 `uiState: StateFlow<Chat>` 和 `messages: StateFlow<List<Message>>`，Compose 端用 `LaunchedEffect(Unit)` 触发初始化，再分别消费这两条状态流。作者之所以没有把所有东西硬塞进一个超大的状态对象，是因为聊天头部信息和消息流的变化频率完全不同。这个例子很适合提醒读者，MVVM 的重点不是“永远只有一个状态对象”，而是让状态边界和变化频率匹配，让 UI 知道该观察什么、为什么变化。
 
-### 11. 实践任务
+### 11. 稳定状态和一次性事件不能混在同一个 `uiState` 里
+
+很多 MVVM 示例写到这里就停住了：ViewModel 暴露一个 `uiState`，页面去 collect 它，似乎问题已经解决。但真实页面很快会遇到另一类数据：跳转、Toast、Snackbar、一次性的错误提示、登录成功后打开主页。这些东西如果也硬塞进 `uiState`，页面重组、旋转或重新订阅时就很容易重复消费，最后变成“状态结构看起来统一，行为却越来越怪”。
+
+`Clean Android Architecture` 在讲 `StateFlow`、`SharedFlow` 和 one-off event 时把边界说得很清楚：稳定状态适合放在 `StateFlow`，因为新订阅者应该拿到最后一个值；一次性事件则更适合放在 `SharedFlow` 或 channel，因为你通常不希望“上一次的跳转命令”在新页面实例里再自动重放。把这条边界放进 MVVM，页面结构会一下子稳定很多。
+
+```kotlin
+data class LoginUiState(
+    val email: String = "",
+    val isSubmitting: Boolean = false,
+    val errorMessage: String? = null,
+)
+
+sealed interface LoginEffect {
+    data object OpenHome : LoginEffect
+    data class ShowSnackbar(val message: String) : LoginEffect
+}
+
+class LoginViewModel(
+    private val repository: AuthRepository,
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(LoginUiState())
+    val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
+
+    private val _effects = MutableSharedFlow<LoginEffect>()
+    val effects: SharedFlow<LoginEffect> = _effects.asSharedFlow()
+
+    fun submit(email: String, password: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(email = email, isSubmitting = true, errorMessage = null) }
+
+            repository.login(email, password)
+                .onSuccess {
+                    _uiState.update { it.copy(isSubmitting = false) }
+                    _effects.emit(LoginEffect.OpenHome)
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            errorMessage = error.message ?: "登录失败",
+                        )
+                    }
+                    _effects.emit(LoginEffect.ShowSnackbar("请检查账号、密码或网络"))
+                }
+        }
+    }
+}
+
+@Composable
+fun LoginRoute(
+    viewModel: LoginViewModel,
+    onOpenHome: () -> Unit,
+    showSnackbar: suspend (String) -> Unit,
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                LoginEffect.OpenHome -> onOpenHome()
+                is LoginEffect.ShowSnackbar -> showSnackbar(effect.message)
+            }
+        }
+    }
+
+    LoginScreen(
+        uiState = uiState,
+        onSubmit = viewModel::submit,
+    )
+}
+```
+
+这段代码把两种完全不同的东西拆开了。`LoginUiState` 描述的是“此刻页面长什么样”，所以它适合被反复读取；`LoginEffect` 描述的是“页面需要额外做一次什么事”，所以它适合被单次消费。只要状态和事件分流，页面就不必再靠“消费后手动清空字段”去规避重复跳转或重复弹提示。
+
+Socorro 的聊天页和 `LaunchedEffect(Unit)` 初始化链路也在说明同一件事：Compose 页面可以很声明式，但那些只该发生一次的动作，仍然要有单独通道。MVVM 真正落地时，稳定状态和一次性事件最好一开始就分开建模，否则 ViewModel 很容易为了图省事，把所有东西又塞回一个越来越臃肿的 `uiState` 里。
+
+### 12. 实践任务
 
 起点条件:
 
@@ -217,7 +294,7 @@ class ArticleListViewModel(
 - 如果 ViewModel 里同时出现网络、数据库和复杂流程编排细节，通常说明数据层职责不够清楚。
 - 如果页面状态仍然靠很多零散字段拼装，优先补状态建模，而不是继续加回调。
 
-### 12. 常见误区
+### 13. 常见误区
 
 - 把 MVVM 简化成“页面 + ViewModel”。
 - 认为只要有 ViewModel 就自动拥有良好架构。

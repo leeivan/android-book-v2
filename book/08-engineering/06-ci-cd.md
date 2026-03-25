@@ -199,6 +199,68 @@ jobs:
 
 这里最值得保留的工程习惯，是“产物和还原材料一起上传”。很多团队已经会自动生成 AAB，但还没有把 mapping 文件和构建上下文一并保留下来。结果一到线上排障阶段，才发现只有一个包，没有还原材料，也追不回具体构建状态。CI/CD 真正成熟的时候，提交、产物、版本号和排障材料应该始终处在同一条链路上。
 
+### 11. 一条可信流水线，最好把“报告”和“产物证据”一起带回来
+
+很多团队已经会让流水线跑 `lint` 和单元测试，但失败后仍然只得到一个红色状态。真正排查问题时，大家还得回到本地重跑、翻目录找报告、手工确认是不是某个检查误报。流水线如果只告诉你“挂了”，却不把证据一起带回来，它就还没有真正接住协作成本。Bennett 在 artifact 示例里强调上传产物，Wangereka 在 GitHub Actions 章节里则把 `pull_request`、`detekt`、单元测试和 Internal Testing 串成了一条更完整的链路，这两者合在一起，刚好说明了 Android 项目里一条成熟流水线该补上的最后一环：失败和成功都要留下可追踪证据。
+
+```yaml
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+          cache: gradle
+      - run: chmod +x gradlew
+      - run: ./gradlew ktlintCheck detekt testDebugUnitTest
+      - name: Upload verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-reports
+          path: |
+            app/build/reports/tests/testDebugUnitTest/**
+            app/build/reports/ktlint/**
+            app/build/reports/detekt/**
+
+  internal-distribution:
+    if: github.event_name == 'workflow_dispatch'
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+          cache: gradle
+      - run: chmod +x gradlew
+      - run: ./gradlew :app:bundleRelease
+      - name: Upload release evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: internal-release-evidence
+          path: |
+            app/build/outputs/bundle/release/*.aab
+            app/build/outputs/mapping/release/*
+      - name: Deploy to Internal Testing
+        uses: r0adkll/upload-google-play@v1.1.3
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          packageName: com.example.todo
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          whatsNewDirectory: release/whatsnew
+          status: completed
+```
+
+这份 workflow 最关键的不是多了几个 step，而是它把“验证报告”和“候选发布证据”都显式收回了仓库流水线。`if: always()` 让测试或静态检查即使失败，也会把报告保留下来；`upload-artifact` 则把 AAB、mapping 文件和验证材料一起归档。这样当某次 pull request 挂掉、某个候选版本进入内部测试、或者线上回溯需要对应 mapping 文件时，团队不再依赖某个人本地机器上那份“也许还在”的构建目录。
+
+对 Android 团队来说，这种证据链非常重要，因为项目交付的不只是源码，还有签名产物、调试还原材料和测试报告。CI/CD 一旦能把“提交 -> 检查报告 -> 候选包 -> 测试轨道”串起来，它才真正从“自动跑命令”升级成“可靠交付系统”。
+
 ## 实践任务
 
 起点条件：
@@ -246,6 +308,7 @@ CI/CD 真正要解决的，不是“有没有一条看起来现代的流水线�
 
 - 参考并改写自：Neil Smyth，`Android Studio Narwhal Essentials`，Android Studio、Gradle 与发布流程自动化相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，工程流水线、质量门槛与产物追踪相关章节。
+- 参考并改写自：Uchenna Wangereka，《Mastering Kotlin for Android 14》(2024)，GitHub Actions、pull_request 检查、detekt / 	estDebugUnitTest 与 Internal Testing 发布相关章节。
 - 参考并改写自：`Clean Android Architecture`，团队协作、质量门槛与自动化工程实践相关章节。
 
 - GitHub Actions documentation: <https://docs.github.com/actions>

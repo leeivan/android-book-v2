@@ -127,7 +127,72 @@ class MainActivity : AppCompatActivity() {
 
 这个例子有两个教学点。第一，它让你在切前后台、旋转屏幕和重新进入页面时，直观看到回调顺序。第二，它展示了 `onSaveInstanceState()` 更适合保存轻量 UI 状态，而不是承担整个页面逻辑的长期托管。示例中的 `currentDraft` 只是最小化演示；真正复杂的屏幕状态，后面应交给 ViewModel 等更合适的结构。
 
-### 10. 最小实践任务
+### 10. 一个更贴近真实页面的生命周期分工示例
+
+如果把 `StateSaver`、`ActivityLifecycle` 和 `StopwatchActivity` 里的教学点合成一个更贴近今天项目的页面，生命周期分工通常会像下面这样：
+
+```kotlin
+class DraftEditorActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityDraftEditorBinding
+    private val draftRepository by lazy { DraftRepository(applicationContext) }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityDraftEditorBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        binding.editor.setText(savedInstanceState?.getString(KEY_DRAFT).orEmpty())
+        binding.editor.setSelection(
+            savedInstanceState?.getInt(KEY_CURSOR) ?: binding.editor.length()
+        )
+    }
+
+    override fun onStart() {
+        super.onStart()
+        binding.wordCount.start()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        binding.editor.requestFocus()
+    }
+
+    override fun onPause() {
+        draftRepository.saveTemporaryDraft(binding.editor.text.toString())
+        super.onPause()
+    }
+
+    override fun onStop() {
+        binding.wordCount.stop()
+        super.onStop()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(KEY_DRAFT, binding.editor.text.toString())
+        outState.putInt(KEY_CURSOR, binding.editor.selectionStart)
+        super.onSaveInstanceState(outState)
+    }
+
+    override fun onDestroy() {
+        if (isFinishing()) {
+            draftRepository.clearTemporaryDraft()
+        }
+        super.onDestroy()
+    }
+
+    private companion object {
+        const val KEY_DRAFT = "draft"
+        const val KEY_CURSOR = "cursor"
+    }
+}
+```
+
+这段代码故意把几个最容易混掉的动作拆开：`onSaveInstanceState()` 只保留草稿文本和光标这类轻量 UI 状态；`onPause()` 负责把真正不想丢失的临时草稿尽快写入更稳定的位置；`onStart()` / `onStop()` 只管理和页面可见性强相关的刷新任务；`isFinishing()` 则帮助你区分“用户真离开这个页面”还是“系统只是准备重建实例”。只要这四类工作分开，生命周期代码就不会再全部挤在 `onCreate()` 里互相缠住。
+
+这也能解释一个很重要的判断：`onSaveInstanceState()` 更像“界面重建的兜底”，`onPause()` 和 `onStop()` 更像“页面即将离开前台时必须处理的资源与数据边界”。Cookbook 里的 `StateSaver`、`ActivityLifecycle` 和 `Head First` 的秒表例子，真正共同在教的正是这件事。
+
+### 11. 最小实践任务
 
 起点条件：
 
@@ -160,7 +225,7 @@ class MainActivity : AppCompatActivity() {
 - 如果日志很多，看不清顺序，先只过滤当前应用进程和 `LifecycleDemo` 这个 tag。
 - 如果你在 `onCreate()` 里放了过多逻辑，日志会帮助你发现它们在重建时被重复执行。
 
-### 11. 常见误区
+### 12. 常见误区
 
 - 认为页面销毁只发生在用户主动退出时。
 - 把生命周期理解成“回调顺序背诵题”，而不是“状态管理题”。
@@ -182,6 +247,9 @@ Activity 生命周期是 Android 开发的第一道真正门槛，因为它迫�
 - 参考并改写自：Rick Boyer、Kyle Mew，《Android Application Development Cookbook, 2nd Edition》(2016)，`StateSaver` 与 `ActivityLifecycle` 相关 recipes。
 - Activity 生命周期：<https://developer.android.com/guide/components/activities/activity-lifecycle>
 - 保存 UI 状态：<https://developer.android.com/topic/libraries/architecture/saving-states>
+
+
+
 
 
 

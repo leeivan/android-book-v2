@@ -82,13 +82,70 @@ Google Play 的很多审核问题，并不是“后台表单没填完整”那�
 | 轨道选择 | 内部/封闭/开放/正式轨道已明确 |  |
 | 上线回看 | 24 小时、72 小时、一周指标清单已写好 |  |
 
+如果要把这条路径真正变成团队可复核的交付材料，最好再把“发布准备”写成一份候选版本记录。下面这类清单文件不会被 Play Console 直接读取，但它很适合用来约束团队在上传之前先把关键信息对齐：
+
+```yaml
+release_candidate:
+  version_name: 1.4.0
+  version_code: 14000
+  artifact: app/build/outputs/bundle/release/app-release.aab
+  track: closed
+  target_api_checked: true
+  store_listing_checked: true
+  policy_forms_checked: true
+  rollout_plan:
+    stage_1: 10%
+    stage_2: 50%
+    full_release_when: "Android vitals and feedback stay stable for 24h"
+```
+
+这段示例真正要表达的不是“Play 支持上传 YAML”，而是上架前至少要把产物、轨道、披露和放量计划收成可复核事实。很多团队一旦把这些信息留在口头同步里，到了正式上传时就容易出现“包准备好了，但轨道还没想清楚”“文案过了，但灰度策略没人负责”这类失配。
+
+和这份记录配套的，还应有最小产物检查。对 Android 项目来说，候选版本至少应能从本地构建链稳定产出 AAB，并把调试还原材料一起归档：
+
+```bash
+./gradlew :app:bundleRelease
+# 需要和 AAB 一起归档的最小材料
+# app/build/outputs/bundle/release/app-release.aab
+# app/build/outputs/mapping/release/mapping.txt
+```
+
+这组命令和路径之所以值得放在 Play 章节里，是因为它提醒读者：Play 上架并不是脱离工程产物的网页操作。商店页、测试轨道和政策披露固然重要，但它们最终都要建立在“候选包能稳定构建、版本可追溯、问题可回放”这条工程主线上。
+
 ### 7. 正式上线后，Google Play 才真正开始发挥作用
 
 审核通过不等于上架工作结束。应用一旦进入正式分发，Play Console 和 Android vitals 才会真正开始持续给出质量反馈。崩溃、ANR、安装失败、用户评分、机型分布、系统版本分布和政策提醒，都会在这个阶段逐步积累。
 
 也正因为如此，发布当天最不该做的事情，就是“包发出去就算完”。更成熟的团队通常会预先写好上线后 24 小时、72 小时和一周内要回看的指标：崩溃率、ANR、关键功能成功率、负面评价、地区差异、特定机型异常。只有把这些回看动作纳入流程，Google Play 才会从“上架后台”变成真正的运维与产品反馈入口。
 
-### 8. 实践任务
+### 8. 把上架前检查写成构建任务，比临上传时口头确认更稳
+
+Play 发布常见的翻车点，不是团队不知道要准备什么，而是这些准备工作一直停留在口头同步里：AAB 有了没有、`mapping.txt` 归档了没有、发行说明写了没有、隐私政策地址是不是最终版本。只要这些检查直到打开 Play Console 前才第一次发生，发布就很容易退化成“谁上传谁临场补材料”。
+
+```kotlin
+tasks.register("verifyPlaySubmission") {
+    dependsOn(":app:bundleRelease")
+
+    doLast {
+        val bundle = file("app/build/outputs/bundle/release/app-release.aab")
+        val mapping = file("app/build/outputs/mapping/release/mapping.txt")
+        val whatsNew = file("release/play/whatsnew-zh-CN.txt")
+        val privacyPolicy = file("release/play/privacy-policy-url.txt")
+
+        check(bundle.exists()) { "Missing release AAB." }
+        check(mapping.exists()) { "Missing mapping.txt for crash deobfuscation." }
+        check(whatsNew.exists()) { "Missing Play release notes." }
+        check(privacyPolicy.readText().trim().startsWith("https://")) {
+            "Privacy policy URL must use https." }
+    }
+}
+```
+
+这段任务不会替你把包直接上传到 Play，但它做了更关键的一件事：把“本次提交 Play 前必须具备的输入材料”收成了可执行校验。这样团队在跑候选版本构建时，就能提前发现缺失项，而不是等到测试轨道已经选好、商店页已经填了一半时，才发现发行说明和调试还原材料根本没有准备好。
+
+这也是工程化发布和手工发布的根本差别。真正成熟的团队并不是“不再使用 Play Console”，而是把进入 Play Console 之前那些最容易遗漏的准备工作尽量前移到构建链和版本记录里。只要这条链路建立起来，内部测试、封闭测试和正式放量就会稳很多，因为它们建立在一组已经被验证过的提交材料之上。
+
+### 9. 实践任务
 
 起点条件：
 
@@ -120,7 +177,7 @@ Google Play 的很多审核问题，并不是“后台表单没填完整”那�
 - 首次上线直接正式放量，说明风险控制仍然过于粗糙。
 - 审核前才回头处理高敏感权限和披露问题，通常代价最大。
 
-### 9. 常见误区
+### 10. 常见误区
 
 - 把 Google Play 上架理解成后台上传操作。
 - 把商店页、截图和信息披露当成无关紧要的附属材料。
@@ -143,6 +200,7 @@ Google Play 上架真正要求的是一套完整的产品交付能力：候选�
 
 - 参考并改写自：Neil Smyth，`Android Studio Narwhal Essentials`，Google Play 分发、测试轨道与发布准备相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，发布治理、候选版本验证与工程化交付相关章节。
+- 参考并改写自：Henry Codwell，《Kotlin Development: Complete Guide Create 45 Android Apps》(2025)，Google Play 准备、内部测试、预发布检查与发布优化相关章节。
 - Publish your app: <https://developer.android.com/studio/publish/>
 - Launch checklist: <https://developer.android.com/distribute/best-practices/launch/launch-checklist>
 - Target API level requirements for Google Play apps: <https://support.google.com/googleplay/android-developer/answer/11926878>

@@ -177,7 +177,64 @@ Repository 也很容易被滥用。常见错误包括：
 
 Bennett 在购物车示例里强调了另一个边界：像 `AddToCartUseCase` 这样的业务动作，会同时调用 `cartRepository` 和 `productRepository` 来完成一次跨数据源编排。这刚好说明 Repository 最适合承接稳定数据能力，而跨仓库的业务流程不一定还要继续塞进 Repository；一旦开始涉及多仓库组合、校验和动作编排，就更应该交给 UseCase 或 domain 层。
 
-### 9. 实践任务
+### 9. 当仓库同时管理内存、本地和远程时，最重要的是先稳住可信来源
+
+Repository 一旦进入真实项目，往往不会只面对“本地加远程”两个对象那么简单。很多团队还会再加一层内存缓存，用来减少重复 IO 或加快详情页返回速度。到这个阶段，Repository 的价值会变得更明显：它不是把 if/else 写得更多，而是要先决定“哪一层负责快速命中，哪一层负责长期可信，哪一层负责刷新最新结果”。如果这三层边界不清，上层很快就会再次绕过仓库直接拿数据。
+
+Vainigli 的产品缓存示例和 Wangereka 的 `PetsRepository` 都在强调同一件事：内存、本地数据库和远程接口可以并存，但页面最好仍然只盯住一条稳定读路径。本地数据库通常更适合作为持续观察的可信来源，内存缓存负责缩短重复读取路径，远程请求则负责把新结果写回可信来源，而不是直接跳过本地链路去驱动页面。
+
+```kotlin
+class PetsRepositoryImpl(
+    private val api: CatsApi,
+    private val catDao: CatDao,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) : PetsRepository {
+
+    private val memoryCache = MutableStateFlow<Map<String, Cat>>(emptyMap())
+
+    override fun observePets(): Flow<List<Cat>> {
+        return catDao.getCats()
+            .map { entities -> entities.map { it.toDomain() } }
+            .onEach { pets ->
+                memoryCache.value = pets.associateBy(Cat::id)
+                if (pets.isEmpty()) {
+                    refreshPets()
+                }
+            }
+            .flowOn(ioDispatcher)
+    }
+
+    override suspend fun refreshPets() = withContext(ioDispatcher) {
+        val response = api.fetchCats("cute")
+        if (response.isSuccessful) {
+            val entities = response.body().orEmpty().map { it.toEntity() }
+            catDao.replaceAll(entities)
+            memoryCache.value = entities.associate { entity ->
+                entity.id to entity.toDomain()
+            }
+        }
+    }
+
+    override suspend fun getPet(id: String): Cat? = withContext(ioDispatcher) {
+        memoryCache.value[id]?.let { return@withContext it }
+
+        val localPet = catDao.getCatById(id)?.toDomain()
+        if (localPet != null) {
+            memoryCache.update { it + (id to localPet) }
+            return@withContext localPet
+        }
+
+        refreshPets()
+        return@withContext memoryCache.value[id]
+    }
+}
+```
+
+这段代码最值得保留的工程判断有三层。第一，列表观察始终来自 `catDao.getCats()`，也就是本地数据库这一条稳定出口；第二，内存缓存只负责缩短再次读取单条详情的路径，不负责取代数据库成为页面主出口；第三，远程刷新从来不是“直接把结果塞给页面”，而是先写回本地，再由本地流继续向上游传播。这样一来，Repository 就真正承担了多来源合流和可信来源维护，而不是简单把 DAO 和 API 包在同一个类里。
+
+只要读者把这条边界立住，Repository 就不会被写成“凡是跟数据沾边都塞进来”的大杂烩。它真正该负责的，是把不同来源的时效性、可靠性和读取方式整理成上层可理解的一套数据能力；至于具体页面怎么显示、某次动作要不要触发导航，那已经是 ViewModel 或 UseCase 该继续承接的问题了。
+
+### 10. 实践任务
 
 起点条件：
 
@@ -209,7 +266,7 @@ Bennett 在购物车示例里强调了另一个边界：像 `AddToCartUseCase` �
 - 如果远程和本地数据都能各自直接改页面，优先先确定可信来源。
 - 如果 Repository 里开始充满页面文案和导航判断，说明边界又混了。
 
-### 10. 常见误区
+### 11. 常见误区
 
 - 把 Repository 写成对 DAO 或接口的机械透传。
 - 不区分 Repository 和数据源。

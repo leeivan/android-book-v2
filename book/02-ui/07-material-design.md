@@ -146,7 +146,76 @@ fun BookAppTheme(content: @Composable () -> Unit) {
 
 比如，同样是“保存资料”页面，如果主按钮颜色和次按钮完全一样、输入框错误只在日志里出现、说明文字和正文没有层级、按钮点击后也没有任何反馈，那么页面虽然功能上完整，却缺少一套可解释的交互语言。Material Design 提供的，不只是组件样式，更是“怎样让用户少猜一步”的方法。
 
-### 8. 实践任务
+### 8. 把状态反馈真正写进页面，Material 才不是静态皮肤
+
+如果一个页面只有正常态，那么它看起来再“像 Material”，也只是静态样板。真正能拉开差距的，通常是加载中、错误、禁用、已保存这些状态有没有被写进同一套设计语言里。Socorro、Vainigli 和可访问性教程里反复强调的，也是这件事：Material 的强项不在“皮肤统一”，而在“状态表达统一”。
+
+```kotlin
+@Composable
+fun ProfileSettingsScreen(
+    onSave: suspend (String) -> Unit,
+) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var nickname by rememberSaveable { mutableStateOf("") }
+    val isNicknameInvalid = nickname.isBlank()
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("资料设置") }
+            )
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            OutlinedTextField(
+                value = nickname,
+                onValueChange = { nickname = it },
+                label = { Text("昵称") },
+                isError = isNicknameInvalid,
+                supportingText = {
+                    Text(
+                        if (isNicknameInvalid) "昵称不能为空"
+                        else "这个名字会展示给其他用户"
+                    )
+                }
+            )
+
+            Button(
+                onClick = {
+                    scope.launch {
+                        onSave(nickname)
+                        snackbarHostState.showSnackbar("资料已保存")
+                    }
+                },
+                enabled = !isNicknameInvalid,
+            ) {
+                Text("保存")
+            }
+
+            FilledTonalButton(
+                onClick = { nickname = "" }
+            ) {
+                Text("重置")
+            }
+        }
+    }
+}
+```
+
+这段代码把四种常见状态放进了同一条界面语言里：`OutlinedTextField` 的 `isError` 和 `supportingText` 负责输入错误，主按钮的 `enabled` 负责动作可用性，`SnackbarHostState` 负责一次性成功反馈，而 `FilledTonalButton` 则明确退成次操作。Material 真正的价值就在这里：不同状态虽然形态不同，但用户几乎不需要重新学习就能读懂它们。
+
+这也能解释为什么可访问性检查会直接影响 Material 页面质量。如果错误只靠颜色表达，没有文字说明；如果按钮禁用但没有额外上下文；如果成功保存后毫无反馈，用户就只能靠猜。Material 设计系统真正成熟的地方，不是你用了多少组件，而是这些组件能否在不同状态下仍然保持一致、清楚、可达。
+
+### 9. 实践任务
 
 起点条件：
 
@@ -179,7 +248,7 @@ fun BookAppTheme(content: @Composable () -> Unit) {
 - 如果用户动作后没有反馈，优先补状态表达，而不是先怀疑布局。
 - 如果新页面总要重新决定按钮和文字样式，说明你还没有真正建立设计系统。
 
-### 9. 常见误区
+### 10. 常见误区
 
 - 把 Material Design 理解成组件名字清单。
 - 只改外观，不建立统一层级和语义。
@@ -200,4 +269,5 @@ Material Design 的真正价值，不在于页面“像不像某个官方示例�
 
 - Material Design for Android：<https://developer.android.com/develop/ui/views/theming/look-and-feel>
 - Material Design specification：<https://m3.material.io/>
+
 

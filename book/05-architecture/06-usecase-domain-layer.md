@@ -105,6 +105,43 @@ class ScheduleTodoReminderUseCase(
 
 如果这些逻辑全部塞在 ViewModel 里，页面层会很快和业务策略耦合得过深。
 
+真正落到项目里时，UseCase 最好不要只停在“单独一个类”，而要和 ViewModel、测试形成一条完整调用链：
+
+```kotlin
+@HiltViewModel
+class TodoDetailViewModel @Inject constructor(
+    private val scheduleTodoReminder: ScheduleTodoReminderUseCase,
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(TodoDetailUiState())
+    val uiState: StateFlow<TodoDetailUiState> = _uiState.asStateFlow()
+
+    fun onReminderChanged(todoId: String) {
+        viewModelScope.launch {
+            val result = scheduleTodoReminder(todoId)
+            _uiState.update {
+                it.copy(reminderSaveMessage = if (result.isSuccess) "提醒已更新" else "提醒更新失败")
+            }
+        }
+    }
+}
+
+class ScheduleTodoReminderUseCaseTest {
+    @Test
+    fun schedulesReminderWhenTodoHasRemindAt() = runTest {
+        val repository = FakeTodoRepository(todo = Todo(id = "42", remindAt = Instant.parse("2026-03-25T09:00:00Z")))
+        val scheduler = FakeReminderScheduler()
+        val useCase = ScheduleTodoReminderUseCase(repository, scheduler)
+
+        useCase("42")
+
+        assertTrue(repository.markedIds.contains("42"))
+        assertTrue(scheduler.scheduledIds.contains("42"))
+    }
+}
+```
+
+这里最重要的技术点有两个。第一，ViewModel 不再知道“提醒到底怎么安排”，它只负责触发动作并把结果翻译成页面状态。第二，UseCase 可以在完全脱离 Activity、Fragment 和 Android 组件的前提下单独测试，这正是 Domain 层在复杂项目里最有价值的地方之一。
+
 ### 6. Domain 层为什么会让“业务规则”更容易被看见
 
 很多项目最大的问题不是没有业务规则，而是业务规则散落得让人看不见。今天写在页面里一点，明天写在 Repository 里一点，后天又在工具类里藏一点。等需求变更时，没有人知道到底要改哪几处。
@@ -137,7 +174,53 @@ UseCase 也很容易被过度设计。最常见的错误包括:
 
 如果一个动作只是 `repository.observeItems()`，那通常没有必要再包成 `ObserveItemsUseCase`。UseCase 真正值得出现，是因为它带来了额外业务组织价值。
 
-### 9. 实践任务
+### 9. 当业务动作跨多个仓库时，UseCase 的输出应该先服务于领域判断
+
+UseCase 最容易写歪的地方，是它明明处在 Domain 层，却急着返回页面文案、按钮状态或者 Snackbar 文本。更稳的做法，是先让它返回领域层真正关心的结果，再由 ViewModel 翻译成 UI。Bennett 在 `AddToCartUseCase` 这类例子里反复强调的，其实就是这条边界：UseCase 先回答“业务动作结果是什么”，而不是“页面现在该显示哪句话”。
+
+```kotlin
+sealed interface AddToCartResult {
+    data class Success(val cartItemCount: Int) : AddToCartResult
+    data object LoginRequired : AddToCartResult
+    data object ProductUnavailable : AddToCartResult
+}
+
+interface AddToCartUseCase {
+    suspend operator fun invoke(
+        productId: String,
+        quantity: Int,
+    ): AddToCartResult
+}
+
+internal class AddToCartUseCaseImpl(
+    private val authRepository: AuthRepository,
+    private val productRepository: ProductRepository,
+    private val cartRepository: CartRepository,
+) : AddToCartUseCase {
+
+    override suspend fun invoke(productId: String, quantity: Int): AddToCartResult {
+        if (!authRepository.isLoggedIn()) return AddToCartResult.LoginRequired
+
+        val product = productRepository.getProduct(productId)
+            ?: return AddToCartResult.ProductUnavailable
+
+        if (!product.canPurchase(quantity)) {
+            return AddToCartResult.ProductUnavailable
+        }
+
+        cartRepository.add(productId = product.id, quantity = quantity)
+        return AddToCartResult.Success(
+            cartItemCount = cartRepository.getItemCount(),
+        )
+    }
+}
+```
+
+这段代码里真正重要的不是“多写了一个 `sealed interface`”，而是业务结果被稳定收在了 Domain 层语义里。`LoginRequired`、`ProductUnavailable` 和 `Success` 都是业务上成立的结果，它们既能被不同页面复用，也更容易被测试覆盖。到了 ViewModel 层，你再去决定它们分别映射成登录弹窗、缺货提示还是购物车角标更新。
+
+这样做的直接收益有两个。第一，UseCase 不会因为某个页面改文案就一起被牵着改，领域规则的稳定性更高。第二，多个页面如果共享同一个业务动作，也不会因为 UI 表达不同就被迫复制一份逻辑。只要这条边界守住，UseCase 才真正像 Domain 层，而不是“换个名字的页面辅助类”。
+
+### 10. 实践任务
 
 起点条件:
 
@@ -169,7 +252,7 @@ UseCase 也很容易被过度设计。最常见的错误包括:
 - 如果每个简单调用都被机械包一层，说明 Domain 层过度了。
 - 如果 UseCase 里还在操作页面文案和导航，说明边界划错了。
 
-### 10. 常见误区
+### 11. 常见误区
 
 - 把 UseCase 当成所有方法都要套的一层模板。
 - 分不清业务动作和数据策略。
