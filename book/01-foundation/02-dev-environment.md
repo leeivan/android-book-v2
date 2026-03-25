@@ -112,6 +112,28 @@ adb devices
 
 如果后续还要继续查资料，可以去附录“参考资料与后续学习路径”里看基础与平台资料组。环境章节本身不再展开更多书单，只要求你先把工作台、SDK、ADB 和设备链路都变成可验证事实。
 
+把构建、安装和日志收成一条最小命令链，环境是否打通会更容易判断。
+
+```bash
+# macOS / Linux
+./gradlew :app:assembleDebug
+adb devices
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb logcat
+```
+
+```powershell
+# Windows
+.\gradlew.bat :app:assembleDebug
+adb devices
+adb install -r app\build\outputs\apk\debug\app-debug.apk
+adb logcat
+```
+
+这组命令分别对应环境链路里的四个关键阶段。`assembleDebug` 验证构建链是否成立；`adb devices` 验证开发机到设备的连接是否成立；`adb install -r` 验证安装阶段是否成立；`adb logcat` 则把运行时反馈拉回到可观察的日志界面。只要你能把这四步独立跑通，就算 IDE 某个按钮暂时表现异常，你也依然有能力判断问题到底卡在哪一层。
+
+这也是为什么环境学习不该只停在截图式安装教程。真正稳固的环境，一定能被拆成可重复、可命令化、可定位失败点的链路。很多工程师在工作里排查 CI、远程构建机或团队新人环境时，最后依赖的也正是这种“把 IDE 操作还原成底层命令链”的能力。
+
 ### 10. 最小实践任务
 
 起点条件：

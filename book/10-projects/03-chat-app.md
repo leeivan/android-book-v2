@@ -121,6 +121,78 @@
 
 如果这四个点做对了，这个案例就已经远比一个静态消息列表 Demo 更有工程价值。
 
+如果把本地消息、乐观更新和通知入口写到同一组骨架里，聊天项目的复杂度来源会更清楚。
+
+```kotlin
+enum class MessageSyncState { PENDING, SENT, FAILED }
+
+@Entity(tableName = "messages")
+data class MessageEntity(
+    @PrimaryKey val localId: String,
+    val conversationId: String,
+    val text: String,
+    val authorId: String,
+    val createdAt: Long,
+    val syncState: MessageSyncState,
+)
+
+class ChatRepository(
+    private val messageDao: MessageDao,
+    private val chatApi: ChatApi,
+) {
+    fun observeConversation(conversationId: String): Flow<List<MessageUiModel>> {
+        return messageDao.observeMessages(conversationId).map { entities ->
+            entities.map { entity ->
+                MessageUiModel(entity.localId, entity.text, entity.authorId, entity.syncState)
+            }
+        }
+    }
+
+    suspend fun sendMessage(conversationId: String, text: String, authorId: String) {
+        val localId = UUID.randomUUID().toString()
+        val pending = MessageEntity(localId, conversationId, text, authorId, System.currentTimeMillis(), MessageSyncState.PENDING)
+        messageDao.insert(pending)
+
+        when (chatApi.sendMessage(conversationId, text, localId)) {
+            is ApiResult.Success -> messageDao.updateSyncState(localId, MessageSyncState.SENT)
+            else -> messageDao.updateSyncState(localId, MessageSyncState.FAILED)
+        }
+    }
+}
+```
+
+```kotlin
+class ChatViewModel(
+    private val repository: ChatRepository,
+    savedStateHandle: SavedStateHandle,
+) : ViewModel() {
+    private val conversationId: String = checkNotNull(savedStateHandle["conversationId"])
+    private val _draft = MutableStateFlow("")
+    val draft: StateFlow<String> = _draft.asStateFlow()
+
+    val messages: StateFlow<List<MessageUiModel>> = repository.observeConversation(conversationId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun onDraftChanged(value: String) {
+        _draft.value = value
+    }
+
+    fun onSendClicked(authorId: String) {
+        val content = _draft.value.trim()
+        if (content.isEmpty()) return
+
+        viewModelScope.launch {
+            repository.sendMessage(conversationId, content, authorId)
+            _draft.value = ""
+        }
+    }
+}
+```
+
+这组代码把聊天项目最容易被低估的三条状态线写成了具体结构。消息内容走本地数据库流，发送状态通过 `PENDING/SENT/FAILED` 明确暴露，输入框草稿则作为独立页面状态存在。只要这三条线分开，聊天界面就不会再把“连接失败”“发送失败”“输入框内容”“列表渲染”粗暴混成一个大而空泛的错误态。
+
+这也是为什么聊天应用比新闻应用更难，但又不是另一种完全陌生的问题。你仍然需要本地可信来源和页面状态建模，只是现在多了乐观更新、失败回落和通知入口这些高实时性要求。把这些状态线提早拆开，整个案例才有机会长成真实项目，而不是一页静态消息列表。
+
 ### 9. 实践任务
 
 起点条件：

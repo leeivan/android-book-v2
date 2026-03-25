@@ -88,6 +88,46 @@ keytool -export -rfc \
 
 只要这份清单写不清楚，说明项目还没有建立真正可持续的签名体系。反过来，只要这份清单足够清楚，即使你还没有发过很多版本，签名这件事也已经从“会点按钮”进化到了“会维护一条长期发布链路”。
 
+把“本地开发可复现”和“CI 可安全注入”放到同一个签名输入方案里，签名管理会具体很多。
+
+```kotlin
+import java.util.Properties
+
+val signingProperties = Properties().apply {
+    val localFile = rootProject.file("keystore.local.properties")
+    if (localFile.exists()) {
+        localFile.inputStream().use(::load)
+    }
+}
+
+fun requiredSigningValue(name: String): String {
+    return System.getenv(name)
+        ?: signingProperties.getProperty(name)
+        ?: error("Missing signing value: $name")
+}
+
+android {
+    signingConfigs {
+        create("release") {
+            storeFile = file(requiredSigningValue("ANDROID_KEYSTORE_PATH"))
+            storePassword = requiredSigningValue("ANDROID_KEYSTORE_PASSWORD")
+            keyAlias = requiredSigningValue("ANDROID_KEY_ALIAS")
+            keyPassword = requiredSigningValue("ANDROID_KEY_PASSWORD")
+        }
+    }
+}
+```
+
+```gitignore
+keystore.local.properties
+*.jks
+*.keystore
+```
+
+这组配置的关键，不是又多写了几个环境变量，而是它终于把“源码资产”和“签名资产”分开了。本地开发者可以通过 `keystore.local.properties` 做一次性配置，CI 则复用同一组键名通过 Secret 注入，仓库本身不再保存私钥文件和口令。只要这条约定稳定下来，签名流程就会从“谁电脑里能发版”转向“任何被授权的环境都能受控地发版”。
+
+从长期维护看，这样的输入方案还有一个很实际的价值：交接。新维护者不需要去仓库里猜哪一段脚本藏着密码，也不需要改脚本本身来适配自己的机器；他只需要获得相同的受控输入，并按文档把变量补齐。签名真正成熟时，最怕的从来不是“按钮太多”，而是流程只能靠记忆传承。
+
 ### 8. 实践任务
 
 起点条件：

@@ -1,4 +1,4 @@
-﻿# SharedPreferences 与 DataStore
+# SharedPreferences 与 DataStore
 
 设置项和轻量配置数据，是 Android 应用中最常见的一类持久化需求。它们看起来简单，却几乎存在于所有应用里：主题模式、登录引导状态、上次筛选条件、用户偏好、开关项等。本章的重点，不是把两种 API 并列介绍，而是说明：为什么今天更推荐把 DataStore 作为新项目主线，以及它和早期 SharedPreferences 的边界差异在哪里。
 
@@ -69,7 +69,7 @@ private object PreferenceKeys {
     val DARK_MODE = booleanPreferencesKey("dark_mode")
 }
 
-class UserPreferencesRepository(
+class SimpleThemePreferencesRepository(
     private val dataStore: DataStore<Preferences>
 ) {
     val darkModeFlow: Flow<Boolean> = dataStore.data
@@ -84,6 +84,77 @@ class UserPreferencesRepository(
 ```
 
 这个例子里最重要的点有三个。第一，配置不是通过零散同步读取获得，而是作为 `Flow` 暴露出来。第二，写入通过 `edit` 统一管理。第三，DataStore 只保存轻量配置，而不是复杂业务对象。官方 DataStore 文档还特别提醒：同一个文件在同一进程中不要创建多个 DataStore 实例，否则会破坏 DataStore 的正确性。因此在实际项目里，它通常应以单例方式注入到 repository 或状态层中。
+
+如果把迁移、读取和页面消费写成一条完整链路，DataStore 的现代价值会更容易看清。
+
+```kotlin
+private val Context.userPrefsDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "user_prefs",
+    produceMigrations = { context ->
+        listOf(SharedPreferencesMigration(context, "legacy_user_prefs"))
+    },
+)
+
+private object PreferenceKeys {
+    val THEME_MODE = stringPreferencesKey("theme_mode")
+    val REMINDER_ENABLED = booleanPreferencesKey("reminder_enabled")
+}
+
+enum class ThemeMode { System, Light, Dark }
+
+data class UserPreferences(
+    val themeMode: ThemeMode = ThemeMode.System,
+    val reminderEnabled: Boolean = false,
+)
+
+class AppSettingsRepository(
+    private val dataStore: DataStore<Preferences>,
+) {
+
+    val preferencesFlow: Flow<UserPreferences> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
+        }
+        .map { preferences ->
+            UserPreferences(
+                themeMode = ThemeMode.valueOf(
+                    preferences[PreferenceKeys.THEME_MODE] ?: ThemeMode.System.name,
+                ),
+                reminderEnabled = preferences[PreferenceKeys.REMINDER_ENABLED] ?: false,
+            )
+        }
+
+    suspend fun setThemeMode(themeMode: ThemeMode) {
+        dataStore.edit { preferences ->
+            preferences[PreferenceKeys.THEME_MODE] = themeMode.name
+        }
+    }
+
+    suspend fun setReminderEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PreferenceKeys.REMINDER_ENABLED] = enabled
+        }
+    }
+}
+
+class SettingsViewModel(
+    repository: AppSettingsRepository,
+) : ViewModel() {
+
+    val uiState: StateFlow<UserPreferences> = repository.preferencesFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = UserPreferences(),
+        )
+}
+```
+
+这段代码把 DataStore 真正值得保留的三层能力串起来了。第一层是迁移：旧的 `SharedPreferences` 不需要突然作废，而是可以通过 `SharedPreferencesMigration` 平滑并入新入口。第二层是读取：配置不再被零散地同步读取，而是被组织成 `Flow<UserPreferences>` 这种更接近正式状态流的形态。第三层是页面消费：ViewModel 不直接碰底层键名，而是只接收已经建模好的偏好对象。
+
+这也正是为什么今天的新项目更适合把 DataStore 当成主线，而不是只把它理解成“另一个保存布尔值的 API”。它真正解决的，是配置数据如何进入单一事实来源、如何以异步安全的方式读写，以及如何跟页面状态层自然接起来。只要这条主线建立起来，设置项就不再是散落在不同页面角落里的同步读取片段。
+
+反过来看，如果一个值根本不值得跨会话保存，或者已经开始逼近复杂实体、列表、筛选和历史记录，它就不该继续停留在 DataStore 里。DataStore 的优势正来自边界清晰，一旦你把边界打穿，它反而会变成新的维护负担。
 
 ### 8. 什么时候不该再用键值存储
 

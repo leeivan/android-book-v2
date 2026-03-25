@@ -71,7 +71,7 @@ data class TaskItem(
     val done: Boolean
 )
 
-class TaskViewHolder(
+class TaskBasicViewHolder(
     itemView: View
 ) : RecyclerView.ViewHolder(itemView) {
     private val titleText: TextView = itemView.findViewById(R.id.titleText)
@@ -84,18 +84,18 @@ class TaskViewHolder(
     }
 }
 
-class TaskAdapter(
+class TaskBasicAdapter(
     private val items: List<TaskItem>,
     private val onItemClick: (TaskItem) -> Unit
-) : RecyclerView.Adapter<TaskViewHolder>() {
+) : RecyclerView.Adapter<TaskBasicViewHolder>() {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TaskViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TaskBasicViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_task, parent, false)
-        return TaskViewHolder(view)
+        return TaskBasicViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: TaskViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: TaskBasicViewHolder, position: Int) {
         holder.bind(items[position], onItemClick)
     }
 
@@ -104,6 +104,71 @@ class TaskAdapter(
 ```
 
 这个例子的重点不在于它已经足够完整，而在于你能看出结构：Adapter 管理数据到条目的绑定，ViewHolder 管理条目内部视图，点击事件围绕 `TaskItem` 传递，而不是围绕某个瞬时 View 对象。这就是 RecyclerView 最值得先建立的第一层认知。
+
+如果把 `ListAdapter`、`DiffUtil` 和点击回调放进同一个例子里，RecyclerView 的现代用法会更完整。
+
+```kotlin
+data class TaskItemUiModel(
+    val id: Long,
+    val title: String,
+    val isDone: Boolean,
+)
+
+class TaskListAdapter(
+    private val onTaskClicked: (TaskItemUiModel) -> Unit,
+) : ListAdapter<TaskItemUiModel, TaskListViewHolder>(TaskListDiffCallback()) {
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TaskListViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        val itemView = inflater.inflate(R.layout.item_task, parent, false)
+        return TaskListViewHolder(itemView, onTaskClicked)
+    }
+
+    override fun onBindViewHolder(holder: TaskListViewHolder, position: Int) {
+        holder.bind(getItem(position))
+    }
+}
+
+class TaskListViewHolder(
+    itemView: View,
+    private val onTaskClicked: (TaskItemUiModel) -> Unit,
+) : RecyclerView.ViewHolder(itemView) {
+    private val titleText = itemView.findViewById<TextView>(R.id.titleText)
+    private val doneBadge = itemView.findViewById<View>(R.id.doneBadge)
+
+    fun bind(item: TaskItemUiModel) {
+        titleText.text = item.title
+        doneBadge.isVisible = item.isDone
+        itemView.setOnClickListener { onTaskClicked(item) }
+    }
+}
+
+class TaskListDiffCallback : DiffUtil.ItemCallback<TaskItemUiModel>() {
+    override fun areItemsTheSame(oldItem: TaskItemUiModel, newItem: TaskItemUiModel): Boolean {
+        return oldItem.id == newItem.id
+    }
+
+    override fun areContentsTheSame(oldItem: TaskItemUiModel, newItem: TaskItemUiModel): Boolean {
+        return oldItem == newItem
+    }
+}
+```
+
+```kotlin
+recyclerView.layoutManager = LinearLayoutManager(requireContext())
+recyclerView.adapter = taskListAdapter
+
+taskListAdapter.submitList(
+    listOf(
+        TaskItemUiModel(1, "整理今日计划", false),
+        TaskItemUiModel(2, "回顾 Room 章节", true),
+    )
+)
+```
+
+这组代码把现代 RecyclerView 最值得保留的三个点放到了一起。`ListAdapter` 负责收列表差异而不是整表刷新，`DiffUtil` 负责判断“同一个条目”和“内容是否真的变化”，点击回调则通过函数参数收回页面层，而不是在 Adapter 里偷藏业务逻辑。只要这三层分开，列表更新和交互就会稳定很多。
+
+Big Nerd Ranch 早期用 `CrimeListFragment` 先把 `Adapter + ViewHolder + 100 条假数据` 讲清，再慢慢推进到更新优化；现代项目则更适合直接把这条教学线收束到 `ListAdapter + DiffUtil`。这样读者既能理解 RecyclerView 的基本分工，也能一开始就站在更接近真实项目的更新模型上。
 
 ### 8. 实践任务
 
@@ -155,8 +220,8 @@ RecyclerView 的价值不在于“会显示列表”，而在于把列表展示�
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 10 章与列表更新相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，真实项目中的列表项组织、点击处理与数据更新相关章节。
-- 参考并改写自：Gonda V.，《Android Accessibility by Tutorials, 2nd Edition》(2022)，列表项语义与可访问性交互相关章节。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，真实项目中的列表建模、点击处理与数据更新相关章节。
+- 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，RecyclerView、列表界面与交互组织相关章节。
 
 - RecyclerView 指南：<https://developer.android.com/develop/ui/views/layout/recyclerview>
 - DiffUtil：<https://developer.android.com/reference/androidx/recyclerview/widget/DiffUtil>

@@ -1,4 +1,4 @@
-﻿# JSON 解析
+# JSON 解析
 
 移动应用很少只处理本地生成的数据。只要开始请求网络接口、读取配置文件、处理导入导出，JSON 就几乎不可避免地进入你的工程。很多人会把 JSON 解析理解成“把字符串转成对象”，这当然是它的直接作用，但真正重要的是：你如何让外部数据安全、清晰地进入自己的应用模型，而不是把接口字段原样扩散到整个代码库中。
 
@@ -83,6 +83,49 @@ fun ArticleDto.toUiModel(): ArticleUiModel {
 
 这个例子里，接口字段保持在 DTO 层，页面拿到的是更接近展示语义的 `ArticleUiModel`。这样一来，当接口字段变化时，不会直接波及整个 UI 层。你仍然需要补更完整的日期转换、错误处理和格式校验，但结构主线已经建立起来了。
 
+如果把“原始 JSON 字符串进入应用”写成一条更完整的边界链路，解析层该做什么会更容易看清。
+
+```kotlin
+@Serializable
+private data class ArticleFeedDto(
+    val items: List<ArticleDto> = emptyList(),
+)
+
+class ArticleJsonParser(
+    private val json: Json = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+    },
+) {
+
+    fun parseFeed(rawJson: String): List<ArticleDto> {
+        return json.decodeFromString<ArticleFeedDto>(rawJson).items
+    }
+}
+
+class ArticleRepository(
+    private val parser: ArticleJsonParser,
+) {
+
+    fun parseAndMap(rawJson: String): List<Article> {
+        return parser.parseFeed(rawJson).map { dto ->
+            Article(
+                id = dto.id,
+                title = dto.title,
+                source = dto.sourceName ?: "未知来源",
+                publishedAt = dto.publishedAt ?: "",
+                coverUrl = dto.imageUrl,
+            )
+        }
+    }
+}
+```
+
+这段代码最值得保留的，不是 `decodeFromString()` 这个调用本身，而是解析边界终于被明确地写出来了。`ArticleJsonParser` 只负责把外部 JSON 结构稳定地变成 DTO，并通过 `ignoreUnknownKeys`、`coerceInputValues` 这类策略尽量把接口演进和异常值挡在入口附近；`ArticleRepository` 再负责把 DTO 翻译成更接近业务语言的 `Article`。只要这两层分开，后面无论接口字段增减、默认值策略变化，还是页面模型演进，受影响的范围都会明显更小。
+
+这也正是为什么 JSON 解析不该只被理解成“用哪个库把字符串转成对象”。真正困难的部分，是你要不要让原始字段一路穿透到 UI。只要页面开始直接消费 `published_at`、`source_name` 这种接口语义，解析工具越方便，结构反而越容易被耦合住。
+
+再往前走一步，这种“先解析成 DTO，再映射成内部模型”的做法，也是在为后面的 Retrofit、Repository 和本地缓存做准备。只要数据入口的第一道边界站稳，后面网络层和数据层就更容易各守其位，而不会让一个接口字段的变化把整条链路都摇动起来。
 ### 7. 最小实践任务
 
 起点条件：
@@ -131,7 +174,6 @@ JSON 解析的重点，不是你会不会用某个库，而是你是否能把外
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，网络数据、JSON 解析与模型转换相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，接口模型、数据映射与真实项目数据流相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，DTO、Repository 与模型转换边界相关章节。
 
 - Kotlin Serialization：<https://kotlinlang.org/docs/serialization.html>

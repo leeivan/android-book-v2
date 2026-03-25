@@ -176,6 +176,51 @@ Retrofit 文档最擅长确认注解、`baseUrl`、转换器和返回语义；Ko
 
 如果你要沿着本地资料继续深化，可以在附录“参考资料与后续学习路径”里找到更适合的项目实践和架构补充。本章主体只保留 Retrofit 作为接口层时最核心的判断，不再继续拉长资料导读。
 
+如果把 `Response<T>` 这一层也写进来，Retrofit 的“接口契约层”角色会更完整。
+
+```kotlin
+@Serializable
+data class ArticleEnvelopeDto(
+    val code: Int,
+    val message: String? = null,
+    val data: List<ArticleDto> = emptyList(),
+)
+
+interface ArticleApi {
+    @GET("articles")
+    suspend fun getArticles(
+        @Query("page") page: Int,
+        @Header("Accept-Language") language: String = "zh-CN",
+    ): Response<ArticleEnvelopeDto>
+}
+
+fun createArticleApi(okHttpClient: OkHttpClient): ArticleApi {
+    val json = Json { ignoreUnknownKeys = true }
+
+    return Retrofit.Builder()
+        .baseUrl("https://example.com/api/")
+        .client(okHttpClient)
+        .addConverterFactory(
+            json.asConverterFactory("application/json".toMediaType())
+        )
+        .build()
+        .create(ArticleApi::class.java)
+}
+
+class ArticleRemoteDataSource(
+    private val api: ArticleApi,
+) {
+    suspend fun loadPage(page: Int): Response<ArticleEnvelopeDto> {
+        return api.getArticles(page = page)
+    }
+}
+```
+
+这段代码把 Retrofit 最值得学的三层东西放到了一起。`ArticleApi` 用注解声明的是协议契约，不是业务规则；`createArticleApi()` 负责把共享 `OkHttpClient` 和 JSON 转换器装进同一个接口工厂里；`ArticleRemoteDataSource` 则让上层可以明确地看到：这里拿到的是一个协议响应对象，还没有进入最终业务解释。
+
+也正因为这样，`Response<T>` 这一层非常有价值。不是所有接口都适合直接返回 DTO 列表；一旦你需要状态码、头信息、空响应体判断或者后端包装结构，`Response<T>` 能让协议层信息保留得更完整，而不会过早丢到异常分支之外。Retrofit 真正强的地方，从来不是“少写几行代码”，而是它让接口契约、转换器和客户端配置这三件事能稳定地站在一起。
+
+把这段例子和前面的 DTO / Repository 逻辑接起来之后，整条链路就会更清楚：OkHttp 负责通信运行时，Retrofit 负责协议声明和对象转换，Repository 才负责结果解释和模型映射。只要这三层不混，网络章节里很多看似复杂的问题都会自然分开。
 ### 10. 实践任务
 
 起点条件：
@@ -231,7 +276,7 @@ Retrofit 把网络接口从零散过程代码提升成了清晰契约，这是�
 
 ## 参考资料
 
-- 参考并整理自本地 PDF：`Real-World Android by Tutorials`，Retrofit、DTO 与项目中网络接口层组织相关内容。
+- 参考并整理自本地 PDF：N. Smyth，《Android Studio Narwhal Essentials: Java Edition》(2025)，现代 Android 网络请求、API 调用与工程组织相关章节。
 - 参考并整理自本地 PDF：Bennett M.，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，网络模块、Repository 边界与多模块应用中的接口契约相关章节。
 - Retrofit Introduction：<https://square.github.io/retrofit/>
 - Retrofit Declarations：<https://square.github.io/retrofit/declarations/>

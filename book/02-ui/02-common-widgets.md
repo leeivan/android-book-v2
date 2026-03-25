@@ -1,4 +1,4 @@
-﻿# 常用控件
+# 常用控件
 
 学习控件时，最容易走偏的方向是把它学成一份“控件大全”。这种方式短期看似覆盖很多，实际上帮助不大，因为真实页面并不是靠一堆孤立控件堆出来的，而是靠语义清晰的输入区、信息区和操作区组合出来的。本章不会把重点放在列举所有控件，而是聚焦那些最常见、最值得优先理解的基础控件，并说明它们在真实页面里如何分工。
 
@@ -124,6 +124,80 @@
 
 这段代码展示了一个非常重要的事实：真实页面里的控件几乎总是成组出现，而不是孤立存在。标题控件负责建立页面语义，输入控件负责收集信息，开关负责表达简单状态选择，按钮负责承接主要操作。你学习控件时，始终应该带着“它在当前任务里扮演什么角色”的问题，而不是只记它的名字和属性。
 
+如果把表单里最常见的几类控件组合到同一页，控件选择的“语义差异”会更清楚。
+
+```xml
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/nameInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="姓名"
+            android:inputType="textPersonName" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/emailInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="邮箱"
+            android:inputType="textEmailAddress" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <CheckBox
+        android:id="@+id/subscribeCheck"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="订阅更新提醒" />
+
+    <RadioGroup
+        android:id="@+id/contactGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp">
+
+        <RadioButton
+            android:id="@+id/emailOption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="邮件联系" />
+
+        <RadioButton
+            android:id="@+id/phoneOption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="电话联系" />
+    </RadioGroup>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/submitButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="提交资料" />
+</LinearLayout>
+```
+
+这组控件放在一起之后，差异就非常具体了。`TextInputEditText` 负责连续文本输入，`CheckBox` 负责可独立开关的布尔选择，`RadioGroup` 负责互斥选项，`MaterialButton` 负责明确动作提交。只要把控件先按“用户要表达什么意图”来选，而不是按“组件库里有什么能拖出来”来选，页面语义就会清楚很多。
+
+这里也正好能补一句真实项目里的取舍标准。很多团队后期表单难维护，不是因为不会校验，而是一开始就把不同语义的问题塞进了同一种控件里。输入、选择、确认这三类意图如果没有被控件层明确区分，后面的事件处理、错误提示和可访问性都会跟着一起混乱。
+
 ### 9. 实践任务
 
 起点条件：
@@ -174,8 +248,8 @@
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 1-2 章中关于 View、资源与交互的部分。
-- 参考并改写自：Gonda V.，《Android Accessibility by Tutorials, 2nd Edition》(2022)，表单、控件语义与可访问性优化相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，真实页面中的常用组件组合与表单组织相关章节。
+- 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，常用控件、输入组件与表单界面相关章节。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，真实页面中的组件组合、状态反馈与表单组织相关章节。
 
 - 按钮：<https://developer.android.com/develop/ui/views/components/button>
 - 切换控件：<https://developer.android.com/develop/ui/views/components/togglebutton>

@@ -1,4 +1,4 @@
-﻿# 布局基础
+# 布局基础
 
 布局是 Android 界面开发中最早接触、也最容易被低估的一层。很多初学者会把布局理解为“把控件摆到屏幕上”，但真正好的布局设计解决的是更本质的问题：页面结构如何分区、控件之间如何约束、不同屏幕尺寸下如何保持一致、未来改版时是否容易维护。本章以 View/XML 为主线，不是为了怀旧，而是为了帮助你先建立稳定的界面结构认知。
 
@@ -108,6 +108,62 @@
 
 这段代码的重点不是属性细节，而是结构关系。标题固定在顶部，列表占据中间可伸缩区域，按钮固定在底部右侧。`RecyclerView` 的高度使用 `0dp`，表示它在约束之间自动拉伸，这也是官方 ConstraintLayout 文档里强调的 `match constraints` 思路。你后面无论是加空状态、加加载状态，还是把按钮改成底部栏，都是在同一个清晰结构上继续演化，而不是推倒重来。
 
+如果把“标题区 + 内容区 + 操作区”落成一份完整布局，ConstraintLayout 的价值会更直观。
+
+```xml
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/titleText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="今日待办"
+        android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/summaryText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="还剩 3 项任务等待处理"
+        app:layout_constraintTop_toBottomOf="@id/titleText"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/taskList"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        app:layout_constraintTop_toBottomOf="@id/summaryText"
+        app:layout_constraintBottom_toTopOf="@id/addButton"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/addButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="新增任务"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+```
+
+这份布局最适合用来建立“页面分区”意识。标题区提供页面语义，内容区承载主要任务列表，底部操作区固定主动作，三者通过约束关系自然形成稳定结构。只要你开始先想“页面有哪些区块、区块之间如何约束”，布局就不再是控件一个个往上堆，而会变成一种结构设计。
+
+这里也能顺手把扁平层级的价值讲透。`ConstraintLayout` 并不只是“语法更现代”，而是它允许你在较少嵌套层级下表达更明确的空间关系。页面越接近真实业务，这种扁平结构带来的可维护性和性能收益就越明显；反过来，如果同一页不断被多层 `LinearLayout` 套住，后面一加列表、一加错误态、一加底部按钮，布局就会迅速变得很难推理。
+
 ### 9. 实践任务
 
 起点条件：
@@ -157,8 +213,8 @@
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 1-2 章中关于 UI、资源与交互界面的部分。
-- 参考并改写自：Gonda V.，《Android Accessibility by Tutorials, 2nd Edition》(2022)，布局语义、触控区域与可访问性检查相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，页面结构与真实项目 UI 组织相关章节。
+- 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，布局编辑器、View 布局与页面结构相关章节。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，页面结构、设计系统与真实项目 UI 组织相关章节。
 
 - 布局基础：<https://developer.android.com/guide/topics/ui/declaring-layout.html>
 - ConstraintLayout：<https://developer.android.com/develop/ui/views/layout/constraint-layout>

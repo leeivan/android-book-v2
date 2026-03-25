@@ -1,4 +1,4 @@
-﻿# 构建变体
+# 构建变体
 
 很多 Android 项目在最初只有一个版本时，看起来并不需要复杂的构建设计。开发环境和生产环境用同一个域名常量，调试和发布只靠手工改几个开关，图标差异靠临时替换资源，团队一开始往往觉得这样更快。真正的问题通常要等到项目进入多人协作、多环境联调、多渠道发布阶段才暴露出来。那时你会发现：同一个仓库里其实同时住着很多“不同版本的应用”，而这些差异如果没有正式进入构建系统，后期维护几乎注定混乱。
 
@@ -164,6 +164,60 @@ android {
 接着检查主代码中所有 `if (isTestEnv)` 之类的判断，能收回构建层的尽量收回。
 
 最后再决定是否真的需要更多维度。好的变体系统通常是从一个清晰的最小模型长出来的，而不是一开始就配置成巨大的矩阵。
+
+把 build type、flavor、source set 和无效组合控制放到同一个例子里，构建变体的边界会更清楚。
+
+```kotlin
+android {
+    flavorDimensions += "environment"
+
+    productFlavors {
+        create("staging") {
+            dimension = "environment"
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-staging"
+            resValue("string", "app_name", "TodoBook Staging")
+            buildConfigField("String", "BASE_URL", "\"https://staging-api.example.com/\"")
+        }
+        create("prod") {
+            dimension = "environment"
+            resValue("string", "app_name", "TodoBook")
+            buildConfigField("String", "BASE_URL", "\"https://api.example.com/\"")
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+        }
+        release {
+            isMinifyEnabled = true
+        }
+    }
+
+    sourceSets {
+        getByName("staging").res.srcDir("src/staging/res")
+        getByName("debug").java.srcDir("src/debug/kotlin")
+    }
+}
+
+androidComponents {
+    beforeVariants { variantBuilder ->
+        val isProdDebug = variantBuilder.buildType == "debug" &&
+            variantBuilder.productFlavors.any { flavor ->
+                flavor.first == "environment" && flavor.second == "prod"
+            }
+
+        if (isProdDebug) {
+            variantBuilder.enable = false
+        }
+    }
+}
+```
+
+这段代码把四类职责都摆到了台面上。`productFlavors` 负责环境差异，`buildTypes` 负责构建行为差异，`sourceSets` 负责把差异代码和资源放到正确目录，`androidComponents` 则负责把没有业务意义的组合直接裁掉。只要这四层分开，变体系统就会从“很多 DSL 名词”变成“可以治理复杂度的结构工具”。
+
+这里尤其值得讲透的一点，是“不是所有理论上能生成的组合都应该真的存在”。如果团队根本不需要 `prodDebug`，那就不必让它继续占用构建心智和产物命名空间。越早学会从业务意义出发裁剪矩阵，后面渠道、品牌、地区这些维度叠加时就越不容易失控。
 
 ### 11. 实践任务
 

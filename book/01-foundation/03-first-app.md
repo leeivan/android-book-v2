@@ -104,6 +104,40 @@ Text(text = "你好，Android")
 
 更稳妥的做法是：先照 codelab 跑通一次，再离开教程独立复现一次。如果第二次你仍然能解释自己动了哪些文件、为什么设备上会出现变化，这一章才算真正落地。附录里的资料地图会继续说明后续该回哪类本地资料，不需要在这里继续展开更多书单。
 
+如果把按钮点击、`Toast` 和启动日志放进同一个最小 Activity，第一个应用的闭环会更完整。
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        Log.d("FirstApp", "MainActivity created")
+
+        val welcomeText = findViewById<TextView>(R.id.welcomeText)
+        val answerButton = findViewById<Button>(R.id.answerButton)
+
+        welcomeText.text = getString(R.string.welcome_message)
+        answerButton.setOnClickListener {
+            Toast.makeText(this, R.string.answer_feedback, Toast.LENGTH_SHORT).show()
+            Log.d("FirstApp", "Answer button clicked")
+        }
+    }
+}
+```
+
+```xml
+<resources>
+    <string name="welcome_message">你好，GeoQuiz</string>
+    <string name="answer_feedback">按钮点击成功</string>
+</resources>
+```
+
+这组代码之所以很适合放在第一支 App 里，是因为它把“模板能跑”推进成了“我知道一处可见变化、一处即时反馈和一条运行日志分别落在哪”。`TextView` 变化帮你确认资源和界面已经连起来，`Toast` 帮你确认事件回调真的触发了，`Log.d(...)` 则让你第一次把屏幕现象和运行时反馈连接到一起。第一个应用最该建立的，不是功能量，而正是这种最小但完整的观察闭环。
+
+Big Nerd Ranch 的 `GeoQuiz` 之所以常被拿来做入门示例，也正因为它把第一轮实践控制在“Activity 入口、布局资源、按钮点击、即时反馈”这几条最小主线上。只要这几条主线站稳，后面再往里加 Fragment、列表、导航和数据层时，读者始终都有一条已知稳定的基线可以回退。
+
 ### 10. 最小实践任务
 
 起点条件：

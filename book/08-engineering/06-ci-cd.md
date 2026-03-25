@@ -145,6 +145,60 @@ jobs:
 
 CI/CD 成熟的标志，不是自动化项目越多越好，而是自动化的每一步都真正在替团队减少风险。凡是还没有稳定规则支撑的动作，过早塞进流水线通常只会把噪音自动化。
 
+如果把“快速验证”和“候选发布”拆成两层，CI/CD 的工程边界会更容易落地。
+
+```yaml
+name: android-pipeline
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew lintDebug testDebugUnitTest assembleDebug
+
+  candidate-release:
+    if: github.event_name == 'workflow_dispatch'
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Restore keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/release.jks"
+      - run: ./gradlew :app:bundleRelease
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release-bundle
+          path: |
+            app/build/outputs/bundle/release/*.aab
+            app/build/outputs/mapping/release/*
+```
+
+这份 workflow 刻意把流水线拆成了两层。`verify` 负责主干质量门槛，目标是快而稳定；`candidate-release` 负责候选产物生成，目标是把签名输入、AAB 和 mapping 文件串起来。只要这两类任务被分开，团队就不会把每次普通提交都拖进重型发布流程，也不会让真正的候选构建缺少签名和产物归档。
+
+这里最值得保留的工程习惯，是“产物和还原材料一起上传”。很多团队已经会自动生成 AAB，但还没有把 mapping 文件和构建上下文一并保留下来。结果一到线上排障阶段，才发现只有一个包，没有还原材料，也追不回具体构建状态。CI/CD 真正成熟的时候，提交、产物、版本号和排障材料应该始终处在同一条链路上。
+
 ## 实践任务
 
 起点条件：

@@ -79,6 +79,83 @@ sealed interface NewsUiState {
 
 这段代码本身并不负责发请求，但它提醒你：网络层的产物不该只是“一个 DTO 列表”，而应该是页面可解释的状态。这种思路在后面的 API 结果包装、Repository 和离线缓存章节里会继续展开。
 
+把“网络不确定性”真正落成代码时，最重要的不是某个客户端库，而是你如何把结果组织成稳定状态。
+
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+```
+
+```kotlin
+sealed interface NetworkResult<out T> {
+    data object Offline : NetworkResult<Nothing>
+    data class Success<T>(val value: T) : NetworkResult<T>
+    data class Error(val message: String, val canRetry: Boolean) : NetworkResult<Nothing>
+}
+
+class ConnectivityStatusProvider(
+    private val context: Context,
+) {
+    fun isOnline(): Boolean {
+        val manager = context.getSystemService(ConnectivityManager::class.java)
+        val network = manager.activeNetwork ?: return false
+        val capabilities = manager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+}
+
+class NewsRepository(
+    private val api: NewsApi,
+    private val connectivityStatusProvider: ConnectivityStatusProvider,
+) {
+
+    suspend fun fetchLatest(): NetworkResult<List<Article>> = withContext(Dispatchers.IO) {
+        if (!connectivityStatusProvider.isOnline()) {
+            return@withContext NetworkResult.Offline
+        }
+
+        runCatching { api.topHeadlines() }
+            .fold(
+                onSuccess = { articles -> NetworkResult.Success(articles) },
+                onFailure = { throwable ->
+                    NetworkResult.Error(
+                        message = throwable.message ?: "Unknown network error",
+                        canRetry = true,
+                    )
+                },
+            )
+    }
+}
+
+class NewsViewModel(
+    private val repository: NewsRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow<NewsUiState>(NewsUiState.Loading)
+    val uiState: StateFlow<NewsUiState> = _uiState.asStateFlow()
+
+    fun load() {
+        viewModelScope.launch {
+            _uiState.value = NewsUiState.Loading
+            _uiState.value = when (val result = repository.fetchLatest()) {
+                NetworkResult.Offline -> NewsUiState.Error("当前无网络连接")
+                is NetworkResult.Success -> {
+                    if (result.value.isEmpty()) NewsUiState.Empty
+                    else NewsUiState.Success(result.value.map(::ArticleUiModel))
+                }
+                is NetworkResult.Error -> NewsUiState.Error(result.message)
+            }
+        }
+    }
+}
+```
+
+这里最重要的不是 `ConnectivityManager` 或 `Dispatchers.IO` 这些单独细节，而是这条链路终于把“网络请求为什么不是普通函数调用”写实了。Repository 先处理离线、异常和返回结果，再把它们收束成 `NetworkResult`；ViewModel 再把这些不确定结果翻译成页面可解释的 `NewsUiState`。只有这样，网络层才不会只剩“拿到列表就显示，出错就崩掉”的单一路径。
+
+这也正好解释了前文为什么要把网络基础讲成状态问题。客户端库负责把请求发出去，但不会替你决定离线时页面该说什么、失败后是否允许重试、空列表应不应该单独显示。网络工程真正难的地方，从来不是把 JSON 读出来，而是把不确定性组织成用户能理解的状态。
+
+当你用这条视角回头看后面的 OkHttp、Retrofit 和 Repository 设计时，就会更容易区分“库能力”和“应用状态边界”分别在回答什么问题。网络基础真正建立起来的，不是某一个库的语法，而是这套分层判断。
+
 ### 9. 学网络时，让资料顺序跟着数据流走
 
 网络主题最怕一上来就把注意力全放在某个库的写法上。更稳的顺序通常是：先理解网络是不确定系统，再看平台规则和安全边界，然后才是客户端库和样例项目。也就是说，Android 官方网络文档主要帮你确认主线程限制、权限和 cleartext 边界；OkHttp 与 Retrofit 文档帮你理解客户端能力；样例项目则负责展示请求、缓存、Repository 和 `uiState` 怎样协作。顺序一旦反过来，读者就很容易只剩“库怎么写”的印象。
@@ -137,7 +214,6 @@ sealed interface NewsUiState {
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，网络请求、JSON 获取与异步数据流相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，真实项目中的网络层、页面状态与数据流组织相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，网络边界、状态持有与单一事实来源相关章节。
 
 - Connect to the network：<https://developer.android.com/develop/connectivity/network-ops/connecting>

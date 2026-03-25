@@ -110,6 +110,87 @@ class NewsRepository(
 
 如果你已经能清楚回答下面这些问题，这一章就算真正做成了：为什么列表页和详情页应该共享内容基础却分开 `UiState`；为什么刷新动作不应该直接把远程结果塞给页面；为什么本地字段需要在刷新时被保留；为什么分页属于“状态复杂度升级”而不是“多写一个 API 参数”。一旦这些判断稳住，后面的聊天应用才有一个足够可靠的起点。
 
+如果把“远程 -> 本地 -> 页面”写成一组最小骨架，新闻项目最关键的数据链就会变得具体。
+
+```kotlin
+class NewsRepository(
+    private val articleDao: ArticleDao,
+    private val articleApi: NewsApi,
+) {
+    fun observeHeadlines(): Flow<List<ArticleHeadlineUiModel>> {
+        return articleDao.observeHeadlines().map { entities ->
+            entities.map { entity ->
+                ArticleHeadlineUiModel(
+                    id = entity.id,
+                    title = entity.title,
+                    summary = entity.summary,
+                    publishedAt = entity.publishedAt,
+                )
+            }
+        }
+    }
+
+    suspend fun refreshHeadlines(): ApiResult<Unit> {
+        return when (val result = articleApi.loadTopHeadlines()) {
+            is ApiResult.Success -> {
+                articleDao.replaceAll(result.value.map { dto -> dto.toEntity() })
+                ApiResult.Success(Unit)
+            }
+            ApiResult.Empty -> {
+                articleDao.clearAll()
+                ApiResult.Success(Unit)
+            }
+            is ApiResult.HttpError -> result
+            is ApiResult.BusinessError -> result
+            is ApiResult.NetworkError -> result
+            is ApiResult.ParseError -> result
+        }
+    }
+}
+```
+
+```kotlin
+data class NewsFeedUiState(
+    val headlines: List<ArticleHeadlineUiModel> = emptyList(),
+    val isRefreshing: Boolean = false,
+    val errorMessage: String? = null,
+)
+
+class NewsFeedViewModel(
+    private val repository: NewsRepository,
+) : ViewModel() {
+    private val refreshState = MutableStateFlow(false)
+    private val errorMessage = MutableStateFlow<String?>(null)
+
+    val uiState: StateFlow<NewsFeedUiState> = combine(
+        repository.observeHeadlines(),
+        refreshState,
+        errorMessage,
+    ) { headlines, isRefreshing, error ->
+        NewsFeedUiState(headlines, isRefreshing, error)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NewsFeedUiState())
+
+    fun refresh() {
+        viewModelScope.launch {
+            refreshState.value = true
+            errorMessage.value = when (repository.refreshHeadlines()) {
+                is ApiResult.Success -> null
+                ApiResult.Empty -> null
+                is ApiResult.HttpError -> "服务器返回异常状态"
+                is ApiResult.BusinessError -> "接口业务状态异常"
+                is ApiResult.NetworkError -> "网络连接失败"
+                is ApiResult.ParseError -> "数据解析失败"
+            }
+            refreshState.value = false
+        }
+    }
+}
+```
+
+这组代码把新闻项目最核心的判断直接写明了。页面不直接持有远程结果，而是观察本地 `Flow`；刷新只是把远程结果写回本地；错误信息和刷新状态则由 ViewModel 单独补到页面状态上。只要这条链站稳，列表页、详情页、收藏页和搜索结果页都能共享同一套数据层，而不会把网络噪声直接扩散到每个页面里。
+
+也正因为如此，新闻项目最适合练“single source of truth”而不是“接口能调通就算完成”。内容型应用的难点，从来不是把资讯列表画出来，而是让刷新、离线、错误恢复和本地缓存始终服从同一条数据主线。这个案例一旦做扎实，后面面对分页、搜索和分类时，复杂度会明显可控得多。
+
 ### 9. 实践任务
 
 起点条件：
@@ -158,7 +239,7 @@ class NewsRepository(
 
 ## 参考资料
 
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，内容型项目、网络数据流与页面组织相关章节。
+- 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，内容型项目、网络数据流与页面组织相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，single source of truth、分页边界与项目扩展相关章节。
 - 参考并改写自：`Clean Android Architecture`，Repository、缓存协作与内容型应用边界相关章节。
 - Offline-first architecture: <https://developer.android.com/topic/architecture/data-layer/offline-first>

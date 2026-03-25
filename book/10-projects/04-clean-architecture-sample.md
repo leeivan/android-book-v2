@@ -193,6 +193,67 @@ data/
 
 这样的重构是“为了解决具体复杂度”，而不是“为了让项目更像某张架构图”。只要你始终围绕痛点推进，Clean Architecture 会成为减负工具；如果你只是为了形式补齐模板，它很快就会变成维护负担。
 
+如果把 Clean Architecture 的依赖方向写成一组最小代码，很多抽象词会立刻具体下来。
+
+```kotlin
+// domain
+interface TaskRepository {
+    fun observeTasks(): Flow<List<Task>>
+    suspend fun addTask(title: String)
+}
+
+class ObserveTasksUseCase(
+    private val repository: TaskRepository,
+) {
+    operator fun invoke(): Flow<List<Task>> = repository.observeTasks()
+}
+
+class AddTaskUseCase(
+    private val repository: TaskRepository,
+) {
+    suspend operator fun invoke(title: String) {
+        repository.addTask(title)
+    }
+}
+```
+
+```kotlin
+// data
+class OfflineFirstTaskRepository(
+    private val taskDao: TaskDao,
+) : TaskRepository {
+    override fun observeTasks(): Flow<List<Task>> {
+        return taskDao.observeAll().map { entities -> entities.map { it.toDomain() } }
+    }
+
+    override suspend fun addTask(title: String) {
+        taskDao.insert(TaskEntity(title = title, isDone = false))
+    }
+}
+```
+
+```kotlin
+// presentation
+class TaskListViewModel(
+    observeTasks: ObserveTasksUseCase,
+    private val addTask: AddTaskUseCase,
+) : ViewModel() {
+    val uiState: StateFlow<TaskListUiState> = observeTasks()
+        .map { tasks -> TaskListUiState(tasks = tasks) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TaskListUiState())
+
+    fun onAddTaskClicked(title: String) {
+        viewModelScope.launch {
+            addTask(title)
+        }
+    }
+}
+```
+
+这组代码把 Clean Architecture 里最容易被说空的话全部落到了依赖方向上。UseCase 依赖的是内层的 `TaskRepository` 接口而不是 Room 实现，data 层去实现这个接口，ViewModel 再只消费 UseCase。只要这条依赖方向成立，Room、Retrofit、DataStore、Fake Repository 或未来的同步实现都能在外层替换，而不用把变化一路打穿到页面层。
+
+真正值得学的地方，不是“每个功能都必须写两三个 UseCase”，而是你终于能看清楚哪些代码在描述稳定业务动作，哪些代码在承担可替换实现，哪些代码只负责把结果翻译成页面状态。Clean Architecture 一旦这样落地，就会和本书前面的 Repository、ViewModel、模块化和测试主线自然合上，而不是停留在层数模板上。
+
 ## 实践任务
 
 起点条件：

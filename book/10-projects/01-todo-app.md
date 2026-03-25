@@ -127,6 +127,73 @@ Todo App 完成后，最有价值的复盘问题通常不是“还差不差日�
 
 如果这些问题回答得清楚，这个案例就已经达到非常高的教学价值。功能多寡反而是第二位的。
 
+如果把 Todo 的本地数据、页面状态和提醒触发收进同一组骨架代码，这个案例的主线会更清楚。
+
+```kotlin
+@Entity(tableName = "tasks")
+data class TaskEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val dueAt: Long?,
+    val isDone: Boolean,
+)
+
+@Dao
+interface TaskDao {
+    @Query("SELECT * FROM tasks ORDER BY isDone ASC, dueAt ASC")
+    fun observeAll(): Flow<List<TaskEntity>>
+
+    @Insert
+    suspend fun insert(task: TaskEntity): Long
+
+    @Query("UPDATE tasks SET isDone = :done WHERE id = :taskId")
+    suspend fun updateDone(taskId: Long, done: Boolean)
+}
+
+class TaskRepository(
+    private val taskDao: TaskDao,
+    private val reminderScheduler: ReminderScheduler,
+) {
+    fun observeTasks(): Flow<List<TaskItemUiModel>> {
+        return taskDao.observeAll().map { entities ->
+            entities.map { entity ->
+                TaskItemUiModel(entity.id, entity.title, entity.isDone, entity.dueAt)
+            }
+        }
+    }
+
+    suspend fun addTask(title: String, dueAt: Long?) {
+        val taskId = taskDao.insert(TaskEntity(title = title, dueAt = dueAt, isDone = false))
+        reminderScheduler.schedule(taskId = taskId, dueAt = dueAt)
+    }
+}
+```
+
+```kotlin
+data class TodoUiState(
+    val tasks: List<TaskItemUiModel> = emptyList(),
+    val isAdding: Boolean = false,
+)
+
+class TodoViewModel(
+    private val repository: TaskRepository,
+) : ViewModel() {
+    val uiState: StateFlow<TodoUiState> = repository.observeTasks()
+        .map { items -> TodoUiState(tasks = items) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodoUiState())
+
+    fun addTask(title: String, dueAt: Long?) {
+        viewModelScope.launch {
+            repository.addTask(title, dueAt)
+        }
+    }
+}
+```
+
+这组代码把 Todo App 最值得练的三件事收到了同一条线上。Room 负责本地任务清单，Repository 把“保存任务”和“调度提醒”组合成同一个业务动作，ViewModel 则只把本地任务流翻译成页面状态。只要这三层站稳，Todo 就不会退化成“一个页面直接改数据库，再在按钮点击里顺手起提醒”的耦合练习。
+
+这也是为什么 Todo 特别适合作为第一综合案例。它看起来只是一个待办列表，但已经足够把 Room、Flow、ViewModel、WorkManager/提醒调度和通知这条现代 Android 主线串到一起。规模够小，边界却足够真，正好适合练“本地优先 + 页面状态 + 系统能力协作”这套基本功。
+
 ### 9. 实践任务
 
 起点条件：

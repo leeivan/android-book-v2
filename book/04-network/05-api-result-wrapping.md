@@ -1,4 +1,4 @@
-﻿# API 结果包装
+# API 结果包装
 
 当你已经有了 OkHttp 和 Retrofit，网络层最容易产生的一种错觉是：接口已经能调通了，剩下的只是把返回对象交给页面。这通常正是问题开始的地方。真实项目里，网络请求很少只有“成功返回一个对象”这一种结果。它还可能超时、断网、返回 500、返回 200 但业务码失败、返回 200 且业务成功但列表为空、返回体格式和预期不一致，或者页面已经离开当前场景不再需要这次结果。
 
@@ -162,6 +162,52 @@ class ArticleRepository(
 
 再往前走一步看，统一包装也为离线优先和缓存协作打下了基础。同一个 `NetworkError`，在“完全依赖远端数据”的页面里可能意味着错误态；但在“本地已有旧数据”的页面里，它也可能只意味着“继续显示旧内容，同时提示同步失败”。因此 `ApiResult` 最好先描述数据源发生了什么，再由 ViewModel 结合缓存、本地数据和页面场景决定最终 UI 策略，而不是让网络结果直接等于页面结果。
 
+如果再把 ViewModel 这一层接上，`ApiResult` 和 `uiState` 的关系会更直观。
+
+```kotlin
+sealed interface ArticleListUiState {
+    data object Loading : ArticleListUiState
+    data class Content(val items: List<Article>) : ArticleListUiState
+    data object Empty : ArticleListUiState
+    data class Error(val message: String, val showRetry: Boolean) : ArticleListUiState
+}
+
+class ArticleListViewModel(
+    private val repository: ArticleRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow<ArticleListUiState>(ArticleListUiState.Loading)
+    val uiState: StateFlow<ArticleListUiState> = _uiState.asStateFlow()
+
+    fun load() {
+        viewModelScope.launch {
+            _uiState.value = ArticleListUiState.Loading
+            _uiState.value = when (val result = repository.loadArticles()) {
+                is ApiResult.Success -> ArticleListUiState.Content(result.value)
+                ApiResult.Empty -> ArticleListUiState.Empty
+                is ApiResult.HttpError -> {
+                    ArticleListUiState.Error("服务器异常（${result.code}）", showRetry = result.code >= 500)
+                }
+                is ApiResult.BusinessError -> {
+                    ArticleListUiState.Error(result.message, showRetry = false)
+                }
+                is ApiResult.NetworkError -> {
+                    ArticleListUiState.Error("网络连接失败，请稍后重试", showRetry = true)
+                }
+                is ApiResult.ParseError -> {
+                    ArticleListUiState.Error("数据解析失败", showRetry = false)
+                }
+            }
+        }
+    }
+}
+```
+
+这段代码真正解决的是“包装完以后，上层到底怎么用”。`ApiResult` 仍然在描述数据边界发生了什么，而 `ArticleListUiState` 则开始描述页面现在应该显示什么。只要这两层被分开，ViewModel 的职责就会稳定很多：它不需要再从零理解 `IOException`、`HttpException` 或业务码细节，只需要把已经被解释过的结果翻译成页面状态。
+
+这也让统一包装的工程价值更具体了。同样是 `NetworkError`，在 ViewModel 这里你可以决定它对应“显示重试按钮”；而同样的 `BusinessError`，你也可以选择直接显示后端返回的业务提示。网络层负责描述发生了什么，页面层负责决定怎么表现，这两者正是通过 `ApiResult -> uiState` 这一步被干净地接起来的。
+
+当这条链路站稳之后，后面的离线优先和缓存章节就会更好讲。因为页面最终处理的已经不再是原始网络噪声，而是一组有限、稳定、可组合的上层语义。结果包装最值钱的地方，从来不是“多一个 sealed class”，而是让整个上层开始真正摆脱底层通信细节。
 ### 9. 实践任务
 
 起点条件：
@@ -214,7 +260,6 @@ API 结果包装的核心价值，不是多写一个类，而是把复杂、嘈�
 ## 参考资料
 
 - 参考并改写自：`Clean Android Architecture`，Repository 边界、错误语义与结果收束相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，网络结果、页面状态与项目级数据流相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，结果模型、状态持有与离线协作相关章节。
 
 - State holders and UI state：<https://developer.android.com/topic/architecture/ui-layer/stateholders>

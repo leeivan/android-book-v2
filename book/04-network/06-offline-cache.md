@@ -1,4 +1,4 @@
-﻿# 离线缓存
+# 离线缓存
 
 只要应用的数据依赖网络，离线缓存就不是可有可无的小优化，而是体验设计的一部分。用户不会因为你“理论上可以重新请求一次”就接受白屏、空页面和反复加载。对移动应用来说，弱网、无网、网络抖动、切后台和接口波动都是常态，缓存的价值正在于帮助应用在这些不稳定条件下仍保持可用。
 
@@ -146,6 +146,92 @@ class ArticleRepository(
 
 这就是缓存设计开始稳定下来的关键。
 
+如果把“是否需要刷新”和“页面只读本地”也写成代码，离线缓存的主线会更容易落地。
+
+```kotlin
+private const val STALE_TIMEOUT_MS = 30 * 60 * 1000L
+
+class SyncMetadataStore(
+    private val dataStore: DataStore<Preferences>,
+) {
+    private val LAST_ARTICLE_SYNC = longPreferencesKey("last_article_sync")
+
+    suspend fun lastArticleSync(): Long {
+        return dataStore.data.first()[LAST_ARTICLE_SYNC] ?: 0L
+    }
+
+    suspend fun updateLastArticleSync(timestamp: Long) {
+        dataStore.edit { preferences ->
+            preferences[LAST_ARTICLE_SYNC] = timestamp
+        }
+    }
+}
+
+class ArticleRepository(
+    private val articleDao: ArticleDao,
+    private val articleApi: ArticleApi,
+    private val syncMetadataStore: SyncMetadataStore,
+) {
+
+    fun observeArticles(): Flow<List<Article>> {
+        return articleDao.observeAll().map { entities ->
+            entities.map { entity -> Article(entity.id, entity.title, entity.summary) }
+        }
+    }
+
+    suspend fun refreshIfStale(force: Boolean = false): ApiResult<Unit> {
+        val now = System.currentTimeMillis()
+        val lastSync = syncMetadataStore.lastArticleSync()
+        val shouldRefresh = force || now - lastSync > STALE_TIMEOUT_MS
+
+        if (!shouldRefresh) return ApiResult.Success(Unit)
+
+        return when (val result = loadRemoteArticles()) {
+            is ApiResult.Success -> {
+                articleDao.replaceAll(result.value.map { article ->
+                    ArticleEntity(article.id, article.title, article.summary)
+                })
+                syncMetadataStore.updateLastArticleSync(now)
+                ApiResult.Success(Unit)
+            }
+            ApiResult.Empty -> {
+                articleDao.clearAll()
+                syncMetadataStore.updateLastArticleSync(now)
+                ApiResult.Success(Unit)
+            }
+            is ApiResult.HttpError -> result
+            is ApiResult.BusinessError -> result
+            is ApiResult.NetworkError -> result
+            is ApiResult.ParseError -> result
+        }
+    }
+
+    private suspend fun loadRemoteArticles(): ApiResult<List<Article>> {
+        // 省略：调用 Retrofit 并映射为 ApiResult<List<Article>>
+        TODO()
+    }
+}
+
+class ArticleListViewModel(
+    private val repository: ArticleRepository,
+) : ViewModel() {
+
+    val articles: StateFlow<List<Article>> = repository.observeArticles()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun refresh(force: Boolean = false) {
+        viewModelScope.launch {
+            repository.refreshIfStale(force)
+        }
+    }
+}
+```
+
+这段代码把离线缓存里最难的两件事终于写实了。第一，页面只观察本地 `Flow`，不再同时直接消费远程结果；第二，Repository 用 `lastArticleSync` 和 `STALE_TIMEOUT_MS` 明确表达“什么时候该刷新”。只要这两条规则清楚，缓存就不会再停留在“顺手多存一份数据”，而会真正变成可预测的数据链路。
+
+更重要的是，刷新策略终于从模糊经验变成了显式规则。`refreshIfStale(force = true)` 可以对应下拉刷新；`refreshIfStale(force = false)` 可以对应页面恢复或后台同步。这样一来，首次进入、弱网失败、回到前台这些场景就不再只能靠“每次都请求一次”来硬兜底。
+
+这也是为什么离线缓存最终总会走回单一可信来源。只要页面一边看本地，一边又直接消费远程返回值，状态竞争和闪烁几乎迟早会出现。把远程更新统一改成“先写本地，再由本地流回页面”，缓存设计才算真正站稳。
 ### 9. 实践任务
 
 起点条件：
@@ -189,11 +275,10 @@ class ArticleRepository(
 
 离线缓存的核心，不是把远程数据额外存一份，而是让网络不稳定时应用仍保持可读、可用、可恢复。只要单一可信来源、刷新策略和数据语义都明确下来，缓存就会从“附属功能”变成真正稳定的数据基础设施。
 
-
 ## 参考资料
 
 - 参考并整理自本地 PDF：Bennett M.，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，offline-first、canonical source of truth 与多模块应用中的本地优先数据流相关章节。
-- 参考并整理自本地 PDF：`Real-World Android by Tutorials`，本地缓存、列表数据回填与网络-数据库协作相关内容。
+- 参考并整理自官方资料与开源样例：offline-first 架构、Room 与网络-数据库协作相关文档。
 - Build an offline-first app：<https://developer.android.com/topic/architecture/data-layer/offline-first>
 - Recommendations for Android architecture：<https://developer.android.com/topic/architecture/recommendations>
 - Room：<https://developer.android.com/training/data-storage/room>

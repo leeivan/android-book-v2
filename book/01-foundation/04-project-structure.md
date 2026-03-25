@@ -96,6 +96,57 @@ Android Studio 为了提高可读性，会在 Project 视图或 Android 视图�
 
 后面随着工程增长，你会逐步接触 `ui`、`data`、`domain`、`feature` 等更清晰的分层方式。但那是建立在当前这层目录边界已经清楚的基础之上的。如果连 `src/main`、`res`、Manifest 和模块脚本的职责都没有理顺，再谈架构目录只会变成形式主义。
 
+如果把“欢迎页标题”和“应用显示名”这两个常见修改放到同一组文件里，项目结构的职责会更具体。
+
+```xml
+<!-- app/src/main/AndroidManifest.xml -->
+<application
+    android:label="@string/app_name"
+    android:theme="@style/Theme.TodoBook">
+    <activity
+        android:name=".MainActivity"
+        android:exported="true">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+    </activity>
+</application>
+```
+
+```xml
+<!-- app/src/main/res/values/strings.xml -->
+<resources>
+    <string name="app_name">TodoBook</string>
+    <string name="welcome_title">欢迎使用 TodoBook</string>
+</resources>
+```
+
+```xml
+<!-- app/src/main/res/layout/activity_main.xml -->
+<TextView
+    android:id="@+id/titleText"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="@string/welcome_title" />
+```
+
+```kotlin
+// app/src/main/kotlin/com/example/todobook/MainActivity.kt
+class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        findViewById<TextView>(R.id.titleText).text = getString(R.string.welcome_title)
+    }
+}
+```
+
+这组文件最适合用来建立“同一个可见效果，往往横跨多类工程边界”的直觉。Manifest 负责告诉系统应用入口和应用标签从哪里来；`strings.xml` 负责承载可复用、可本地化的文本资源；布局文件负责界面结构；`MainActivity` 负责在运行时把界面装到屏幕上。只要这四层职责开始分开，你以后遇到“为什么改了文本没生效”“为什么应用名和页面标题不是一个东西”这类问题时，就更容易找准文件落点。
+
+更重要的是，这个例子说明项目结构不是目录记忆题，而是工程分工图。哪怕只是一个很小的首页，系统声明、资源、布局和代码也已经各有职责。后面工程一旦长大成多页面、多模块、多环境，本质上也还是在放大这种分工，而不是发明一套全新的目录世界。
+
 ### 9. 最小实践任务
 
 起点条件：

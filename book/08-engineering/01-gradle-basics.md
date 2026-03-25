@@ -1,4 +1,4 @@
-﻿# Gradle 基础
+# Gradle 基础
 
 很多 Android 读者第一次真正注意到 Gradle，不是因为它“很重要”，而是因为它开始挡路。项目昨天还能运行，今天依赖一升级就构建失败；自己电脑上能跑，换到同事机器上就不行；明明只改了一个小文件，却要等很久才能重新安装。到这一步，Gradle 就不再是 Android Studio 背后的神秘按钮，而是整个工程能否稳定工作的基础设施。
 
@@ -94,6 +94,62 @@ Gradle 真正强大的地方之一，是它把构建过程组织成任务图。�
 当你只写一个 `app` 模块时，Gradle 看起来只是“把应用编出来”。但一旦项目长到真实规模，情况就会发生变化。你可能会有 `core:network`、`core:database`、`feature:news`、`feature:settings` 这类模块；会有 debug 和 release 两种行为不同的构建；会有测试、Lint、打包、签名和上传任务进入流水线。到那时，你会发现本章看起来最朴素的东西，其实正是后面一切工程化能力的底座。
 
 也正因为如此，Gradle 基础不应该学成脚本片段收藏夹。更好的学习方式是：先理解最小模块如何构建，再逐步看清依赖、任务、变体和发布怎样在同一套系统里协作。这样后面的构建变体、模块化和 CI/CD 章节才不会显得像突然出现的新世界。
+
+如果把 `settings.gradle.kts`、version catalog 和模块脚本放到一起看，Gradle 的分层会更具体。
+
+```kotlin
+// settings.gradle.kts
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "TodoBook"
+include(":app", ":core:network", ":feature:news")
+```
+
+```toml
+# gradle/libs.versions.toml
+[versions]
+androidx-core = "1.17.0"
+
+[libraries]
+androidx-core = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
+```
+
+```kotlin
+// app/build.gradle.kts
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+
+android {
+    namespace = "com.example.todobook"
+    compileSdk = 36
+}
+
+dependencies {
+    implementation(libs.androidx.core)
+    implementation(project(":core:network"))
+    implementation(project(":feature:news"))
+}
+```
+
+这三段代码分别在回答三个不同问题。`settings.gradle.kts` 定义的是“整个仓库有哪些模块、从哪里解析插件和依赖”；`libs.versions.toml` 定义的是“共享坐标和版本怎样集中管理”；模块级 `build.gradle.kts` 才真正回答“这个模块自己需要什么能力和依赖”。只要这三层分清，你以后再看大型工程时，就不会把所有配置都误以为是同一种东西。
+
+更重要的是，这种写法把“构建脚本也是工程代码”这件事落到了实处。仓库级规则集中在 `settings.gradle.kts`，共享库坐标集中在 version catalog，模块脚本只保留模块自己的声明。这样一来，新增一个模块、替换一组依赖或追踪某个构建问题时，团队不需要再在多个脚本里来回猜哪一段才是规则入口。
 
 ### 8. 实践任务
 

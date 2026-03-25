@@ -110,6 +110,27 @@ Android 官方文档把这些材料视为线上排障的重要部分。原因很
 
 这份清单的意义不在于“把文档写漂亮”，而在于确保 release 不再是“导一个包试试看”，而是开始拥有真正可复现、可验证、可追踪的工程闭环。
 
+如果把候选版本的归档动作写成显式任务，release 构建就会更接近真实发布链路。
+
+```kotlin
+val releaseLabel = providers.gradleProperty("releaseLabel").orElse("local")
+
+tasks.register<Sync>("prepareReleaseCandidate") {
+    dependsOn("bundleRelease")
+    from(layout.buildDirectory.dir("outputs/bundle/release"))
+    from(layout.buildDirectory.dir("outputs/mapping/release"))
+    into(layout.buildDirectory.dir("release-candidates/${releaseLabel.get()}"))
+}
+```
+
+```bash
+./gradlew bundleRelease prepareReleaseCandidate -PreleaseLabel=1.3.0-rc01
+```
+
+这段任务配置做的事情很朴素，但很重要：它把候选 AAB 和 mapping 文件按同一个版本标签收进同一个目录。这样一来，团队讨论 `1.3.0-rc01` 时，不再只是说“应该就是前天那个包”，而是能明确找到对应 bundle、还原材料和构建上下文。release 一旦需要回溯，这种归档规则的价值会非常大。
+
+这也正是为什么 release 构建不能只停在“打包成功”。真正稳定的发布链路需要把候选产物、验证记录和排障材料一起组织起来。只要归档规则没有显式表达，mapping 文件和候选产物迟早会散落到不同机器和不同目录里，到了线上问题出现时再追，就会非常被动。
+
 ### 9. 实践任务
 
 起点条件：

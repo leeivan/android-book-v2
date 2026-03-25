@@ -1,4 +1,4 @@
-﻿# 文件存储
+# 文件存储
 
 一提到本地存储，很多人第一反应就是数据库，但现实里的 Android 应用经常还会处理另一类完全不同的数据：图片缓存、下载文件、导出文档、音视频、临时附件。这些内容不适合用键值或表结构表达，而更接近“文件”本身。本章要解决的，是如何用文件视角看待数据，以及为什么现代 Android 对文件访问有越来越清晰的边界要求。
 
@@ -86,6 +86,49 @@ fun pickPhoto() {
 这个例子的教学点是：文件访问主入口已经不再总是“我自己拿路径去扫目录”，而是“由系统提供受控入口，用户明确选择，应用拿到一个可用的 URI”。这也是现代 Android 文件与媒体访问最需要建立的直觉。
 
 还要注意，应用拿到一个 `Uri` 并不等于拿到了一条可以永久依赖的真实文件路径。对很多现代入口来说，`Uri` 本身就是访问边界的一部分。若业务只是临时读取、显示或上传，直接围绕 `Uri` 处理通常更合适；若业务要求长期离线持有这份内容，则应在合适授权前提下把内容复制进应用私有目录，或在文档场景中明确处理持续访问策略，而不是假设原始位置会一直可读。
+
+如果把“导入用户选择的内容”和“把内容长期留在应用里”写成同一条链路，文件边界会更容易理解。
+
+```kotlin
+class AttachmentFileStore(
+    private val context: Context,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) {
+
+    suspend fun copyFromUri(taskId: Long, source: Uri): File = withContext(ioDispatcher) {
+        val targetDir = File(context.filesDir, "task-attachments").apply { mkdirs() }
+        val targetFile = File(targetDir, "$taskId-${System.currentTimeMillis()}.bin")
+
+        context.contentResolver.openInputStream(source).use { input ->
+            requireNotNull(input) { "Cannot open source uri: $source" }
+            targetFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+        targetFile
+    }
+}
+
+private val createExportDocument = registerForActivityResult(
+    ActivityResultContracts.CreateDocument("text/plain")
+) { destinationUri ->
+    if (destinationUri != null) {
+        lifecycleScope.launch {
+            exportRepository.writeTasksTo(destinationUri)
+        }
+    }
+}
+
+fun exportTasks() {
+    createExportDocument.launch("tasks-export.txt")
+}
+```
+
+这段代码正好把文件章节里最容易混淆的两件事拆开了。`copyFromUri()` 代表的是“用户已经通过 Photo Picker 或 SAF 选中一份内容，现在应用决定把它复制进自己的私有目录，作为长期业务资产持有”。而 `CreateDocument()` 代表的是另一条边界：用户主动决定把导出结果保存到哪里，应用只负责往这个受控目标里写内容，而不是自己私自决定共享路径。
+
+也就是说，现代文件存储的关键已经不再是“怎么拿到一个真实路径”，而是“这份内容当前处在哪条授权边界里”。如果只是临时读取和上传，继续围绕 `Uri` 工作往往更自然；如果业务确实要求长期离线持有，才值得在明确语义下复制进 `filesDir` 这类私有目录。把这两件事分清楚之后，Photo Picker、SAF 和 app-private storage 就不再像三套互不相干的 API，而会变成同一条内容生命周期上的不同位置。
+
+这也是为什么文件命名和目录策略永远不只是整理洁癖。只要业务资产、临时导出结果和缓存缩略图开始住进同一层目录，后面任何清理和共享动作都很难再安全。目录结构本身，就是文件生命周期的一部分表达。
 
 ### 8. 文件命名和目录策略，也是设计问题
 

@@ -1,4 +1,4 @@
-﻿# HTTP 与 REST
+# HTTP 与 REST
 
 Android 开发者并不需要把自己训练成协议工程师，但如果不理解 HTTP 和 REST 的基本思想，后面的 OkHttp、Retrofit、错误包装和缓存设计都会显得像黑盒。本章的任务，是建立一套足够工程化的理解：请求为什么有方法和头，状态码为什么重要，REST 又到底在帮助我们组织什么。
 
@@ -68,6 +68,65 @@ REST 常被讲得过于神秘。对 Android 客户端开发者来说，更实用
 
 对客户端来说，这意味着你不能把“200”直接等同于“页面显示成功”。你仍然需要在更上层判断：空数据怎么展示，字段缺失如何兜底，业务错误码是否需要转换成 UI 可理解的状态。
 
+如果把协议层成功、业务层失败和空数据三种结果都写进同一段代码，HTTP 章节会比“只看 200”清楚得多。
+
+```kotlin
+data class ArticleListEnvelope(
+    val items: List<ArticleDto>,
+    val errorCode: String? = null,
+    val message: String? = null,
+)
+
+interface NewsApi {
+    @GET("articles")
+    suspend fun listArticles(
+        @Query("page") page: Int,
+        @Header("Accept-Language") language: String = "zh-CN",
+    ): Response<ArticleListEnvelope>
+}
+
+sealed interface ArticleListResult {
+    data class Success(val items: List<Article>) : ArticleListResult
+    data object Empty : ArticleListResult
+    data class HttpError(val code: Int) : ArticleListResult
+    data class BusinessError(val code: String, val message: String) : ArticleListResult
+}
+
+suspend fun loadArticlePage(api: NewsApi, page: Int): ArticleListResult {
+    val response = api.listArticles(page = page)
+
+    if (!response.isSuccessful) {
+        return ArticleListResult.HttpError(response.code())
+    }
+
+    val body = response.body() ?: return ArticleListResult.BusinessError(
+        code = "empty_body",
+        message = "响应体为空",
+    )
+
+    if (body.errorCode != null) {
+        return ArticleListResult.BusinessError(
+            code = body.errorCode,
+            message = body.message ?: "业务处理失败",
+        )
+    }
+
+    if (body.items.isEmpty()) {
+        return ArticleListResult.Empty
+    }
+
+    return ArticleListResult.Success(body.items.map { dto ->
+        Article(id = dto.id, title = dto.title, summary = dto.summary)
+    })
+}
+```
+
+这段代码正好把 HTTP 章节里最容易被忽略的两层结果拆开了。`response.isSuccessful` 只回答“这次 HTTP 交互在协议层是否成功”；而 `errorCode`、空列表和空响应体这些判断，则在回答“这份结果是否真的满足当前业务需求”。只要两层不拆，客户端就会很容易把“接口返回 200 但页面没法正常显示”这种情况误判成成功。
+
+同时，这段代码也顺手说明了为什么请求头和内容协商不该被当成边角知识。`Accept-Language` 不是为了让示例看起来更复杂，而是在提醒读者：一次请求的语义并不只由 URL 和方法决定，头信息同样在表达客户端期望。你忽略它们，就会在认证、语言、缓存和内容类型这些现实问题上一再吃亏。
+
+把这段结果包装链路放回 REST 语境里，资源式接口的价值也会更容易理解。`GET /articles` 代表的是“读取文章集合”这一种操作意图；但“读到了什么”和“这些内容能不能直接驱动页面”，仍然需要客户端继续往上层判断。HTTP 和 REST 提供的是协议与资源语义，不是最终 UI 状态的自动答案。
+
 ### 9. 实践任务
 
 起点条件：
@@ -116,7 +175,6 @@ HTTP 和 REST 提供的是网络交互的基本语义框架。理解了请求方
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，网络请求与接口交互相关章节。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，API 契约、错误响应与客户端接口设计相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，网络契约、请求语义与客户端恢复策略相关章节。
 
 - Connect to the network：<https://developer.android.com/develop/connectivity/network-ops/connecting>

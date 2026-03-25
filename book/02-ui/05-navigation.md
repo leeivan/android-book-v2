@@ -85,6 +85,67 @@ findNavController().navigate(action)
 
 这也是为什么很多团队在设计导航时，会先画用户任务流，再落到 API 实现。列表到详情、详情到编辑、编辑完成后返回哪里，看似只是三次点击，但背后其实是在定义用户完成任务的最短路径。如果这个路径没有事先设计清楚，代码层面再补多少条件分支，也只是不断给混乱流程打补丁。
 
+如果把宿主、导航图和目标页参数放到同一组例子里，结构化导航会更完整。
+
+```xml
+<!-- activity_main.xml -->
+<androidx.fragment.app.FragmentContainerView
+    android:id="@+id/nav_host_fragment"
+    android:name="androidx.navigation.fragment.NavHostFragment"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    app:defaultNavHost="true"
+    app:navGraph="@navigation/main_graph" />
+```
+
+```xml
+<!-- res/navigation/main_graph.xml -->
+<navigation
+    android:id="@+id/main_graph"
+    app:startDestination="@id/taskListFragment">
+
+    <fragment
+        android:id="@+id/taskListFragment"
+        android:name="com.example.todobook.TaskListFragment">
+        <action
+            android:id="@+id/actionTaskListFragmentToTaskDetailFragment"
+            app:destination="@id/taskDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/taskDetailFragment"
+        android:name="com.example.todobook.TaskDetailFragment">
+        <argument
+            android:name="taskId"
+            app:argType="long" />
+    </fragment>
+</navigation>
+```
+
+```kotlin
+class MainActivity : AppCompatActivity(R.layout.activity_main) {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val navController = findNavController(R.id.nav_host_fragment)
+        val appBarConfiguration = AppBarConfiguration(navController.graph)
+        setupActionBarWithNavController(navController, appBarConfiguration)
+    }
+}
+
+class TaskDetailFragment : Fragment(R.layout.fragment_task_detail) {
+    private val args: TaskDetailFragmentArgs by navArgs()
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewModel.loadTask(args.taskId)
+    }
+}
+```
+
+这组代码把结构化导航的三层角色落成了可见样子。`FragmentContainerView` 提供导航宿主，导航图描述目的地和参数，`MainActivity` 负责把 `NavController` 接到应用栏返回语义上，目标页只消费 `taskId` 这种最小必要参数。只要这几层分开，导航就不会再退化成“某个 Fragment 里随手拼一个 Bundle 然后跳出去”。
+
+这里尤其值得保留的，是“目的地只拿最小参数，再在自己的状态层加载内容”。列表页因此不需要替详情页决定全部数据长什么样，详情页也不需要反向依赖列表页的内存状态。导航边界一旦被轻量参数守住，返回栈、进程重建和页面复用都会稳定很多。
+
 ### 9. 实践任务
 
 起点条件：
@@ -135,7 +196,7 @@ findNavController().navigate(action)
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 13 章。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，多页面流程、状态与界面组织相关章节。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，多页面流程、状态收束与界面组织相关章节。
 - 参考并改写自：Neil Smyth，《Android Studio Koala Essentials. Developing Android Apps》(2024)，Navigation Host、Navigation Graph、Safe Args 与 `NavController` 教程相关章节。
 
 - Navigation and the back stack：<https://developer.android.com/guide/navigation/backstack>

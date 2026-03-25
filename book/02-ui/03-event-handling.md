@@ -1,4 +1,4 @@
-﻿# 事件处理
+# 事件处理
 
 一个页面一旦从“能显示”进入“能交互”，事件处理就成了 UI 设计的中心问题。按钮点击、输入变化、列表项操作、弹窗确认、手势触发，这些都属于事件。很多初学者学事件处理时，容易把它学成“给控件绑定回调”的机械动作。但从工程角度看，事件处理真正要解决的是：用户动作如何进入系统，页面如何响应，状态如何更新，以及这些逻辑应该放在哪一层才不会很快失控。
 
@@ -90,6 +90,78 @@ class ProfileViewModel : ViewModel() {
 
 这套思路的价值不只是“概念先进”，而是让页面更容易推理。你不用再在多个点击回调里来回追踪变量，而是能顺着同一条链路理解：“用户做了什么”“状态层怎么处理”“界面为什么变成现在这样”。它会在后面的 Fragment、Navigation、RecyclerView 和 Compose 章节里继续发挥作用。
 
+如果再把“一次性 UI effect”也单独建模，事件边界会更稳。
+
+```kotlin
+data class SaveNoteUiState(
+    val title: String = "",
+    val titleError: String? = null,
+    val isSaving: Boolean = false,
+)
+
+sealed interface SaveNoteEffect {
+    data class ShowMessage(val message: String) : SaveNoteEffect
+    data object NavigateBack : SaveNoteEffect
+}
+
+class SaveNoteViewModel(
+    private val repository: NoteRepository,
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(SaveNoteUiState())
+    val uiState: StateFlow<SaveNoteUiState> = _uiState.asStateFlow()
+
+    private val _effects = MutableSharedFlow<SaveNoteEffect>()
+    val effects: SharedFlow<SaveNoteEffect> = _effects.asSharedFlow()
+
+    fun onTitleChanged(value: String) {
+        _uiState.update { it.copy(title = value, titleError = null) }
+    }
+
+    fun onSaveClicked() {
+        val current = _uiState.value
+        if (current.title.isBlank()) {
+            _uiState.update { it.copy(titleError = "标题不能为空") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSaving = true) }
+            repository.save(title = current.title)
+            _uiState.update { it.copy(isSaving = false) }
+            _effects.emit(SaveNoteEffect.ShowMessage("保存成功"))
+            _effects.emit(SaveNoteEffect.NavigateBack)
+        }
+    }
+}
+```
+
+```kotlin
+viewLifecycleOwner.lifecycleScope.launch {
+    repeatOnLifecycle(Lifecycle.State.STARTED) {
+        launch {
+            viewModel.uiState.collect { state ->
+                saveButton.isEnabled = !state.isSaving
+                titleInputLayout.error = state.titleError
+            }
+        }
+        launch {
+            viewModel.effects.collect { effect ->
+                when (effect) {
+                    is SaveNoteEffect.ShowMessage -> {
+                        Snackbar.make(requireView(), effect.message, Snackbar.LENGTH_SHORT).show()
+                    }
+                    SaveNoteEffect.NavigateBack -> findNavController().popBackStack()
+                }
+            }
+        }
+    }
+}
+```
+
+这组代码把一个很容易混乱的边界讲清楚了。`uiState` 负责描述当前页面稳定可见的状态，比如输入值、错误文案、是否正在保存；`effects` 负责描述只该执行一次的 UI 行为，比如 Snackbar 和返回。只要这两层分开，页面重建时就不会把“上一次已经弹过的提示”误当成还要继续显示的长期状态。
+
+这也是为什么事件处理最终总会走向“事件 -> 状态层 -> UI 状态 / UI effect”这条更稳的路径。它不是为了多引入几个类型，而是为了让页面行为在输入、保存、失败、成功和返回这些阶段里都能被清楚解释。复杂交互一旦变多，这种拆分会比单个点击回调里堆判断稳定得多。
+
 ### 8. 实践任务
 
 起点条件：
@@ -139,8 +211,8 @@ class ProfileViewModel : ViewModel() {
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 1-2 章中关于视图绑定、监听与交互界面的部分。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，页面事件、状态反馈与界面组织相关章节。
-- 参考并改写自：Gonda V.，《Android Accessibility by Tutorials, 2nd Edition》(2022)，交互反馈与可访问性提示相关章节。
+- 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，页面状态、事件建模与 UI 反馈相关章节。
+- 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，界面输入、视图交互与页面反馈相关章节。
 
 - UI events：<https://developer.android.com/topic/architecture/ui-layer/events>
 - 输入事件概览：<https://developer.android.com/develop/ui/views/touch-and-input/input-events>

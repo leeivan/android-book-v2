@@ -1,4 +1,4 @@
-﻿# SQLite
+# SQLite
 
 在 Android 本地数据体系里，SQLite 仍然是一个绕不开的名字。即使今天新项目通常更推荐以 Room 作为数据库主线，理解 SQLite 依然非常重要，因为它决定了 Android 本地结构化存储的底层能力模型。本章的重点不是把 SQLite 学成纯数据库课程，而是帮助你理解：它在 Android 里解决什么问题、为什么原生直接使用门槛较高，以及为什么 Room 能建立在它之上。
 
@@ -98,6 +98,75 @@ class TaskDbHelper(context: Context) : SQLiteOpenHelper(
 一个待办表至少会包含 `id`、`title`、`is_done` 和 `created_at`。即使只是这样一个简单表，你也会立刻遇到数据库视角下的问题：如何按创建时间排序，如何筛选未完成项，如何更新某一条的完成状态，哪些字段需要索引支持。这说明数据库的核心不是“能存多行”，而是“能按结构稳定地处理记录”。
 
 正因为这些问题天然存在，待办表非常适合做 SQLite 入门练习。它足够简单，不会让业务复杂度淹没数据库问题；又足够真实，能让你看到表结构、查询和更新是如何联动的。
+
+如果把 `SQLiteOpenHelper` 后面的查询和映射也写出来，原生 SQLite 为什么“真实但笨重”会更容易看懂。
+
+```kotlin
+data class Task(
+    val id: Long,
+    val title: String,
+    val isDone: Boolean,
+    val createdAt: Long,
+)
+
+class TaskLocalDataSource(
+    private val dbHelper: TaskDbHelper,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) {
+
+    suspend fun insert(title: String) = withContext(ioDispatcher) {
+        val values = ContentValues().apply {
+            put("title", title)
+            put("is_done", 0)
+            put("created_at", System.currentTimeMillis())
+        }
+        dbHelper.writableDatabase.insert("task", null, values)
+    }
+
+    suspend fun loadOpenTasks(): List<Task> = withContext(ioDispatcher) {
+        dbHelper.readableDatabase.query(
+            "task",
+            arrayOf("id", "title", "is_done", "created_at"),
+            "is_done = ?",
+            arrayOf("0"),
+            null,
+            null,
+            "created_at DESC",
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(
+                        Task(
+                            id = cursor.getLong(cursor.getColumnIndexOrThrow("id")),
+                            title = cursor.getString(cursor.getColumnIndexOrThrow("title")),
+                            isDone = cursor.getInt(cursor.getColumnIndexOrThrow("is_done")) == 1,
+                            createdAt = cursor.getLong(cursor.getColumnIndexOrThrow("created_at")),
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    suspend fun toggleDone(taskId: Long, done: Boolean) = withContext(ioDispatcher) {
+        val values = ContentValues().apply {
+            put("is_done", if (done) 1 else 0)
+        }
+        dbHelper.writableDatabase.update(
+            "task",
+            values,
+            "id = ?",
+            arrayOf(taskId.toString()),
+        )
+    }
+}
+```
+
+这段代码几乎把原生 SQLite 在真实项目里的成本全暴露出来了。表结构虽然只定义一次，但查询字段、`Cursor` 映射、布尔值转换、线程切换和更新条件都要自己一层层写出来。它不是不能用，而是它把“数据库会发生的工作”赤裸裸摆在你面前，也因此更容易看见 Room 后面到底帮你省掉了什么。
+
+更重要的是，这段代码也在提醒读者：数据库设计从来不只是“会不会写 SQL”。只要你开始真正查询未完成任务、按时间排序、更新单行记录，你就会自然碰到表结构、字段类型、索引和迁移这些问题。SQLite 入门最值得保留的，不是手写样板本身，而是这种“结构化记录 + 结构化读取”思维。
+
+一旦把这条底层链路看清楚，再回头看 Room 就不会把它误解成“魔法注解”。Room 的价值不是替你发明数据库，而是把编译期校验、对象映射和迁移入口这些高频样板收束起来，让你能把更多注意力放回数据建模本身。
 
 ### 9. 实践任务
 

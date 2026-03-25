@@ -102,6 +102,42 @@ class HostActivity : AppCompatActivity(R.layout.activity_host) {
 
 现代实践通常更倾向于通过共享 ViewModel、宿主协调或更清晰的事件传递方式来管理通信，而不是让 Fragment 彼此直接互调。现在你不需要一次掌握所有通信模式，但至少要形成一个原则：Fragment 的价值在于拆分结构，不要马上又通过强耦合把它们重新绑死。
 
+如果把宿主 Activity、`FragmentContainerView` 和一次最小事务放在一起，Fragment 的落点会更清楚。
+
+```xml
+<androidx.fragment.app.FragmentContainerView
+    android:id="@+id/contentContainer"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:name="com.example.todobook.TaskListFragment" />
+```
+
+```kotlin
+class MainActivity : AppCompatActivity(R.layout.activity_main) {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        if (savedInstanceState == null) {
+            supportFragmentManager.commit {
+                setReorderingAllowed(true)
+                replace(R.id.contentContainer, TaskListFragment())
+            }
+        }
+    }
+}
+
+class TaskListFragment : Fragment(R.layout.fragment_task_list) {
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        // 这里只处理属于列表界面的渲染与交互
+    }
+}
+```
+
+这组代码把 Fragment 最关键的边界写实了。Activity 负责提供宿主和更高层级的页面容器，Fragment 负责自己的内容渲染与交互，`FragmentManager` 负责把内容区真正替换到页面里。只要这三层职责分开，Fragment 就不会再被误解成“比 Activity 小一点的 Activity”，而会更像可组合的界面单元。
+
+这里还顺手解释了为什么 `savedInstanceState == null` 这个判断总是反复出现。它不是样板代码装饰，而是为了避免 Activity 因配置变化重建后重复把同一个 Fragment 再塞一遍。Fragment 一旦进入真实项目，这类“系统已经帮你恢复的内容，不要再手工重复创建”的边界意识会非常重要。
+
 ### 9. 实践任务
 
 起点条件：
@@ -152,7 +188,7 @@ Fragment 的意义不在于“多学一个组件”，而在于它提供了更�
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 9 章与第 13 章。
-- 参考并改写自：Costeira R.，《Real-World Android by Tutorials, 2nd Edition》(2022)，宿主页面、界面拆分与多页面流程相关章节。
+- 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，Fragment 宿主、页面拆分与多页面流程相关章节。
 
 - 参考并改写自：Rick Boyer、Kyle Mew，《Android Application Development Cookbook, 2nd Edition》(2016)，Fragment 切换、`FragmentManager` 与 `addToBackStack()` 相关 recipes。
 - 参考并改写自：Satya Komatineni、Dave MacLean，《Apress Pro Android 4》(2012)，fragment back stack 与状态恢复边界相关讨论。

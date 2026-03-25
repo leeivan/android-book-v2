@@ -1,4 +1,4 @@
-﻿# 数据存储概述
+# 数据存储概述
 
 Android 应用里的数据并不是只有一种形式。设置项、登录状态、缓存文件、图片、离线列表、数据库记录、用户手动选择的文档，这些表面上都叫“数据”，但它们的生命周期、读取方式、权限边界和维护成本完全不同。本章先不急着讲某个具体 API，而是先建立一套判断框架：什么数据应该放哪里，为什么不能用“一种存储打天下”。
 
@@ -55,6 +55,40 @@ Android 官方的数据与文件存储总览，也正是按“应用私有文件
 以一个待办应用为例，至少会出现三到四类不同数据：用户是否开启提醒，适合键值型配置；待办条目本身，适合结构化数据库；用户导出的分享文件，适合文件存储；用户手动挑选的封面图片，则可能通过 Photo Picker 或 SAF 获取，再根据业务边界决定是否复制到应用私有目录中。
 
 这个例子说明，哪怕是一个看起来很小的应用，也很少只需要一种存储方案。真正成熟的工程不是“选一个存储全都塞进去”，而是为不同数据选择最合适的边界和生命周期。
+
+如果把“同一个应用为什么要用多种存储”写成一组最小接口，分类边界会更直观。
+
+```kotlin
+class TodoStorageFacade(
+    private val preferencesRepository: UserPreferencesRepository,
+    private val taskLocalDataSource: TaskLocalDataSource,
+    private val attachmentFileStore: AttachmentFileStore,
+    private val appContext: Context,
+) {
+
+    suspend fun setReminderEnabled(enabled: Boolean) {
+        preferencesRepository.setReminderEnabled(enabled)
+    }
+
+    fun observeTasks(): Flow<List<Task>> {
+        return taskLocalDataSource.observeAll()
+    }
+
+    suspend fun savePickedAttachment(taskId: Long, source: Uri): File {
+        return attachmentFileStore.copyFromUri(taskId, source)
+    }
+
+    fun thumbnailCacheFile(taskId: Long): File {
+        return File(appContext.cacheDir, "thumb-$taskId.jpg")
+    }
+}
+```
+
+这段代码真正有价值的地方，不是它把四个类放在了一起，而是同一个待办应用里的四类数据边界已经被明明白白拆开了。提醒开关进入 `preferencesRepository`，因为它是轻量配置；待办条目进入 `taskLocalDataSource`，因为它需要结构化查询；用户手动挑选的附件进入 `AttachmentFileStore`，因为它是要长期保留的业务资产；缩略图则只进入 `cacheDir`，因为它本质上可以重建。
+
+只要把这种分类习惯建立起来，后面很多具体实现问题都会更顺。你不会再想把“附件原图”和“缩略图缓存”随手塞进同一目录，也不会把待办列表本身硬塞进键值存储里。存储设计真正保护的，往往不是第一次保存有没有成功，而是半年以后你还能不能说清每份数据为什么在这里、为什么可以删或不能删。
+
+再往前走一步，这也是为什么存储决策最好在功能设计早期就明确下来。一次性的 `putString()` 或 `writeText()` 看起来都很便宜，但只要数据分类一开始就错，后面迁移、清理和共享边界几乎都会一起变贵。好的存储设计，常常不是“会更多 API”，而是更早把语义和生命周期对齐。
 
 ### 7. 实践任务
 

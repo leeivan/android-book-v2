@@ -1,4 +1,4 @@
-﻿# 模块化
+# 模块化
 
 很多团队第一次认真谈模块化，往往不是因为“想做更高级的工程架构”，而是因为单体工程已经开始持续制造成本: 改一点代码要等很久才能重新构建，一个模块的依赖变动会波及整个项目，多个开发者经常在同一个大模块里互相踩改动，公共能力越积越多却没有边界。到了这个阶段，问题早就不是“目录够不够整齐”，而是工程结构已经撑不住协作和演进了。
 
@@ -126,6 +126,63 @@
 - 开发者会把更多时间花在“代码该放哪”而不是“功能该怎么做好”上。
 
 模块化最成熟的姿态，不是“越早越好”，而是“边界成熟到值得长期维护时再拆”。
+
+如果把模块图、依赖声明和接口绑定放到同一组例子里，模块化的“边界治理”会更具体。
+
+```kotlin
+// settings.gradle.kts
+include(
+    ":app",
+    ":core:ui",
+    ":core:network",
+    ":domain:news",
+    ":data:news",
+    ":feature:news",
+)
+```
+
+```kotlin
+// feature/news/build.gradle.kts
+dependencies {
+    implementation(project(":core:ui"))
+    implementation(project(":domain:news"))
+}
+
+// data/news/build.gradle.kts
+dependencies {
+    implementation(project(":core:network"))
+    implementation(project(":domain:news"))
+}
+```
+
+```kotlin
+// domain/news/src/main/kotlin/NewsRepository.kt
+interface NewsRepository {
+    fun observeHeadlines(): Flow<List<NewsArticle>>
+}
+
+class ObserveNewsUseCase(
+    private val repository: NewsRepository,
+) {
+    operator fun invoke(): Flow<List<NewsArticle>> = repository.observeHeadlines()
+}
+```
+
+```kotlin
+// app/src/main/kotlin/NewsBindings.kt
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class NewsBindings {
+    @Binds
+    abstract fun bindNewsRepository(
+        impl: OfflineFirstNewsRepository,
+    ): NewsRepository
+}
+```
+
+这组代码最重要的不是“拆出了几个模块”，而是依赖方向终于被写实了。`feature:news` 只依赖 `domain:news` 暴露出的能力，不直接碰网络或数据库；`data:news` 负责实现 `NewsRepository`，再由 `app` 或 DI 容器把实现接回接口。这样一来，功能模块讨论的是产品能力，数据模块讨论的是数据获取方式，两者不会因为“先写在哪都行”而重新缠在一起。
+
+也正因为如此，模块化最有价值的部分通常不是目录树，而是接口位置和依赖方向。只要一个功能模块开始直接依赖多个 data 模块或多个基础设施模块，说明边界设计还没真正稳定。把接口收进 domain，把实现留在 data，把装配放回 app，模块图才会真正开始变干净。
 
 ### 10. 实践任务
 

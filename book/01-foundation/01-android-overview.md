@@ -105,6 +105,43 @@ Android Developers、Kotlin 文档和官方样例项目都很重要，但它们�
 
 第一条偏路，是只记 API，不理解平台边界。这样学出来的人往往“会写很多例子”，但一到权限、生命周期、后台执行、通知或兼容性问题时就立刻失去判断力。第二条偏路，是先系统学习一整套旧写法，再试图补现代迁移。这样当然不是完全不能走，但成本很高，读者会把大量精力花在历史包袱上，而不是建立当前主线。第三条偏路，是只会搭界面，不会组织应用。Android 开发的真正难点，从来不只是把控件摆出来，而是能否在平台规则下把页面、状态、数据、权限和后台行为组织成稳定工程。
 
+如果把平台坐标和组件入口写成一个最小工程片段，Android 的“平台性”会更具体。
+
+```kotlin
+android {
+    compileSdk = 36
+
+    defaultConfig {
+        minSdk = 26
+        targetSdk = 35
+    }
+}
+```
+
+```xml
+<application
+    android:label="@string/app_name"
+    android:theme="@style/Theme.TodoBook">
+    <activity
+        android:name=".MainActivity"
+        android:exported="true" />
+    <service
+        android:name=".SyncService"
+        android:exported="false" />
+    <receiver
+        android:name=".BootReceiver"
+        android:exported="false" />
+    <provider
+        android:name=".TaskProvider"
+        android:authorities="${applicationId}.tasks"
+        android:exported="false" />
+</application>
+```
+
+这两段代码把前面几个抽象概念一下子落到了工程里。`compileSdk`、`minSdk` 和 `targetSdk` 不再只是三条定义，而是会真实出现在构建配置里；Activity、Service、BroadcastReceiver 和 ContentProvider 也不再只是名词，而是会真实出现在 Manifest 里，成为系统进入应用的正式入口。只要把这两层看作“平台坐标”和“系统入口”，后面各章为什么总在 SDK 配置和组件声明之间来回切换，就会自然很多。
+
+这里还可以顺手建立一个很重要的判断：`compileSdk` 比 `targetSdk` 更新，并不奇怪。前者首先是编译坐标，后者首先是平台行为承诺；它们虽然常常一起升级，但不必在语义上混成同一个数字。只要这条边界立住，后面面对版本升级、行为变更和兼容策略时，读者就不会把所有问题都粗暴归因成“Android 版本太乱”。
+
 ### 12. 最小实践任务
 
 起点条件：

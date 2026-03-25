@@ -1,4 +1,4 @@
-﻿# OkHttp
+# OkHttp
 
 当网络章节进入工具层时，很多人会很快把注意力全部转向 Retrofit，因为它更“像业务代码”，也更接近接口声明。但如果没有先看清 OkHttp 这层，后面很多问题都很难真正理解：连接为什么能复用，重定向和压缩是谁在处理，统一鉴权头应该放在哪一层，为什么日志、超时和缓存配置不该散落在每个接口里。
 
@@ -135,6 +135,46 @@ suspend fun fetchArticlesJson(): String = withContext(Dispatchers.IO) {
 
 这意味着，OkHttp 的最佳位置往往是“网络基础设施层”，而不是“页面可直接使用的请求工具层”。如果你的 Fragment 或 Activity 里出现了大量 `Request.Builder()`，通常说明网络职责分层还不够清楚。
 
+如果把认证、超时和调试日志也放进同一个客户端构建过程，OkHttp 的“基础设施层”角色会更明显。
+
+```kotlin
+class AuthInterceptor(
+    private val tokenProvider: () -> String?,
+) : Interceptor {
+
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val requestBuilder = chain.request().newBuilder()
+            .header("Accept", "application/json")
+
+        tokenProvider()?.let { token ->
+            requestBuilder.header("Authorization", "Bearer $token")
+        }
+
+        return chain.proceed(requestBuilder.build())
+    }
+}
+
+fun provideHttpClient(tokenProvider: () -> String?): OkHttpClient {
+    val loggingInterceptor = HttpLoggingInterceptor().apply {
+        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC
+        else HttpLoggingInterceptor.Level.NONE
+    }
+
+    return OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .writeTimeout(15, TimeUnit.SECONDS)
+        .addInterceptor(AuthInterceptor(tokenProvider))
+        .addInterceptor(loggingInterceptor)
+        .build()
+}
+```
+
+这段代码最重要的不是“又多配了几个超时”，而是它把很多横切规则收回到了网络基础设施层。认证头、统一 `Accept`、超时和调试日志都不再需要由每个接口或每个页面自己记着加一遍，而是由共享 `OkHttpClient` 统一接管。只要这一层站稳，后面无论接 Retrofit 还是底层数据源，默认网络规则都会更清楚。
+
+这也解释了为什么 application interceptor 往往是最先该用好的那一个扩展点。它处理的是“应用视角的一次请求应该默认带什么规则”，而不是某个页面级业务要不要弹错误插图。只要拦截器开始承担页面语义，OkHttp 这层就会从基础设施退化成混合层。
+
+当你把这段构建逻辑和前面的最小请求例子放在一起看，就会更容易理解一句很重要的话：OkHttp 解决的不是“把 URL 发出去”，而是“为整个应用建立稳定、统一、可复用的 HTTP 运行时”。这也是它在整条网络链路里最值钱的地方。
 ### 9. 实践任务
 
 起点条件：
@@ -182,10 +222,9 @@ OkHttp 是网络栈的基础设施层。它的价值不在于“语法会不会�
 
 下一章我们继续往上走，看 Retrofit 如何把底层 HTTP 通信包装成更适合业务协作的声明式接口。
 
-
 ## 参考资料
 
-- 参考并整理自本地 PDF：`Real-World Android by Tutorials`，网络层、客户端复用与项目中的请求组织相关内容。
+- 参考并整理自本地 PDF：N. Smyth，《Android Studio Narwhal Essentials: Java Edition》(2025)，现代 Android 网络请求、权限与工程组织相关章节。
 - 参考并整理自本地 PDF：Bennett M.，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，网络基础设施、依赖注入与模块化工程中的数据入口相关章节。
 - OkHttp Overview：<https://square.github.io/okhttp/>
 - OkHttp Calls：<https://square.github.io/okhttp/features/calls/>
