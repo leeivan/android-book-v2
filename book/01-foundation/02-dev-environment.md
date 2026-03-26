@@ -52,6 +52,12 @@ Android 学习里，环境问题从来不是“开始前处理一下就过去的
 
 第二步，是确认 SDK 组件，而不是只确认 IDE 本体。很多“我已经安装好了，为什么还不能跑”的问题，都出在这里。Android Studio 能打开，不代表 SDK Platform、Build Tools、Platform Tools 和 Emulator 都已经可用。应该进入 SDK Manager 确认这些组件确实可见、可更新、可下载。
 
+如果把 SDK Manager 和 Device Manager 摆到同一块工作台里看，环境验证顺序会更容易建立起来。先确认平台组件与工具都已就绪，再确认模拟器或真机入口已经可用，后面的 Run、安装和调试才有稳定基础。
+
+![Android Studio 的 SDK Manager 与 Device Manager](../media/01-foundation/android-studio-sdk-device-manager.svg)
+
+图：Android Studio 中的 SDK Manager 与 Device Manager 示意。左侧先检查 `SDK Platforms` 和 `SDK Tools` 是否完整，右侧再确认模拟器或真机入口是否可用，这比只盯着 Run 按钮更容易定位环境断点。
+
 第三步，是准备至少一个模拟器和至少一种真机验证方式。模拟器适合快速验证最小项目，真机适合尽早暴露 USB、驱动、权限和真实系统行为差异。只依赖其中一类设备，后面都容易踩坑。
 
 ### 4. 模拟器和真机不是二选一

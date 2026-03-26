@@ -56,6 +56,12 @@ Navigation 组件真正带来的，不只是一个 `navigate()` 方法，而是�
 
 Neil Smyth 在 `Android Studio Koala Essentials` 的 Navigation tutorial 里，则把这套现代结构拆成了一个很清楚的最小样板：`activity_main` 里声明 `nav_host_fragment_content_main` 作为 Navigation Host，Activity 通过 `AppBarConfiguration(navController.graph)` 和 `setupActionBarWithNavController(...)` 接管 Up 行为，`FirstFragment` 再用 `findNavController().navigate(...)` 或 `FirstFragmentDirections.mainToSecond()` 触发动作和传参。这个例子适合补在这里，是因为它把宿主、导航图、控制器、参数和 action bar 的职责都收进同一个小工程里，读者更容易看到“结构化导航”到底具体长什么样。
 
+如果进一步把 Android Studio 里的 Navigation Editor 也放进来，读者会更容易把正文里的 XML、宿主和参数声明对应到一个实际工作台上。Navigation 之所以比手写零散跳转更稳，关键正在于这些关系终于能被集中看见、集中维护。
+
+![Navigation Editor 工作台示意](../media/02-ui/navigation-editor-workbench.svg)
+
+图：Navigation Editor 工作台示意。左侧组件树对应宿主和资源文件，中间导航图负责展示目的地关系，右侧属性面板则把起点和参数显式化，这正是结构化导航更容易维护的原因。
+
 ### 5. 页面职责不清，导航一定会跟着混乱
 
 很多导航问题，本质上不是导航组件本身的问题，而是页面职责不清。如果一个页面既像首页、又像弹窗、又像流程中间页，那么导航关系一定会混乱。设计导航时，必须同时思考：这个页面是独立目的地还是局部内容，它在流程里是入口、分支还是终点，用户从哪里来，完成后要回哪里去。

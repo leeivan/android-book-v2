@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="500" viewBox="0 0 940 500" role="img" aria-labelledby="title desc">
+  <title id="title">Android Studio 的 SDK Manager 与 Device Manager 示意</title>
+  <desc id="desc">展示 Android Studio 中 SDK Platforms、SDK Tools 和 Device Manager 的工作台布局。</desc>
+  <defs>
+    <style>
+      .bg{fill:#f5f7fb}.frame{fill:#fff;stroke:#1f2937;stroke-width:2}.top{fill:#1f2937}.sidebar{fill:#eef2ff}.panel{fill:#fff;stroke:#94a3b8;stroke-width:1.6}.tab{fill:#dbeafe;stroke:#60a5fa;stroke-width:1.4}.active{fill:#2563eb}.label{font-family:"Microsoft YaHei","Noto Sans SC",sans-serif;font-size:22px;font-weight:700;fill:#111827}.small{font-family:"Microsoft YaHei","Noto Sans SC",sans-serif;font-size:16px;fill:#334155}.tiny{font-family:"Microsoft YaHei","Noto Sans SC",sans-serif;font-size:14px;fill:#475569}.ok{fill:#16a34a}.line{stroke:#cbd5e1;stroke-width:1.2}
+    </style>
+  </defs>
+  <rect class="bg" width="940" height="500"/>
+  <text class="label" x="40" y="42">Android Studio：先确认 SDK 组件，再确认设备入口</text>
+  <rect class="frame" x="34" y="62" width="872" height="398" rx="14"/>
+  <rect class="top" x="34" y="62" width="872" height="38" rx="14"/>
+  <text class="small" x="58" y="87" fill="#fff">Android Studio Narwhal - Settings / SDK Manager</text>
+  <rect class="sidebar" x="34" y="100" width="164" height="360"/>
+  <text class="small" x="56" y="136">Appearance</text>
+  <text class="small" x="56" y="166">Plugins</text>
+  <rect class="tab" x="48" y="190" width="136" height="34" rx="8"/>
+  <text class="small" x="66" y="213">SDK Manager</text>
+  <text class="small" x="56" y="252">Device Manager</text>
+  <text class="small" x="56" y="282">Build Tools</text>
+  <text class="small" x="56" y="312">Logcat</text>
+
+  <rect class="panel" x="220" y="118" width="408" height="322" rx="12"/>
+  <text class="label" x="244" y="148">SDK Manager</text>
+  <rect class="tab" x="244" y="166" width="122" height="30" rx="8"/>
+  <text class="small" x="262" y="187">SDK Platforms</text>
+  <rect class="panel" x="378" y="166" width="98" height="30" rx="8"/>
+  <text class="tiny" x="403" y="186">SDK Tools</text>
+  <rect class="panel" x="244" y="212" width="358" height="52" rx="10"/>
+  <text class="small" x="262" y="242">Android 15.0 (API 35)</text>
+  <circle class="ok" cx="570" cy="238" r="7"/>
+  <text class="tiny" x="522" y="244">Installed</text>
+  <rect class="panel" x="244" y="274" width="358" height="52" rx="10"/>
+  <text class="small" x="262" y="304">Android 14.0 (API 34)</text>
+  <circle class="ok" cx="570" cy="300" r="7"/>
+  <text class="tiny" x="522" y="306">Installed</text>
+  <rect class="panel" x="244" y="336" width="358" height="72" rx="10"/>
+  <text class="small" x="262" y="364">必要组件</text>
+  <text class="tiny" x="262" y="390">Platform Tools / Build Tools / Emulator / System Image</text>
+
+  <rect class="panel" x="656" y="118" width="224" height="322" rx="12"/>
+  <text class="label" x="680" y="148">Device Manager</text>
+  <rect class="panel" x="674" y="174" width="188" height="104" rx="10"/>
+  <text class="small" x="692" y="204">Pixel 8 Pro API 35</text>
+  <text class="tiny" x="692" y="230">Google Play x86_64</text>
+  <circle class="ok" cx="830" cy="200" r="7"/>
+  <text class="tiny" x="790" y="235">Running</text>
+  <rect class="panel" x="674" y="296" width="188" height="124" rx="10"/>
+  <text class="small" x="692" y="326">验证顺序</text>
+  <text class="tiny" x="692" y="352">1. SDK 已安装</text>
+  <text class="tiny" x="692" y="376">2. Emulator / 真机可见</text>
+  <text class="tiny" x="692" y="400">3. adb devices 能看到目标设备</text>
+</svg>
