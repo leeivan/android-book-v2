@@ -215,6 +215,71 @@ class NavigationService : Service() {
 
 把这三段并排之后，分类标准就会非常清楚：用户正在等待结果的任务留在页面状态层；允许稍后完成但必须最终完成的任务交给系统调度；用户正在依赖、而且必须持续可见的能力，才升级成前台服务。
 
+真正进入项目以后，还需要再补一层工程判断：后台任务不仅要分对类，还要先拥有稳定的“任务身份”。如果同一条草稿上传、同一批同步或同一路导航请求没有明确身份，后面无论是取消、重试、去重还是向用户解释状态，都会越来越混乱。Big Nerd Ranch 用唯一 Work 名称解决轮询去重，Socorro 用固定周期 work 和重试策略表达“同一类备份任务”，本质上都在做同一件事：先把任务当成一份有身份的工作单元，而不是一段“后台顺手跑一下”的代码。
+
+把这个判断压缩成一个最小的分类入口，可以写成下面这样：
+
+```kotlin
+sealed interface TaskExecutionPlan {
+    data class ScreenBound(val reason: String) : TaskExecutionPlan
+    data class Deferred(
+        val uniqueName: String,
+        val requiresNetwork: Boolean
+    ) : TaskExecutionPlan
+    data class Foreground(val notificationId: Int) : TaskExecutionPlan
+}
+
+fun decideAttachmentPlan(
+    draftId: String,
+    userIsWaiting: Boolean,
+    mustStayVisible: Boolean
+): TaskExecutionPlan {
+    return when {
+        mustStayVisible -> TaskExecutionPlan.Foreground(
+            notificationId = NAV_NOTIFICATION_ID
+        )
+
+        userIsWaiting -> TaskExecutionPlan.ScreenBound(
+            reason = "当前页面必须立刻给出可见结果。"
+        )
+
+        else -> TaskExecutionPlan.Deferred(
+            uniqueName = "upload_attachment_$draftId",
+            requiresNetwork = true
+        )
+    }
+}
+```
+
+这段代码本身不会替你跑任务，但它很适合拿来训练一种更稳的后台设计习惯：先把“当前交互”“可延迟补做”“必须持续可见”三类工作收束成清楚的计划对象，再把计划交给 `viewModelScope`、`WorkManager` 或前台 `Service` 去实现。这样做的好处是，分类标准不再散落在各层 if/else 里，而会变成一条可以被测试、可以被审查、也更容易和产品讨论的决策链。
+
+还有一个经常只有在任务真正上线后才暴露出来的要求，是幂等性。后台工作一旦允许重试、恢复或重复入队，就必须提前接受“同一份工作可能被执行不止一次”的现实。Socorro 在消息上传章节里通过 `runAttemptCount` 明确表达“这项工作会被重试”；WorkManager 本身也会在合适时机重新调度同一项工作。真正能保护业务正确性的，最终还是任务本身是否具备幂等语义。
+
+```kotlin
+data class UploadCommand(
+    val draftId: String,
+    val operationId: String = "draft_upload_$draftId"
+)
+
+class AttachmentUploadCoordinator(
+    private val remoteDataSource: DraftRemoteDataSource,
+    private val localStore: UploadCheckpointStore
+) {
+    suspend fun upload(command: UploadCommand) {
+        if (localStore.isCompleted(command.operationId)) return
+
+        remoteDataSource.uploadAttachment(
+            draftId = command.draftId,
+            operationId = command.operationId
+        )
+
+        localStore.markCompleted(command.operationId)
+    }
+}
+```
+
+这个例子真正表达的是：后台任务的身份不该只停留在 Work 名称，还应该进入业务层。只要 `operationId` 在远端和本地都能被识别，同一条上传即使因为网络波动、进程重启或重复点击被触发多次，最终也更容易保持“最多成功一次”的语义。也就是说，调度层解决的是“何时再跑一次”，幂等性解决的是“再跑一次会不会把业务搞坏”。这两层缺一不可。
+
 ### 10. 一个实用的决策顺序
 
 当你面对一个新需求，不确定它该落在哪类机制上时，可以按下面这个顺序想。

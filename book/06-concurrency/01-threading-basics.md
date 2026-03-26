@@ -51,6 +51,29 @@ Android 的主线程承担着几乎所有用户直接能感知到的工作:
 
 这三类任务的共性是，都可能涉及并发；差异在于，它们对线程、时机和取消的要求完全不同。只要分类先做对，后续工具选择会自然很多。
 
+还有一个很容易被忽视的区别，是 I/O 和 CPU 任务虽然都不该堵主线程，但也不该被当成同一种“后台工作”。Codwell 在协程章节里把这条边界说得很直白：`Dispatchers.IO` 更适合等待网络、磁盘、数据库这类外部资源；`Dispatchers.Default` 更适合真正吃 CPU 的解析、压缩、排序和格式化。把两者混在一起，短期看代码仍能跑，长期却会让“哪段工作到底在等资源，哪段工作在占计算”越来越模糊。
+
+例如“加载故事详情并生成预览卡片”这种需求，本身往往就包含两段性质不同的工作：
+
+```kotlin
+class StoryPreviewRepository(
+    private val remoteDataSource: StoryRemoteDataSource,
+    private val previewBuilder: PreviewBuilder
+) {
+    suspend fun loadPreview(storyId: String): StoryPreview {
+        val story = withContext(Dispatchers.IO) {
+            remoteDataSource.fetchStory(storyId)
+        }
+
+        return withContext(Dispatchers.Default) {
+            previewBuilder.build(story)
+        }
+    }
+}
+```
+
+这里第一段是明显的 I/O 等待：请求故事详情要等网络返回；第二段则更接近 CPU 工作：把原始数据整理成预览文本、统计摘要、生成分组，这些都更像纯计算。把它们拆开之后，代码不仅更接近真实代价，也更有助于后面调试卡顿。如果页面打开很慢，你至少能先判断问题出在网络等待还是本地计算，而不是只看到一团“后台协程正在忙”。
+
 ### 4. 放到后台并不等于万事大吉
 
 很多项目表面上已经“把耗时操作移出主线程”，却仍然频繁出问题。原因通常是，开发者把“线程切换”误当成了“并发设计完成”。
@@ -123,6 +146,77 @@ class BackupViewModel(
 ```
 
 这个片段里最值得观察的是：`ViewModel` 不需要亲自决定 I/O 线程细节，它只负责发起任务和更新状态；真正保证 main-safe 的责任在 `Repository` 内部。
+
+不过，main-safe 只解决了“这段工作该在哪个上下文执行”，还没有解决“多个并发路径同时改状态时怎么办”。Bennett 在状态驱动架构的讨论里专门强调过，`MutableStateFlow.update { ... }` 的价值不只是写法顺手，它还带着原子更新语义。对页面状态来说，这一点非常关键，因为并发链路里最难排查的 bug 往往不是崩溃，而是某次状态覆盖把另一条更新悄悄吃掉了。
+
+可以把这个问题压缩成一个更具体的上传进度例子：
+
+```kotlin
+data class UploadUiState(
+    val uploadedBytes: Long = 0,
+    val totalBytes: Long = 0,
+    val isUploading: Boolean = false,
+    val errorMessage: String? = null
+)
+
+class UploadProgressViewModel : ViewModel() {
+    private val _uiState = MutableStateFlow(UploadUiState())
+    val uiState: StateFlow<UploadUiState> = _uiState.asStateFlow()
+
+    fun start(totalBytes: Long) {
+        _uiState.update {
+            it.copy(
+                uploadedBytes = 0,
+                totalBytes = totalBytes,
+                isUploading = true,
+                errorMessage = null
+            )
+        }
+    }
+
+    fun onChunkUploaded(chunkSize: Long) {
+        _uiState.update { state ->
+            state.copy(uploadedBytes = state.uploadedBytes + chunkSize)
+        }
+    }
+
+    fun onUploadFailed(message: String) {
+        _uiState.update {
+            it.copy(isUploading = false, errorMessage = message)
+        }
+    }
+
+    fun onUploadFinished() {
+        _uiState.update {
+            it.copy(isUploading = false)
+        }
+    }
+}
+```
+
+这段代码真正想说明的是：页面状态最好始终有一个清楚的 owner，由它串行地解释“开始上传”“收到进度”“失败”“完成”这些事件。`update { ... }` 能帮你避免并发更新时读旧值、写新值之间的窗口期问题，但它并不是鼓励“谁都可以改状态”的许可。更稳的工程边界仍然是：状态入口尽量少，写入路径尽量集中，其他线程和协程只负责提交事件，而不是到处直接改 UI 状态。
+
+如果确实存在一份必须被多个协程共享的可变资源，例如上传会话表、批量导入统计表或下载中的任务映射，就不要再让每个调用者各自读写同一个 `mutableMapOf()`。更稳的办法是把写入口收进一个互斥边界，让共享资源只通过一个受控 API 被修改。
+
+```kotlin
+class UploadSessionRegistry {
+    private val mutex = Mutex()
+    private val uploadedBytes = mutableMapOf<String, Long>()
+
+    suspend fun markUploaded(fileId: String, chunkSize: Long) {
+        mutex.withLock {
+            val current = uploadedBytes[fileId] ?: 0L
+            uploadedBytes[fileId] = current + chunkSize
+        }
+    }
+
+    suspend fun snapshot(): Map<String, Long> = mutex.withLock {
+        uploadedBytes.toMap()
+    }
+}
+```
+
+这个例子想补的是另一层并发直觉：有时候问题不在“这段代码跑在哪个线程”，而在“同一份状态到底谁有权写”。`Mutex.withLock` 不是为了鼓励你把所有状态都做成全局共享，而是提醒你，一旦真的必须共享，就要先收紧写入口，再谈性能和扩展。否则后台线程再多、协程再现代，最终也只是把竞争条件藏得更深。
 
 ### 7. 一个典型误区: 把所有耗时工作都当成同一种后台任务
 
@@ -241,8 +335,9 @@ class SearchViewModel(
 ## 参考资料
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 12 章导论部分。
-- 参考并改写自：Giselle Socorro，《Thriving in Android Development Using Kotlin》(2024)，协程、I/O 调度、存储上传与异步边界相关章节。
+- 参考并改写自：Guilherme Socorro，《Thriving in Android Development Using Kotlin》(2024)，协程、I/O 调度、存储上传与异步边界相关章节。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，状态归属、并发边界与现代工程组织相关章节。
+- 参考并改写自：Howard Codwell，《Kotlin Development: Complete Guide Create 45 Android Apps》(2025)，`Dispatchers.IO`、`Dispatchers.Default` 与任务分类相关章节。
 
 - Processes and threads overview: <https://developer.android.com/guide/components/processes-and-threads>
 - Threading on Android: <https://developer.android.com/topic/performance/threads>

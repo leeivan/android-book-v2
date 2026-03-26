@@ -82,6 +82,26 @@ Flow 默认是冷的，这意味着只有在被收集时，它才真正开始生
 
 只要把操作符和它背后的问题绑定起来，Flow 就不会再像一份难背的函数表。
 
+还有一类操作符，只有放到“上游发得太快，下游来不及处理”这个问题里，价值才会变得明显。Smyth 在 Flow 章节里把 `buffer()`、`conflate()`、`collectLatest()` 放到同一组里讲，本质上都是在处理背压：生产速度和消费速度不一致时，你想保留全部中间值，还是只保留最新值，还是一有新值就取消旧处理。Android 里最典型的场景不是数据库，而是输入联想、滚动预览、图片缩略图和进度刷新这类“新结果会迅速让旧结果失效”的 UI 数据流。
+
+```kotlin
+override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    super.onViewCreated(view, savedInstanceState)
+
+    viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewModel.thumbnailFlow
+                .conflate()
+                .collectLatest { thumbnail ->
+                    previewRenderer.render(thumbnail)
+                }
+        }
+    }
+}
+```
+
+这段代码里，`conflate()` 表达的是“如果上游连着来了很多张缩略图，中间值可以被跳过，只保留较新的结果”；`collectLatest` 表达的是“如果上一张图还没渲染完，而更新的图又到了，就取消旧渲染，直接处理新图”。它们并不总该一起用，但都在回答同一个工程问题：当 UI 只关心最近状态时，旧中间值还值不值得完整处理。只要把这一点想清楚，背压就不再是抽象术语，而会回到非常具体的产品体验判断。
+
 ### 6. 一个更接近真实项目的例子: 搜索输入流
 
 下面这个例子展示了 Flow 在“搜索输入 -> 去抖 -> 查询结果”场景中的典型价值:
@@ -194,6 +214,143 @@ override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 
 当上游的 `StateFlow` 边界已经清楚，下游的收集边界也写对时，Flow 才会真正体现出它的工程价值：数据变化路径清晰，生命周期行为明确，UI 只消费整理后的状态，而不是自己重新发明一套订阅逻辑。
 
+再往前走一步，很多真实项目还会遇到一个拐点：上游来源根本不是 Flow，而是系统回调、WebSocket 监听器、SDK listener 或数据库以外的观察接口。这时最常用的桥接方式就是 `callbackFlow`。Socorro 在消息流封装里用它把监听器变成 `Flow<Message>`，而 Smyth 和 Wangereka 在更偏教学的例子里则反复强调：一旦你把回调桥接成流，就要同时把“如何开始监听”和“何时停止监听”写在同一个地方，否则内存泄漏和重复订阅很快就会出现。
+
+下面这个网络状态监听例子，正好能把 `callbackFlow` 和 `stateIn` 放到一条链路里理解：
+
+```kotlin
+enum class NetworkStatus {
+    Available,
+    Unavailable
+}
+
+class ConnectivityRepository(
+    private val connectivityManager: ConnectivityManager
+) {
+    fun observeNetworkStatus(): Flow<NetworkStatus> = callbackFlow {
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                trySend(NetworkStatus.Available)
+            }
+
+            override fun onLost(network: Network) {
+                trySend(NetworkStatus.Unavailable)
+            }
+        }
+
+        connectivityManager.registerDefaultNetworkCallback(callback)
+
+        val initialStatus = if (connectivityManager.activeNetwork != null) {
+            NetworkStatus.Available
+        } else {
+            NetworkStatus.Unavailable
+        }
+        trySend(initialStatus)
+
+        awaitClose {
+            connectivityManager.unregisterNetworkCallback(callback)
+        }
+    }.distinctUntilChanged()
+}
+
+class SyncBannerViewModel(
+    connectivityRepository: ConnectivityRepository
+) : ViewModel() {
+
+    val networkStatus: StateFlow<NetworkStatus> =
+        connectivityRepository.observeNetworkStatus()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = NetworkStatus.Unavailable
+            )
+}
+```
+
+这段代码最值得观察的不是语法，而是三个边界。第一，`callbackFlow` 只负责把回调世界翻译成 Flow 世界，不承担 UI 状态职责；第二，`awaitClose { ... }` 是这类桥接里绝对不能省的清理出口，否则 collector 结束后监听还会残留；第三，`stateIn(...)` 把原本“每收集一次就重新注册一次回调”的冷流，提升成了 `ViewModel` 持有的热状态。也就是说，`callbackFlow` 解决的是“怎么接进来”，`stateIn` 解决的是“接进来之后谁来长期持有和共享”。只要把这两个问题分开想，Flow 在真实项目里就会清楚很多。
+
+Smyth 在 SharedFlow 教程里还专门提醒了另一个很常见的误区：同一个冷流如果会被多个 collector 同时消费，而你又没有先把它共享化，上游生产逻辑就会被重复执行。例如一个 socket 事件流同时驱动 badge、snackbar 和列表刷新，如果三个地方都各自直接 collect 原始 Flow，就可能发生重复建连、重复解析，甚至彼此看见的还是三条不完全一致的时间线。遇到这种需求时，`shareIn()` 往往比继续堆 `stateIn()` 更准确，因为你要共享的是“事件流本身”，不是某个当前状态。
+
+```kotlin
+class InboxSyncViewModel(
+    repository: InboxRepository
+) : ViewModel() {
+
+    val syncEvents: SharedFlow<SyncEvent> =
+        repository.observeSyncSocket()
+            .shareIn(
+                scope = viewModelScope,
+                replay = 1,
+                started = SharingStarted.WhileSubscribed(5_000)
+            )
+}
+```
+
+这段代码的重点不是把所有 Flow 都改成热流，而是把语义分清。`stateIn()` 更适合“页面任何时刻都需要一个当前值”的场景；`shareIn()` 更适合“上游代价不低、但多个下游想共享同一条事件时间线”的场景；`MutableSharedFlow` 则更适合自己主动发射事件。只要把这三类问题拆开，Flow 就不再只是“冷流、热流、StateFlow、SharedFlow 的名词表”，而会重新回到工程判断：我到底要共享状态，还是共享事件生产过程？
+
+Bennett 在 UDF / side effect 的讨论里还指出了另一个很容易混淆的边界：有些信息不是“当前状态”，而是“一次性要通知控制器去做的动作”，例如导航、弹 toast、打开系统分享面板。这类东西如果错误地塞进 `StateFlow`，新的 collector 一订阅就会把旧 effect 再吃一遍；如果直接塞进普通冷流，又会因为重新收集而把历史动作重新执行一遍。所以很多团队会把这种一次性 effect 单独放到 `Channel.receiveAsFlow()` 这一条通道里。
+
+```kotlin
+sealed interface ArticleEffect {
+    data class OpenArticle(val articleId: String) : ArticleEffect
+    data class ShowMessage(val text: String) : ArticleEffect
+}
+
+class ArticleListViewModel : ViewModel() {
+    private val _effect = Channel<ArticleEffect>(Channel.BUFFERED)
+    val effect: Flow<ArticleEffect> = _effect.receiveAsFlow()
+
+    fun onArticleClicked(articleId: String) {
+        viewModelScope.launch {
+            _effect.send(ArticleEffect.OpenArticle(articleId))
+        }
+    }
+}
+```
+
+这个例子最想帮读者建立的，不是“到底该永远用 Channel 还是 SharedFlow”，而是更底层的判断：状态和 effect 不是同一种东西。状态强调“此刻页面是什么样”；effect 强调“有一件一次性的动作需要被控制器消费”。只要这两类通道混在一起，Flow 再现代，页面行为也会很快变得不可预测。
+
+Big Nerd Ranch 在 `PhotoGalleryViewModel` 里把 `storedQuery` 和 `isPolling` 分开收集，已经足够说明“一页 UI 往往不只有一个上游”。如果想把这类多源数据进一步收成一份稳定的 UI 合约，`combine` 往往是最直接的工具。
+
+```kotlin
+data class PhotoGalleryUiState(
+    val query: String = "",
+    val isPolling: Boolean = false,
+    val images: List<GalleryItem> = emptyList()
+)
+
+class PhotoGalleryViewModel(
+    private val preferencesRepository: PreferencesRepository,
+    private val galleryRepository: GalleryRepository
+) : ViewModel() {
+
+    val uiState: StateFlow<PhotoGalleryUiState> =
+        combine(
+            preferencesRepository.storedQuery,
+            preferencesRepository.isPolling
+        ) { query, isPolling ->
+            query to isPolling
+        }
+            .flatMapLatest { (query, isPolling) ->
+                galleryRepository.observeGallery(query)
+                    .map { images ->
+                        PhotoGalleryUiState(
+                            query = query,
+                            isPolling = isPolling,
+                            images = images
+                        )
+                    }
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = PhotoGalleryUiState()
+            )
+}
+```
+
+这段代码最适合拿来讲“多源收束”这件事。`storedQuery` 和 `isPolling` 都是持续变化的状态来源，它们任何一个变化，页面都应该重新得到一份新的 `PhotoGalleryUiState`。如果把这类拼装工作放到 Fragment 里，页面很快就会变成“自己订阅两三个流，再手动拼一遍状态”的控制器；而把它收进 `ViewModel` 之后，UI 依然只面对一个稳定出口。换句话说，`combine` 真正解决的不是“语法更炫”，而是“多条时间线怎样被整理成一份可消费的当前事实”。
+
 ### 8. 什么情况下不必强行上 Flow
 
 Flow 很强，但不是所有异步问题都需要它。以下场景通常不必硬用 Flow:
@@ -251,7 +408,9 @@ Flow 在 Android 中真正提供的，是一种表达“持续变化数据关系
 
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 12 章中 `Flow` / `StateFlow` 与单向数据流相关部分。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，状态流、UI 状态组织与数据流建模相关章节。
-- 参考并改写自：Giselle Socorro，《Thriving in Android Development Using Kotlin》(2024)，`StateFlow`、聊天状态组织与异步消息链路相关章节。
+- 参考并改写自：Guilherme Socorro，《Thriving in Android Development Using Kotlin》(2024)，`StateFlow`、聊天状态组织与异步消息链路相关章节。
+- 参考并改写自：Humphrey Wangereka，《Mastering Kotlin for Android 14》(2024)，`StateFlow`、`collectAsStateWithLifecycle()` 与 `stateIn()` 相关章节。
+- 参考并改写自：Neil Smyth，《Jetpack Compose 1.7 Essentials》(2025)，`shareIn()`、热流共享与 Flow 生命周期相关章节。
 
 - Kotlin flows on Android: <https://developer.android.com/kotlin/flow>
 - StateFlow and SharedFlow: <https://developer.android.com/kotlin/flow/stateflow-and-sharedflow>

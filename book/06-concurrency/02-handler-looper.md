@@ -145,6 +145,80 @@ class ThumbnailDecoder {
 
 这个例子特别适合帮助读者建立第二层直觉：`Handler` 不只是在主线程上“晚一点做事”，它也可以绑定到专门的工作线程，把一类任务排队串行处理。与此同时，`quitSafely()` 又提醒我们，消息循环一旦被自己创建出来，就必须由自己负责结束，这和主线程 Looper 由系统托管形成了非常清楚的对比。
 
+早期不少书都会直接展示“在线程里手动 `Looper.prepare()` / `Looper.loop()`”的写法，这样当然有助于理解消息循环原理，但工程上更稳妥的做法通常仍然是优先用 `HandlerThread`。原因很简单：线程和它的 `Looper` 生命周期被绑在了一起，你不必自己再处理“线程启动了但 Handler 还没准备好”的竞态窗口。Apress 那类性能和消息循环章节会特别提醒这一点，因为自己拼装 Looper 线程时，最容易先踩到的就是初始化时机问题，而不是 API 语法。
+
+如果把“后台串行工作线程 + 消息协议”合在一起，可以写成下面这样：
+
+```kotlin
+private const val MSG_SYNC_ALBUM = 1
+private const val KEY_ALBUM_ID = "album_id"
+
+class AlbumSyncThread(
+    private val repository: AlbumRepository,
+    private val onFinished: (String) -> Unit
+) : HandlerThread("album-sync") {
+
+    private lateinit var workerHandler: Handler
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    override fun onLooperPrepared() {
+        workerHandler = object : Handler(looper) {
+            override fun handleMessage(msg: Message) {
+                if (msg.what != MSG_SYNC_ALBUM) return
+
+                val albumId = msg.data.getString(KEY_ALBUM_ID).orEmpty()
+                repository.syncAlbum(albumId)
+
+                mainHandler.post {
+                    onFinished(albumId)
+                }
+            }
+        }
+    }
+
+    fun enqueueSync(albumId: String) {
+        check(::workerHandler.isInitialized) {
+            "Call start() before enqueueSync()."
+        }
+
+        val message = workerHandler.obtainMessage(MSG_SYNC_ALBUM).apply {
+            data = Bundle().apply {
+                putString(KEY_ALBUM_ID, albumId)
+            }
+        }
+        workerHandler.sendMessage(message)
+    }
+}
+```
+
+这个例子有两个很实用的教学点。第一，`what + Bundle` 把后台线程收到的工作描述成了一条明确的命令，而不是“随手丢一段 lambda 进去”。第二，`onLooperPrepared()` 让 `workerHandler` 的可用时机和线程初始化对齐，这就是 `HandlerThread` 相比手写 `Looper.prepare()` 更不容易出竞态问题的地方。换句话说，`HandlerThread` 不是比原理更高级，而是把“线程 + Looper + 初始化顺序”这组三件事替你收拢成了一个更稳的工程边界。
+
+《Android Application Development Cookbook, 2nd Edition》里的 Camera2 recipes 还提供了一个很现实的 HandlerThread 场景：预览请求、拍照回调和 `ImageReader` 出图，本质上都只是“相机线程上的消息”。如果这些回调直接落到主线程，页面上稍微多一点图片保存或格式转换，就很容易把 UI 拖慢；而把它们绑到专门的 `HandlerThread` 上时，相机相关回调就会在自己的消息循环里串行推进。
+
+```kotlin
+class CameraCaptureDispatcher {
+    private val cameraThread = HandlerThread("camera-picture").apply { start() }
+    private val cameraHandler = Handler(cameraThread.looper)
+
+    fun bind(reader: ImageReader, onImageReady: (Image) -> Unit) {
+        reader.setOnImageAvailableListener({ imageReader ->
+            val image = imageReader.acquireLatestImage() ?: return@setOnImageAvailableListener
+            try {
+                onImageReady(image)
+            } finally {
+                image.close()
+            }
+        }, cameraHandler)
+    }
+
+    fun shutdown() {
+        cameraThread.quitSafely()
+    }
+}
+```
+
+这个例子和前面的 `AlbumSyncThread` 其实在讲同一件事：`HandlerThread` 很适合承接“同一类回调需要按顺序串行处理”的工作。它不是为了把所有事情都做成旧式消息系统，而是为了给某一类线程内事件建立稳定的执行通道。相机预览、图片写盘、蓝牙回调、串口监听，很多平台型接口都保留着这种风格，因为它们真正需要的是“有序的线程消息处理”，而不是页面层那种以状态为中心的异步组织。
+
 ### 8. `Runnable` 是简化入口，`Message` 更适合表达“协议”
 
 如果只是“一段稍后执行的代码”，`post {}` 和 `postDelayed()` 的确最顺手。但当两端开始约定消息类型、携带数据、反复转发结果时，老式的 `Message` / `handleMessage()` 模型反而更清楚。这也是很多旧项目、Messenger 通信和 Apress 里的 Handler 示例，仍然坚持用 `Message.obtain()`、`what` 和 `Bundle` 的原因。
@@ -180,6 +254,60 @@ fun dispatchSearchResult(handler: Handler, text: String) {
 这段代码最值得理解的地方有三层。第一，`obtainMessage()` 会从 Handler 一侧拿到一个已经绑定目标处理者的 `Message`，这比自己随手 new 一个对象更符合消息队列模型。第二，`what` 和 `Bundle` 让消息有了“协议”意味，接收方可以区分不同动作并读取不同负载。第三，只要这个 Handler 仍然绑定 `Looper.getMainLooper()`，那么 `handleMessage()` 依旧运行在主线程上，它并不会自动把耗时工作搬去后台。
 
 这也是很多旧代码最容易被误读的地方：看到 `sendMessage()` 就以为已经“异步化”了。实际上，如果消息只是被投递回主线程，那它解决的只是调度顺序问题，不是耗时执行问题。真正的后台工作仍然必须在 worker thread、协程或其他后台机制里完成，Handler 只负责把结果或控制信号送回合适的消息循环。
+
+Smyth 在远程绑定服务的 worked example 里还展示了 `Handler + Messenger` 的另一层价值：当消息不只是在一个线程里排队，而是要在两个组件之间约定“收到什么、回什么”时，`Message` 模型依然成立。它的核心并不是老式，而是协议足够显式。
+
+```kotlin
+private const val MSG_SEND_STATUS = 1
+private const val KEY_STATUS = "status"
+
+class RemoteStatusService : Service() {
+    private val incomingHandler = object : Handler(Looper.getMainLooper()) {
+        override fun handleMessage(msg: Message) {
+            if (msg.what != MSG_SEND_STATUS) return
+
+            val reply = Message.obtain(null, MSG_SEND_STATUS).apply {
+                data = Bundle().apply {
+                    putString(
+                        KEY_STATUS,
+                        "synced:${msg.data.getString(KEY_STATUS).orEmpty()}"
+                    )
+                }
+            }
+            msg.replyTo?.send(reply)
+        }
+    }
+
+    private val messenger = Messenger(incomingHandler)
+
+    override fun onBind(intent: Intent): IBinder = messenger.binder
+}
+
+class StatusClient(
+    private val remoteMessenger: Messenger,
+    private val onReply: (String) -> Unit
+) {
+    private val replyMessenger = Messenger(
+        object : Handler(Looper.getMainLooper()) {
+            override fun handleMessage(msg: Message) {
+                if (msg.what == MSG_SEND_STATUS) {
+                    onReply(msg.data.getString(KEY_STATUS).orEmpty())
+                }
+            }
+        }
+    )
+
+    fun requestStatus(taskId: String) {
+        val message = Message.obtain(null, MSG_SEND_STATUS).apply {
+            data = Bundle().apply { putString(KEY_STATUS, taskId) }
+            replyTo = replyMessenger
+        }
+        remoteMessenger.send(message)
+    }
+}
+```
+
+这个例子值得观察四个点。第一，`Messenger` 并没有抛弃 Handler，它只是把 `IBinder`、`Message` 和 `replyTo` 组合成了一条可跨组件传递的消息通道。第二，服务端仍然在自己的 `Handler` 里解释 `what` 和 `Bundle`，这说明“消息协议”这层抽象并没有变化。第三，客户端把 `replyTo` 指回自己的 `Messenger` 后，返回结果仍然能安全回到主线程。第四，消息通信依旧不等于耗时工作已经被妥善分类，真正的重任务仍然应该在服务内部进一步交给后台执行单元，而不是直接塞进 `handleMessage()`。
 
 ### 9. 什么场景下不必优先选择 Handler
 
@@ -241,7 +369,10 @@ fun dispatchSearchResult(handler: Handler, text: String) {
 - 参考并改写自：Dawn Griffiths、David Griffiths，《Head First Android Development》，Stopwatch 与 `Handler.postDelayed()` 相关示例。
 - 参考并改写自：James Steele、Nelson To，《The Android Developer's Cookbook》(2011)，`BackgroundTimer`、`Handler.postDelayed()` 与生命周期取消相关 recipes。
 - 参考并改写自：Satya Komatineni、Dave MacLean，《Apress Pro Android 4》(2012)，`Message.obtain()`、`sendMessageDelayed()` 与 `handleMessage()` 协作相关章节。
+- 参考并改写自：Onur Cinar，《Apress Pro Android Apps Performance Optimization》(2012)，`HandlerThread`、消息线程初始化顺序与竞态规避相关章节。
+- 参考并改写自本地 PDF：《Android Application Development Cookbook, 2nd Edition》，Camera2、`ImageReader` 与后台 `HandlerThread` 回调相关 recipes。
 
+- 参考并改写自：Neil Smyth，《Android Studio Flamingo Essentials: Java Edition》(2023)，remote bound service 中 `IncomingHandler`、`Messenger`、`replyTo` 与消息回传相关示例。
 - Processes and threads overview: <https://developer.android.com/guide/components/processes-and-threads>
 - Handler reference: <https://developer.android.com/reference/android/os/Handler>
 - Looper reference: <https://developer.android.com/reference/android/os/Looper>

@@ -229,6 +229,223 @@ class PublishStatusViewModel(app: Application) : AndroidViewModel(app) {
 
 再往前走一步，你会发现 `beginUniqueWork()` 里的唯一名称其实也是建模的一部分。对“发布同一条草稿”这种需求来说，使用 `publish_draft_$draftId` 作为唯一键，表达的就是“同一个草稿只应该保留一条有效流水线”。这比事后排查重复上传要便宜得多。
 
+如果 Worker 还需要真正接入生产环境，接下来最常见的两个问题通常是：“它怎么拿到 UseCase 或 Repository？”以及“失败和重试怎么写得更像业务规则，而不是默认兜底？”Socorro 的 `UploadMessagesWorker` 很适合回答前一个问题：不要在 `doWork()` 里自己 new 依赖，而是让 `HiltWorker` 或自定义 `WorkerFactory` 把依赖注入进来。Wangereka 的同步例子则补上了后一个问题：除了网络约束，电量条件、重试上限和输出结果都应该被明确建模，而不是全交给默认行为。
+
+下面把这些工程化细节压成一个更接近真实项目的版本：
+
+```kotlin
+private const val KEY_ACCOUNT_ID = "account_id"
+private const val KEY_UPLOADED_COUNT = "uploaded_count"
+private const val KEY_ERROR_MESSAGE = "error_message"
+
+@HiltWorker
+class UploadMessagesWorker @AssistedInject constructor(
+    @Assisted appContext: Context,
+    @Assisted workerParams: WorkerParameters,
+    private val uploadMessagesUseCase: UploadMessagesUseCase
+) : CoroutineWorker(appContext, workerParams) {
+
+    override suspend fun doWork(): Result {
+        val accountId = inputData.getString(KEY_ACCOUNT_ID)
+            ?: return Result.failure()
+
+        return runCatching {
+            uploadMessagesUseCase(accountId)
+        }.fold(
+            onSuccess = { uploadedCount ->
+                Result.success(
+                    workDataOf(KEY_UPLOADED_COUNT to uploadedCount)
+                )
+            },
+            onFailure = { error ->
+                if (error is IOException && runAttemptCount < 3) {
+                    Result.retry()
+                } else {
+                    Result.failure(
+                        workDataOf(
+                            KEY_ERROR_MESSAGE to (error.message ?: "Upload failed")
+                        )
+                    )
+                }
+            }
+        )
+    }
+}
+
+fun enqueueWeeklyUpload(context: Context, accountId: String) {
+    val constraints = Constraints.Builder()
+        .setRequiredNetworkType(NetworkType.UNMETERED)
+        .setRequiresBatteryNotLow(true)
+        .build()
+
+    val request = PeriodicWorkRequestBuilder<UploadMessagesWorker>(
+        7,
+        TimeUnit.DAYS
+    )
+        .setInputData(workDataOf(KEY_ACCOUNT_ID to accountId))
+        .setConstraints(constraints)
+        .setBackoffCriteria(
+            BackoffPolicy.LINEAR,
+            PeriodicWorkRequest.MIN_PERIODIC_INTERVAL_MILLIS,
+            TimeUnit.MILLISECONDS
+        )
+        .build()
+
+    WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+        "upload_messages_$accountId",
+        ExistingPeriodicWorkPolicy.KEEP,
+        request
+    )
+}
+```
+
+这段代码里有四个特别值得讲透的点。第一，`@HiltWorker` 让 Worker 像其他业务入口一样拿到 `UseCase`，这样真正的业务逻辑仍然停留在领域层，而不是散在调度层。第二，`runAttemptCount < 3` 表达了“网络暂时失败值得重试三次，但不能无限重试”这种明确业务判断。第三，`setBackoffCriteria(...)` 把“失败后多久再试”收成了调度策略，而不是靠应用自己睡眠等待。第四，`Result.success(workDataOf(...))` 和 `Result.failure(workDataOf(...))` 让任务输出重新变成下游可读取的数据，而不是只剩下一句日志。
+
+如果团队用的不是 Hilt，而是 Koin 或自定义依赖注入，Wangereka 的例子还补上了一层很容易被漏掉的工程细节：不要一边想让 Worker 走自己的工厂，一边又保留 WorkManager 的默认初始化。否则系统会先按默认方式创建 WorkManager，你自己的 `WorkerFactory` 根本接不上去。
+
+```kotlin
+class ChapterEightApplication(
+    private val appWorkerFactory: WorkerFactory
+) : Application(), Configuration.Provider {
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(appWorkerFactory)
+            .build()
+}
+
+class AppWorkerFactory(
+    private val syncWorkerFactory: SyncWorkerFactory
+) : WorkerFactory() {
+    override fun createWorker(
+        appContext: Context,
+        workerClassName: String,
+        workerParams: WorkerParameters
+    ): ListenableWorker? {
+        return when (workerClassName) {
+            UploadMessagesWorker::class.java.name ->
+                syncWorkerFactory.create(appContext, workerParams)
+            else -> null
+        }
+    }
+}
+```
+
+```xml
+<provider
+    android:name="androidx.startup.InitializationProvider"
+    android:authorities="${applicationId}.androidx-startup"
+    android:exported="false"
+    tools:node="merge">
+    <meta-data
+        android:name="androidx.work.WorkManagerInitializer"
+        android:value="androidx.startup"
+        tools:node="remove" />
+</provider>
+```
+
+这一组代码想讲清的是：`@HiltWorker` 只是“如何把依赖送进 Worker”的一种实现，背后真正的工程边界是“Worker 创建权到底交给谁”。如果你自己接管 `WorkerFactory`，就必须同时把 `Configuration.Provider` 和默认初始化器移除这两件事一起做完；否则表面上依赖注入已经写好，运行时却仍然会落回默认创建路径。对大型项目来说，这一步非常关键，因为后台任务往往比页面入口更容易被忽略，而一旦工厂没接上，问题通常要到真机调度时才暴露。
+
+如果页面需要把后台结果折回到 UI，也可以继续沿着 `WorkInfo` 读取输出数据：
+
+```kotlin
+class BackupStatusViewModel(app: Application) : AndroidViewModel(app) {
+    private val workManager = WorkManager.getInstance(app)
+
+    fun observeWeeklyUpload(accountId: String): LiveData<String?> {
+        return Transformations.map(
+            workManager.getWorkInfosForUniqueWorkLiveData("upload_messages_$accountId")
+        ) { infos ->
+            val failed = infos.firstOrNull { it.state == WorkInfo.State.FAILED }
+            failed?.outputData?.getString(KEY_ERROR_MESSAGE)
+        }
+    }
+}
+```
+
+这段观察代码说明了一件很重要的事：WorkManager 不是“后台做完就算了”，它仍然应该能把任务结果重新解释给前台。如果用户回到设置页、同步页或备份页时，你完全可以把“最近一次上传失败的原因”重新展示出来，而不是让后台任务变成一块不可见的黑箱。
+
+如果任务本身持续时间比较长，另一个非常实用的能力是把“进行到哪一步了”折回前台。Socorro 在上传监听器和媒体进度更新里反复强调过，用户对后台工作的接受度很大程度上取决于它是否可解释。WorkManager 这里对应的能力就是 `setProgress(...)`：它不是最终结果，不会替代 `outputData`，但非常适合表达“正在进行中”的中间状态。
+
+```kotlin
+private const val KEY_PROGRESS = "progress"
+
+class CompressMediaWorker(
+    appContext: Context,
+    params: WorkerParameters,
+    private val repository: MediaRepository
+) : CoroutineWorker(appContext, params) {
+
+    override suspend fun doWork(): Result {
+        val mediaIds = inputData.getStringArray(KEY_MEDIA_IDS)?.toList().orEmpty()
+        if (mediaIds.isEmpty()) return Result.failure()
+
+        mediaIds.forEachIndexed { index, mediaId ->
+            ensureActive()
+            repository.compress(mediaId)
+
+            val progress = ((index + 1) * 100) / mediaIds.size
+            setProgress(workDataOf(KEY_PROGRESS to progress))
+        }
+
+        return Result.success()
+    }
+}
+
+class ExportProgressViewModel(app: Application) : AndroidViewModel(app) {
+    private val workManager = WorkManager.getInstance(app)
+
+    fun observeProgress(workId: UUID): LiveData<Int> {
+        return Transformations.map(workManager.getWorkInfoByIdLiveData(workId)) { info ->
+            info?.progress?.getInt(KEY_PROGRESS, 0) ?: 0
+        }
+    }
+}
+```
+
+这段代码最值得区分的，是 `progress`、`outputData` 和最终 `state` 三者分别在表达什么。`progress` 只负责进行中的中间刻度，适合进度条、文案和弱提示；`outputData` 更适合最终成功/失败后需要被下一步或前台读取的结果；`WorkInfo.State` 则负责表达整个任务当前处于排队、运行、成功还是失败。把这三层混在一起时，页面常常会出现“明明已经失败了，但进度条还卡在 80%”这种很别扭的体验。
+
+最后一个经常被忽略、但很影响工程信心的点，是 Worker 也应该能被测试。Wangereka 在 WorkManager 章节里专门演示了 `WorkManagerTestInitHelper`：先用 `SynchronousExecutor` 初始化测试版 WorkManager，再通过 `TestDriver` 主动满足约束条件。这样你测的不是“系统到底什么时候调度”，而是“当系统允许执行时，这个工作单元会不会按预期推进”。
+
+```kotlin
+@RunWith(AndroidJUnit4::class)
+class UploadMessagesWorkerTest {
+
+    @Before
+    fun setUp() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val config = Configuration.Builder()
+            .setExecutor(SynchronousExecutor())
+            .build()
+
+        WorkManagerTestInitHelper.initializeTestWorkManager(context, config)
+    }
+
+    @Test
+    fun uploadRunsWhenConstraintsAreMet() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val request = OneTimeWorkRequestBuilder<UploadMessagesWorker>()
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .build()
+
+        val workManager = WorkManager.getInstance(context)
+        workManager.enqueue(request).result.get()
+
+        val testDriver = WorkManagerTestInitHelper.getTestDriver(context)!!
+        testDriver.setAllConstraintsMet(request.id)
+
+        val workInfo = workManager.getWorkInfoById(request.id).get()
+        assertThat(workInfo.state).isEqualTo(WorkInfo.State.SUCCEEDED)
+    }
+}
+```
+
+这个测试样板非常值得保留，因为它把 WorkManager 的两个层次分开了。纯业务逻辑，例如“上传失败几次后该不该重试”，更适合继续在 UseCase 层做普通单元测试；而 Worker 测试更像是在验证“输入数据、约束条件、调度框架和结果状态”这一层是否连通。只要这两层分开，后台任务就不会再像一块既难测、又只能靠真机碰运气验证的黑箱。
+
 ### 8. 实践任务
 
 起点条件：
@@ -277,6 +494,8 @@ WorkManager 最重要的不是 API，而是任务分类。只要你先看清一�
 ## 参考资料
 
 - 参考并改写自本地 PDF：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming, 5th Edition - The Big Nerd Ranch Guide》(2022)，第 22 章中 `PollWorker`、`Constraints.Builder()`、`PeriodicWorkRequestBuilder` 与 `enqueueUniquePeriodicWork()` 的完整教学示例。
+- 参考并改写自：Guilherme Socorro，《Thriving in Android Development Using Kotlin》(2024)，`UploadMessagesWorker`、`@HiltWorker`、`runAttemptCount` 与周期任务重试策略相关章节。
+- 参考并改写自：Humphrey Wangereka，《Mastering Kotlin for Android 14》(2024)，`CoroutineWorker`、电量/网络约束、唯一任务配置、自定义 `WorkerFactory` 与默认初始化移除相关章节。
 
 - WorkManager overview：<https://developer.android.com/topic/libraries/architecture/workmanager>
 - Define work requests：<https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work>

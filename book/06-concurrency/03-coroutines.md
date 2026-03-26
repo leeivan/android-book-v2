@@ -90,6 +90,61 @@ Big Nerd Ranch 在 `CriminalIntent` 的协程重构里给了一个很有教学�
 
 但“可取消”不等于“所有代码都会自动正确取消”。只有当任务真正运行在合适作用域内，并且底层调用链也愿意响应取消时，这个能力才会落地。也就是说，协程让取消更容易表达，却不会代替你做作用域设计。很多表面像协程 bug 的问题，实际上仍然是任务归属和底层 I/O 协作边界没有理顺。
 
+Codwell 在取消和错误处理一节里还提醒了一件经常被忽略的事：协程取消是协作式的。网络请求、`delay`、数据库查询这类带挂起点的工作，通常会自然响应取消；但如果你进入了一大段纯 CPU 计算，没有任何挂起点，任务不会因为用户离开页面就自动立刻停下来。这也是为什么长循环、批量格式化、全文索引这类工作里，往往还要显式调用 `ensureActive()` 或检查 `isActive`。
+
+```kotlin
+suspend fun buildSearchIndex(
+    articles: List<Article>,
+    indexer: ArticleIndexer
+): Map<String, List<String>> = withContext(Dispatchers.Default) {
+    buildMap {
+        articles.forEach { article ->
+            ensureActive()
+            put(article.id, indexer.tokenize(article.body))
+        }
+    }
+}
+```
+
+这个例子很适合帮助读者建立一个更准确的直觉：协程取消并不是“外面 cancel 一下，里面所有代码都会瞬间停住”。真正的含义是，任务愿意在合适的边界上配合取消。对于 I/O 任务，这个边界往往是挂起调用；对于 CPU 任务，这个边界往往就需要你自己插进去。只要理解了这一点，就更容易解释为什么有些页面明明已经离开，后台任务却还在吃 CPU，也更容易知道应该把检查点放在哪里。
+
+再往前走一步，取消之后的“收尾动作”也应该被设计进协程边界。Codwell 在错误处理示例里把这件事拆得很清楚：`CoroutineExceptionHandler` 更适合挂在根协程上处理未捕获异常，而资源回收、临时文件删除、连接关闭这类动作则应该放进 `try/finally`。这两者解决的不是同一个问题。前者在回答“异常最终由谁接住并上报”，后者在回答“任务无论成功、失败还是取消，都必须做哪些清理”。
+
+```kotlin
+class ExportViewModel(
+    private val exporter: ReportExporter,
+    private val logger: AppLogger
+) : ViewModel() {
+
+    private val exportExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        logger.log("report_export_failed", throwable)
+    }
+
+    fun export(reportId: String) {
+        viewModelScope.launch(exportExceptionHandler) {
+            val tempFile = withContext(Dispatchers.IO) {
+                exporter.createTempFile(reportId)
+            }
+
+            try {
+                withContext(Dispatchers.Default) {
+                    exporter.renderReport(tempFile, reportId)
+                }
+                withContext(Dispatchers.IO) {
+                    exporter.publish(tempFile)
+                }
+            } finally {
+                withContext(Dispatchers.IO) {
+                    exporter.cleanupTempFile(tempFile)
+                }
+            }
+        }
+    }
+}
+```
+
+这个例子值得读者观察三层边界。第一，异常处理器不是拿来吞掉所有错误的，它更像根协程的兜底出口。第二，`finally` 不是“发生异常时才执行”，取消时同样会执行，所以它特别适合做资源清理。第三，如果你在 `catch` 中一把抓 `Exception`，却忘了把 `CancellationException` 继续抛出去，协程的取消语义反而会被你自己破坏。也就是说，真正稳定的协程代码不只是“会启动和取消”，还要会把失败、取消和清理三条路径分开表达。
+
 ### 7. 协程最适合在哪一层启动
 
 一个很实用的判断标准是: 谁拥有这段任务的生命周期，谁就更适合启动它。
@@ -202,6 +257,91 @@ class HomeViewModel(
 
 这个例子最重要的不是 `async` 写起来很像“同时发两个请求”，而是它把并发关系写得非常清楚：两个子任务都属于同一个 `coroutineScope`，只有在确实需要“并发拿两个结果再组合”时才使用 `async`；如果其中一个失败，另一个也会跟着取消，避免留下半截还在跑的工作。这正是结构化并发在工程里的真正价值。反过来说，如果你根本不需要两个返回值汇合，只是想启动一个动作，那就回到 `launch`；如果只是想在现有协程里切上下文完成一段 I/O，那就回到 `withContext`。把这三者分清，协程代码才不会慢慢滑回“写法变新了，结构却还是乱的”。
 
+不过，工程里并不是所有并发子任务都必须“同生共死”。有些场景下，主数据失败了页面就不该继续；但某个次要面板失败了，页面依然值得先展示核心内容。这时比 `async` 更值得理解的，是 `SupervisorJob` / `supervisorScope` 所代表的“部分失败隔离”语义。Wangereka 在协程基础里把它概括成“一个子协程失败，不必连坐取消所有兄弟任务”；Codwell 则用更直接的例子提醒读者：只有当业务真的允许部分成功时，才该把这种隔离打开。
+
+下面这个首页加载例子就很典型：
+
+```kotlin
+data class DashboardUiState(
+    val isLoading: Boolean = false,
+    val profile: UserProfile? = null,
+    val promotions: List<Promotion> = emptyList(),
+    val errorMessage: String? = null
+)
+
+class DashboardViewModel(
+    private val accountRepository: AccountRepository,
+    private val promotionRepository: PromotionRepository
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(DashboardUiState())
+    val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+            supervisorScope {
+                val profileDeferred = async(Dispatchers.IO) {
+                    accountRepository.fetchProfile()
+                }
+                val promotionsDeferred = async(Dispatchers.IO) {
+                    runCatching { promotionRepository.fetchPromotions() }
+                        .getOrDefault(emptyList())
+                }
+
+                runCatching {
+                    DashboardUiState(
+                        isLoading = false,
+                        profile = profileDeferred.await(),
+                        promotions = promotionsDeferred.await()
+                    )
+                }.onSuccess { state ->
+                    _uiState.value = state
+                }.onFailure { error ->
+                    _uiState.update {
+                        it.copy(isLoading = false, errorMessage = error.message)
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+这个例子背后的判断非常值得读者学会：`profile` 是首页主内容，没有它页面就不成立，所以它的失败仍然要让整次刷新进入错误态；`promotions` 只是附属信息，它失败时可以安全降级为空列表。也就是说，`supervisorScope` 不是“更高级的并发 API”，而是你在用代码回答一个业务问题：哪些结果必须一起成功，哪些结果允许局部失败。如果这个判断本来就不存在，只是为了“别互相取消”而盲目上 `supervisorScope`，代码迟早会把失败路径藏得越来越深。
+
+Vainigli 在并发模式一节把 Producer-Consumer 单独拎出来讲，很适合补上协程里的另一层判断：结构化并发不等于无限并发。很多后台任务并不适合“来一个开一个”，而是更适合先进入一条有界队列，再由固定消费者按自己的节奏处理。
+
+```kotlin
+data class IndexTask(val articleId: String)
+
+class ArticleIndexCoordinator(
+    private val indexer: ArticleIndexer,
+    externalScope: CoroutineScope
+) {
+    private val taskChannel = Channel<IndexTask>(capacity = 10)
+
+    init {
+        externalScope.launch(Dispatchers.Default) {
+            for (task in taskChannel) {
+                indexer.index(task.articleId)
+            }
+        }
+    }
+
+    suspend fun submit(task: IndexTask) {
+        taskChannel.send(task)
+    }
+
+    fun close() {
+        taskChannel.close()
+    }
+}
+```
+
+这段代码最重要的，不是把 `Channel` 当成“更酷的队列”，而是它把并发关系重新收紧了。生产者只负责提交任务，消费者负责按顺序处理；`capacity = 10` 表达的是“系统最多同时积压 10 个待处理索引任务”，一旦队列已满，新的 `send()` 就会自然形成背压，而不是继续无限堆积后台工作。对于日志整理、图片索引、离线导出这类后台流水线来说，这种有界队列常常比无限 `launch` 更稳定，因为它把吞吐上限直接写进了模型里。
+
 ### 9. 协程不会自动给你合理架构
 
 这一点特别需要强调。很多项目迁移到协程后，以为异步问题已经解决，结果只是把原来的回调混乱换成了新的 `launch` 混乱。只要:
@@ -261,7 +401,10 @@ class HomeViewModel(
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 12 章。
 - 参考并改写自：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，协程作用域、状态持有与现代架构相关章节。
 - 参考并改写自：Guilherme Socorro，《Thriving in Android Development Using Kotlin》(2024)，`ChatViewModel`、`viewModelScope.launch(Dispatchers.IO)`、`withContext(Dispatchers.Main)` 与取消相关章节。
+- 参考并改写自：Humphrey Wangereka，《Mastering Kotlin for Android 14》(2024)，`SupervisorJob`、协程作用域与现代 ViewModel 协作相关章节。
+- 参考并改写自：Howard Codwell，《Kotlin Development: Complete Guide Create 45 Android Apps》(2025)，`supervisorScope` 与部分失败隔离相关示例。
 
+- 参考并改写自：Luca Vainigli，《Ultimate Android Design Patterns》(2025)，Producer-Consumer、`Channel(capacity = 10)` 与有界任务队列相关章节。
 - Kotlin coroutines on Android: <https://developer.android.com/kotlin/coroutines>
 - Coroutines best practices: <https://developer.android.com/kotlin/coroutines/coroutines-best-practices>
 - Kotlin coroutines guide: <https://kotlinlang.org/docs/coroutines-overview.html>
