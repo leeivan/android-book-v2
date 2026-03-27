@@ -372,7 +372,122 @@ class ArticleRepository @Inject constructor(
 
 这段代码的重要性，不在于“少写一个 `Dispatchers.IO`”，而在于运行环境终于也成了可替换依赖。生产代码里它是 `Dispatchers.IO`，测试里可以换成 `StandardTestDispatcher` 或其他受控实现；Repository 本身只关心“我要一个适合做 IO 的调度器”，而不用知道这个环境是怎么来的。只要这种边界立住，Hilt 的价值就会从对象创建进一步延伸到执行环境管理。
 
-### 14. 实践任务
+### 14. 运行时参数不是依赖图天然拥有的东西，这时更适合用 `@AssistedInject`
+
+前面已经补过 `EntryPoint`，那是处理“对象由系统创建”的边界；还有另一类常见情况是：对象的大部分依赖都来自图里，但有一两个参数只能在运行时才知道，比如导出路径、草稿 ID、当前用户选中的文件。Codwell 和很多现代样板都会用 `@AssistedInject` 处理这种情形，因为它刚好表达了一个很重要的事实：不是所有构造参数都应该被硬塞进依赖图。
+
+```kotlin
+class ExportArticleRunner @AssistedInject constructor(
+    private val repository: ArticleRepository,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+    @Assisted private val articleId: Long,
+) {
+    suspend fun run() = withContext(ioDispatcher) {
+        repository.exportArticle(articleId)
+    }
+}
+
+@AssistedFactory
+interface ExportArticleRunnerFactory {
+    fun create(articleId: Long): ExportArticleRunner
+}
+
+@HiltViewModel
+class ArticleDetailViewModel @Inject constructor(
+    private val exportRunnerFactory: ExportArticleRunnerFactory,
+) : ViewModel() {
+
+    fun export(articleId: Long) {
+        viewModelScope.launch {
+            exportRunnerFactory.create(articleId).run()
+        }
+    }
+}
+```
+
+这段代码真正澄清的是“依赖”和“运行时输入”不是同一种东西。`ArticleRepository`、`CoroutineDispatcher` 这种长期协作者适合交给 Hilt 管理，`articleId` 这种只在这次动作里临时决定的参数，则更适合通过 `@Assisted` 在调用点传进来。只要这层边界分清，依赖图就不会为了兼容运行时参数而被迫变形，Hilt 也能继续保持自己的职责范围清楚。
+
+### 15. 当同一类协作者越来越多时，多绑定会比手写调度表更稳
+
+前面已经讲过限定符、`EntryPoint` 和 `@AssistedInject`，但大型项目里还会遇到另一类问题：同一种职责会慢慢长出很多实现，比如启动初始化器、事件上报器、同步处理器。如果每次都靠一个大模块手写 `when` 或手工维护列表，依赖图就会越来越像一个隐式调度表。Hilt 的多绑定正好适合这种场景。
+
+```kotlin
+interface AppInitializer {
+    suspend fun initialize()
+}
+
+class AnalyticsInitializer @Inject constructor() : AppInitializer {
+    override suspend fun initialize() = Unit
+}
+
+class RemoteConfigInitializer @Inject constructor() : AppInitializer {
+    override suspend fun initialize() = Unit
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class AppInitializersModule {
+
+    @Binds
+    @IntoSet
+    abstract fun bindAnalyticsInitializer(
+        impl: AnalyticsInitializer,
+    ): AppInitializer
+
+    @Binds
+    @IntoSet
+    abstract fun bindRemoteConfigInitializer(
+        impl: RemoteConfigInitializer,
+    ): AppInitializer
+}
+
+class AppStartupRunner @Inject constructor(
+    private val initializers: Set<@JvmSuppressWildcards AppInitializer>,
+) {
+    suspend fun runAll() {
+        initializers.forEach { initializer ->
+            initializer.initialize()
+        }
+    }
+}
+```
+
+这段代码真正补上的，是“同类协作者如何继续增长”这层工程边界。新增一个初始化器时，你不必再去改一张中心化调度表，只要把它绑定进集合即可。对 Hilt 来说，这也是很重要的一步：依赖图不只是创建对象，它也能让一组协作者按统一契约稳定扩展。
+
+### 16. 昂贵依赖不一定要立即创建，用 `Lazy` 或 `Provider` 把启动成本留到真正需要时
+
+前面已经讲了限定符、多绑定和 `@AssistedInject`，接下来很值得补的一层是：并不是所有依赖都应该一进页面就立即创建。很多大型项目里，WebSocket、导出器、上传器、复杂分析器这类对象本身就比较重，如果每次 ViewModel 初始化都立刻把它们拉起来，启动成本会被提前放大。Hilt 提供的 `Lazy` 和 `Provider` 正好适合这种场景。
+
+```kotlin
+class ChatViewModel @Inject constructor(
+    private val socketClientProvider: Provider<WebSocketClient>,
+) : ViewModel() {
+
+    private var socketClient: WebSocketClient? = null
+
+    fun connectIfNeeded() {
+        val client = socketClient ?: socketClientProvider.get().also {
+            socketClient = it
+        }
+        client.connect()
+    }
+}
+
+class ExportViewModel @Inject constructor(
+    private val exporter: dagger.Lazy<ArticleExporter>,
+) : ViewModel() {
+
+    fun export(articleId: Long) {
+        viewModelScope.launch {
+            exporter.get().export(articleId)
+        }
+    }
+}
+```
+
+这里真正要分清的是：依赖图负责告诉你“怎么拿到对象”，但不一定要求你“现在立刻就创建对象”。`Provider` 适合每次按需拿实例，`Lazy` 则适合第一次需要时再初始化、后续继续复用。只要这层边界想清楚，依赖注入就不会把所有成本都前置到页面启动时。
+
+### 17. 实践任务
 
 起点条件:
 
@@ -404,7 +519,7 @@ class ArticleRepository @Inject constructor(
 - 如果页面里到处都是手工装配链，说明 Hilt 还没有真正落地。
 - 如果你把局部临时对象也都强行注入，说明依赖注入已经开始过度。
 
-### 15. 常见误区
+### 18. 常见误区
 
 - 把 Hilt 理解成“自动生成对象”的黑盒。
 - 只记注解，不理解作用域。

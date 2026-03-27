@@ -450,7 +450,129 @@ class ArticleListViewModel(
 
 这组代码真正拉开的差距，不是 `Presenter` 和 `ViewModel` 的名字，而是页面接口终于从“等别人按时回调我”变成了“我始终可以读取当前状态”。导航这类一次性动作也不再跟 `showLoading()`、`showError()` 混在一处，而是单独走 effect 通道。只要读者把这一点看清，迁移路径就会稳很多：先收状态出口，再谈 UI 技术和类名变化。
 
-### 15. 实践任务
+### 15. 当一个屏幕被拆成多个子区域时，MVVM 更容易走向组合状态，而不是继续堆回调
+
+Vainigli 在比较几种架构模式时，反复把“列表页”当作基础例子来讲，是因为单列表页面很容易看懂模式差异；但 Bennett 在更贴近真实项目的首页例子里又提醒了一步：真正容易把架构拖回旧写法的，往往不是一个列表，而是一个包含 hero 区、推荐区、信息流和顶部提示条的综合页面。只要页面被拆成多个显示区域，`MVP` 那种持续补 `showHero()`、`showFeed()`、`showBanner()` 的方式就会越来越重，而 `MVVM` 更自然的走向通常是“把整个屏幕收成一份组合状态”。
+
+```kotlin
+data class HomeUiState(
+    val hero: HeroSectionUiState = HeroSectionUiState.Loading,
+    val recommendations: RecommendationStripUiState = RecommendationStripUiState.Empty,
+    val feed: FeedSectionUiState = FeedSectionUiState.Loading,
+    val isRefreshing: Boolean = false,
+)
+
+class HomeViewModel(
+    private val homeRepository: HomeRepository,
+) : ViewModel() {
+
+    val uiState: StateFlow<HomeUiState> = combine(
+        homeRepository.observeHeroSection(),
+        homeRepository.observeRecommendations(),
+        homeRepository.observeFeedSection(),
+    ) { hero, recommendations, feed ->
+        HomeUiState(
+            hero = hero,
+            recommendations = recommendations,
+            feed = feed,
+            isRefreshing = false,
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = HomeUiState(),
+    )
+}
+```
+
+这段代码真正说明的，是复杂首页更适合先被看成“一个组合起来的屏幕状态”，而不是几个各自回调的局部区域。这样一来，View 系统也好，Compose 也好，最终消费的都是同一份 `HomeUiState`；页面越复杂，状态合同越集中，`MVVM` 相比 `MVC` 和 `MVP` 的优势也就越明显。对这一章来说，这也是一个很关键的判断：模式的差距，会在页面复杂度上升时被放大。
+
+### 16. 特性开关和角色差异，会进一步放大状态合同的重要性
+
+Vainigli 和 Bennett 在首页、管理页这类例子里都强调过一个现实问题：页面复杂起来以后，很多差异已经不只是“显示哪些数据”，还包括“当前用户能不能看见某块区域”“某个实验开关开没开”。如果这些判断继续散落在 Fragment、Adapter、Composable 的各个角落，架构很快就会被横切逻辑拉散。更稳的做法，是让这些差异先进入统一状态合同，再由 UI 只负责消费结果。
+
+```kotlin
+enum class UserRole { READER, EDITOR }
+
+data class ArticleListUiState(
+    val items: List<ArticleCardUiModel> = emptyList(),
+    val showEditorTools: Boolean = false,
+    val showExperimentalFilter: Boolean = false,
+)
+
+class ArticleListViewModel(
+    private val articleRepository: ArticleRepository,
+    private val sessionRepository: SessionRepository,
+    private val featureFlagRepository: FeatureFlagRepository,
+) : ViewModel() {
+
+    val uiState: StateFlow<ArticleListUiState> = combine(
+        articleRepository.observeArticles(),
+        sessionRepository.observeRole(),
+        featureFlagRepository.observeFlags(),
+    ) { articles, role, flags ->
+        ArticleListUiState(
+            items = articles,
+            showEditorTools = role == UserRole.EDITOR,
+            showExperimentalFilter = flags.experimentalFilters,
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = ArticleListUiState(),
+    )
+}
+```
+
+这段代码真正回答的是：角色、开关和内容同样都是页面状态的一部分。UI 不需要自己再去判断“我是不是编辑”“实验开关是不是开着”，而只消费一份已经解释好的 `uiState`。对架构模式来说，这也是一个很实在的分水岭：复杂页面一旦带上角色差异和开关差异，状态合同越集中，模式优势就越明显。
+
+### 17. 同一份状态合同也可以同时服务手机单栏和双栏界面
+
+Bennett 在 Compose 屏幕组织里有一个很实用的观察：真正稳定的往往不是某一套手机布局，而是“这个屏幕到底有哪些状态”。Vainigli 在模式演进讨论里则从另一侧给出同样结论：一旦页面要同时面对手机单栏、平板双栏或折叠屏展开态，继续让 View 层各自维护一份局部状态就会越来越重。更稳的做法，是让它们共享同一份页面合同，再由不同界面形态各自决定怎么摆放这份状态。
+
+```kotlin
+data class ArticlePaneUiState(
+    val list: List<ArticleCardUiModel> = emptyList(),
+    val selectedId: Long? = null,
+    val detail: ArticleDetailUiModel? = null,
+)
+
+class ArticlePaneViewModel(
+    private val repository: ArticleRepository,
+) : ViewModel() {
+
+    private val selectedId = MutableStateFlow<Long?>(null)
+
+    val uiState: StateFlow<ArticlePaneUiState> = combine(
+        repository.observeArticles(),
+        selectedId,
+    ) { articles, currentId ->
+        ArticlePaneUiState(
+            list = articles,
+            selectedId = currentId,
+            detail = currentId?.let(repository::getArticleDetailOrNull),
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = ArticlePaneUiState(),
+    )
+
+    fun selectArticle(id: Long) {
+        selectedId.value = id
+    }
+}
+
+@Composable
+fun PhoneArticlePane(uiState: ArticlePaneUiState, onOpenArticle: (Long) -> Unit)
+
+@Composable
+fun TabletArticlePane(uiState: ArticlePaneUiState, onSelectArticle: (Long) -> Unit)
+```
+
+这段代码真正讲清的是：手机页和平板页可以长得完全不同，但它们依赖的页面语义仍然是一份。单栏界面可以把 `selectedId` 变成导航动作，双栏界面则可以直接在右侧显示 `detail`；UI 形态不同，不等于页面状态合同也要分裂。对架构模式来说，这也是很关键的一步：页面一旦跨设备形态演进，状态合同越集中，架构越稳。
+
+### 18. 实践任务
 
 起点条件:
 
@@ -482,7 +604,7 @@ class ArticleListViewModel(
 - 如果你把所有逻辑都搬进 ViewModel，只是把页面类问题换了位置，不算真正落地 `MVVM`。
 - 如果项目里状态来源超过两个且没有单一出口，优先补状态设计，而不是继续加类。
 
-### 16. 常见误区
+### 19. 常见误区
 
 - 把架构模式当成缩写记忆题。
 - 以为用了某个模式名字，代码自然就会变好。

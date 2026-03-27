@@ -373,7 +373,102 @@ class OfflineFirstArticleRepository(
 
 这段代码的教学重点是：离线写入的第一落点仍然是可信来源，本地数据库和待同步队列应该一起被数据层维护。页面只知道“我切换了收藏态”，却不需要知道这次操作是在线立即同步、还是离线排队稍后补传。只要读者把这层边界守住，Repository 就不会只在读路径上好看，写路径也会真正变成稳定的数据策略入口。
 
-### 14. 实践任务
+### 14. 当一次写入同时要改本地事实和同步队列时，最好用事务把它们封成一个结果
+
+离线写入队列补进来以后，下一层最容易被忽略的问题就是一致性。Wangereka、Bennett 和官方 offline-first 文档都在提醒：如果一次写操作既要改本地表，又要插入待同步记录，那么这两步最好被封成同一个事务结果。否则就会出现本地已经显示“收藏成功”，但同步队列其实没记下来，或者队列写进去了而本地状态没改成功的撕裂情况。
+
+```kotlin
+class OfflineFirstArticleRepository(
+    private val database: AppDatabase,
+    private val articleDao: ArticleDao,
+    private val queueDao: PendingSyncQueueDao,
+    private val ioDispatcher: CoroutineDispatcher,
+) : ArticleRepository {
+
+    suspend fun renameArticle(
+        articleId: Long,
+        title: String,
+    ) = withContext(ioDispatcher) {
+        database.withTransaction {
+            articleDao.updateTitle(
+                id = articleId,
+                title = title,
+                syncState = SyncState.PENDING,
+            )
+            queueDao.insert(
+                PendingSyncEntity.renameArticle(
+                    articleId = articleId,
+                    title = title,
+                )
+            )
+        }
+    }
+}
+```
+
+这段代码的关键，不在于 `withTransaction` 这个 API 名字，而在于 Repository 终于开始为“本地事实的一致性”负责。页面只会看到一条统一的数据结果，而不会自己去猜你这次到底是状态写成功了、队列没记上，还是两边只成功了一半。只要离线写入已经是产品事实，那么事务边界就应该成为 Repository 设计的一部分，而不是留给上层去碰运气。
+
+### 15. 分页契约也应该由 Repository 暴露，而不是让页面自己拼页码和游标
+
+Wangereka、Bennett 和官方架构文档都在提醒：分页不是 UI 细节，而是数据读取策略的一部分。如果页面自己维护 `page`、`nextCursor`、`isLastPage`，Repository 就会退化成“只帮忙调接口的壳”。更稳的做法，是让 Repository 直接暴露分页契约，上层只消费“还有什么数据会继续来”。
+
+```kotlin
+class DefaultArticleRepository(
+    private val articleDao: ArticleDao,
+) : ArticleRepository {
+
+    fun observePagedArticles(): Flow<PagingData<ArticleSummary>> {
+        return Pager(
+            config = PagingConfig(pageSize = 20),
+            pagingSourceFactory = { articleDao.pagingSource() },
+        ).flow.map { pagingData ->
+            pagingData.map { entity ->
+                ArticleSummary(
+                    id = entity.id,
+                    title = entity.title,
+                    authorName = entity.authorName,
+                )
+            }
+        }
+    }
+}
+```
+
+这段代码真正说明的，是分页边界也应该被收在 Repository 里。页面不再需要自己维护页码、游标和下一页条件，它只消费一条已经带着分页策略的数据流。只要这层边界立住，Repository 就更像“对上层提供数据能力”，而不是让页面继续理解底层取数机制。
+
+### 16. 数据往往还带着“属于谁”的范围，Repository 应负责按账户或工作区隔离
+
+Repository 除了管理来源和时效性，真实项目里还常常要回答另一个问题：这些数据到底属于谁。Wangereka、Bennett 和官方架构文档都在提醒，如果一个功能同时支持多账户、多工作区或多租户，那么“当前会话范围”也应该是数据策略的一部分，而不是留给页面自己记当前 `workspaceId`。更稳的做法，是让 Repository 直接基于会话范围暴露数据。
+
+```kotlin
+class WorkspaceArticleRepository(
+    private val sessionRepository: SessionRepository,
+    private val articleDao: ArticleDao,
+    private val remote: ArticleRemoteDataSource,
+) : ArticleRepository {
+
+    override fun observeArticles(): Flow<List<ArticleSummary>> {
+        return sessionRepository.observeWorkspaceId()
+            .flatMapLatest { workspaceId ->
+                articleDao.observeByWorkspace(workspaceId)
+            }
+            .map { rows -> rows.map { it.toDomain() } }
+    }
+
+    override suspend fun refresh() {
+        val workspaceId = sessionRepository.currentWorkspaceId()
+        val latest = remote.fetchArticles(workspaceId)
+        articleDao.replaceAll(
+            workspaceId = workspaceId,
+            entities = latest.map { it.toEntity(workspaceId) },
+        )
+    }
+}
+```
+
+这段代码真正收住的，是“当前会话范围”也属于 Repository 的职责。页面不必自己带着 `workspaceId` 到处传，也不必猜切换工作区后到底该清哪些列表；它只消费一条已经带着范围隔离的数据流。对 Repository 来说，这也是非常真实的一步：数据策略不只包含本地和远程，还包含这些数据到底归哪个会话范围。
+
+### 17. 实践任务
 
 起点条件：
 
@@ -405,7 +500,7 @@ class OfflineFirstArticleRepository(
 - 如果远程和本地数据都能各自直接改页面，优先先确定可信来源。
 - 如果 Repository 里开始充满页面文案和导航判断，说明边界又混了。
 
-### 15. 常见误区
+### 18. 常见误区
 
 - 把 Repository 写成对 DAO 或接口的机械透传。
 - 不区分 Repository 和数据源。

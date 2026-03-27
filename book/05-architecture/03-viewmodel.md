@@ -350,7 +350,152 @@ class ArticleDetailViewModel @Inject constructor(
 
 这段代码的价值，不只是少写了一次参数传递，而是“入口验证”终于被收到了状态持有层。页面不再需要先判断参数有没有、再决定要不要发请求、再把错误转成各种临时 UI 分支；ViewModel 从一开始就知道自己服务的是哪条数据，也能围绕这个前提组织后续状态。只要导航参数确实属于屏幕身份的一部分，这种边界往往会让页面层和状态层都更稳。
 
-### 12. 实践任务
+### 12. 首次加载和重试最好做成显式入口，而不是在 `init` 里偷跑很多次
+
+Socorro 和 Bennett 在实际项目里都更倾向于把“首次加载”和“用户重试”当成显式动作，而不是把一切都塞进 `init { ... }` 里偷偷开始。原因不是写法偏好，而是页面恢复、重复进入、作用域复用和测试都会被这种差异直接影响。只要 ViewModel 一初始化就无条件发起请求，后面很容易遇到“重复创建时重复加载”“用户重试和首次加载逻辑散在两处”的问题。
+
+```kotlin
+@HiltViewModel
+class ArticleTimelineViewModel @Inject constructor(
+    private val repository: ArticleRepository,
+    private val savedStateHandle: SavedStateHandle,
+) : ViewModel() {
+
+    private var loadJob: Job? = null
+
+    private val _uiState = MutableStateFlow(ArticleTimelineUiState())
+    val uiState: StateFlow<ArticleTimelineUiState> = _uiState.asStateFlow()
+
+    fun loadIfNeeded() {
+        if (savedStateHandle["has_loaded"] == true) return
+        refresh(force = false)
+    }
+
+    fun retry() {
+        refresh(force = true)
+    }
+
+    private fun refresh(force: Boolean) {
+        if (!force && loadJob?.isActive == true) return
+
+        loadJob = viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            runCatching { repository.getTimeline() }
+                .onSuccess { articles ->
+                    savedStateHandle["has_loaded"] = true
+                    _uiState.update {
+                        it.copy(isLoading = false, items = articles)
+                    }
+                }
+                .onFailure {
+                    _uiState.update {
+                        it.copy(isLoading = false, errorMessage = "加载失败")
+                    }
+                }
+        }
+    }
+}
+```
+
+这段代码的价值，在于首次加载、主动重试和防重入终于被收成了一组明确入口。页面可以在合适的生命周期里调用 `loadIfNeeded()`，错误态按钮可以显式触发 `retry()`，而 ViewModel 自己也能防止并发重复加载。只要这一层入口清楚，ViewModel 就不再只是“保存状态的地方”，而会更像一个真正可控的屏幕状态持有者。
+
+### 13. 大屏幕状态可以投影成多个只读子状态，别让 UI 自己到处 `map`
+
+Bennett 在大页面和 Compose 屏幕组织里常做一个很实用的切分：屏幕仍然可以有一份主 `uiState`，但如果头部、表单区、预览区分别只关心状态的一小部分，就不要让每个 UI 片段自己临时去 `map` 原始状态。更稳的做法，是在 ViewModel 里直接投影出几个只读子状态，让 UI 消费它该看的那一份结果。
+
+```kotlin
+data class EditorHeaderUiState(
+    val title: String,
+    val canPublish: Boolean,
+)
+
+data class EditorPreviewUiState(
+    val title: String,
+    val content: String,
+)
+
+class ArticleEditorViewModel(
+    private val repository: ArticleRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ArticleEditorUiState())
+    val uiState: StateFlow<ArticleEditorUiState> = _uiState.asStateFlow()
+
+    val headerState: StateFlow<EditorHeaderUiState> = uiState
+        .map { state ->
+            EditorHeaderUiState(
+                title = state.title,
+                canPublish = state.title.isNotBlank() && state.content.isNotBlank(),
+            )
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = EditorHeaderUiState("", false),
+        )
+
+    val previewState: StateFlow<EditorPreviewUiState> = uiState
+        .map { state ->
+            EditorPreviewUiState(
+                title = state.title,
+                content = state.content,
+            )
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = EditorPreviewUiState("", ""),
+        )
+}
+```
+
+这段代码真正收紧的是“状态投影的责任”。View 仍然很轻，因为它只拿自己需要的 `headerState` 或 `previewState`；而状态投影逻辑又没有散落到多个 UI 片段里。对 ViewModel 来说，这也是一种更成熟的状态组织方式：主状态是一份，投影出口可以有多份，但映射职责仍然留在状态持有者这里。
+
+### 14. 当页面动作越来越多时，把公开 API 收成单一入口会更稳
+
+前面已经谈过状态持有和显式加载入口，但大型页面还会遇到另一个常见问题：公开方法越来越多。`updateTitle()`、`updateBody()`、`retry()`、`saveDraft()`、`publish()`、`delete()` 这些方法散着长下去以后，ViewModel 的对外接口会慢慢变成新的混乱源。Bennett 和很多现代状态容器写法里都会把这一层再收一次：让公开 API 尽量回到一个动作入口，内部再根据动作分流处理。
+
+```kotlin
+sealed interface ArticleEditorAction {
+    data class TitleChanged(val value: String) : ArticleEditorAction
+    data class BodyChanged(val value: String) : ArticleEditorAction
+    data object SaveDraftClicked : ArticleEditorAction
+    data object PublishClicked : ArticleEditorAction
+}
+
+class ArticleEditorViewModel(
+    private val repository: ArticleRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ArticleEditorUiState())
+    val uiState: StateFlow<ArticleEditorUiState> = _uiState.asStateFlow()
+
+    fun onAction(action: ArticleEditorAction) {
+        when (action) {
+            is ArticleEditorAction.TitleChanged -> {
+                _uiState.update { it.copy(title = action.value) }
+            }
+            is ArticleEditorAction.BodyChanged -> {
+                _uiState.update { it.copy(content = action.value) }
+            }
+            ArticleEditorAction.SaveDraftClicked -> saveDraft()
+            ArticleEditorAction.PublishClicked -> publish()
+        }
+    }
+
+    private fun saveDraft() {
+        viewModelScope.launch { repository.saveDraft(uiState.value.title, uiState.value.content) }
+    }
+
+    private fun publish() {
+        viewModelScope.launch { repository.publish(uiState.value.title, uiState.value.content) }
+    }
+}
+```
+
+这里真正收紧的是 ViewModel 的公开边界。页面只知道自己在发送什么动作，而不必跟着 ViewModel 的内部方法数量一起膨胀。对这一章来说，这也是 ViewModel 成熟后的一个自然演进：它不只是状态存放处，还应该有一条足够清楚的动作入口。
+
+### 15. 实践任务
 
 起点条件：
 
@@ -384,7 +529,7 @@ class ArticleDetailViewModel @Inject constructor(
 - 如果 ViewModel 里开始出现大量数据库、网络和框架细节，先回头检查 Repository 边界。
 - 如果你什么状态都往 `SavedStateHandle` 里塞，说明它已经被误当成持久化存储了。
 
-### 13. 常见误区
+### 16. 常见误区
 
 - 把 ViewModel 理解成“比 Activity 活得久一点的对象”。
 - 让 ViewModel 直接持有 UI 细节对象。

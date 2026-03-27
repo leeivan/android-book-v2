@@ -370,7 +370,117 @@ class SubmitReviewUseCase(
 
 这里真正稳定下来的，是输入语义本身。评分、评论内容和 spoiler 标记不再只是三四个零散参数，而是同一次“提交评论”业务动作的完整命令。这样一来，UseCase 就更容易在边界上做校验、做测试，也更不容易在参数逐渐变多后退化成看不懂的长方法签名。
 
-### 14. 实践任务
+### 14. 规则开始复用时，优先抽成 Policy，再决定要不要让 UseCase 互相调用
+
+`Clean Android Architecture` 里一直强调，Domain 层不是为了把每个动作都继续拆成更多层，而是为了让业务规则拥有稳定归属。很多项目一旦开始写 UseCase，就很容易走向“一个 UseCase 调另一个 UseCase，再调第三个 UseCase”的迷宫。更稳的做法通常是先判断：真正被复用的到底是一个完整业务动作，还是其中某条规则。如果只是规则在复用，把它抽成 `Policy` 往往会比让 UseCase 彼此串调用更清楚。
+
+```kotlin
+interface ReviewSubmissionPolicy {
+    fun validate(command: SubmitReviewCommand): SubmitReviewResult?
+}
+
+class DefaultReviewSubmissionPolicy : ReviewSubmissionPolicy {
+    override fun validate(command: SubmitReviewCommand): SubmitReviewResult? {
+        if (command.rating !in 1..5) {
+            return SubmitReviewResult.RatingOutOfRange
+        }
+        if (command.comment.length > 300) {
+            return SubmitReviewResult.CommentTooLong
+        }
+        return null
+    }
+}
+
+class SubmitReviewUseCase(
+    private val policy: ReviewSubmissionPolicy,
+    private val repository: ReviewRepository,
+) {
+    suspend operator fun invoke(
+        command: SubmitReviewCommand,
+    ): SubmitReviewResult {
+        policy.validate(command)?.let { return it }
+        repository.submit(command)
+        return SubmitReviewResult.Success
+    }
+}
+```
+
+这段代码真正讲清的是：Domain 层里被复用的，有时不是整个业务动作，而是“这条规则怎样判断”。只要先把规则收进 `Policy`，UseCase 仍然能保持自己是业务动作边界，而不会因为重用一点校验逻辑就互相嵌套成难读的调用链。对这一章来说，这也是一个很重要的判断标准：Domain 层的目标是让规则更清楚，不是让层数更多。
+
+### 15. 时间、编号和随机性这类业务依赖，也应该被收进 Domain 层边界
+
+`Clean Android Architecture` 和 Bennett 在讲可测试业务规则时，除了 Repository、Policy 之外，还经常顺手处理另一类很容易被忽略的依赖：时间、随机编号、默认过期时间。这些东西看起来不像 Repository，但如果直接在 UseCase 里写死 `UUID.randomUUID()` 或 `Instant.now()`，测试就很难稳定，规则也会越来越依赖当前运行环境。
+
+```kotlin
+interface Clock {
+    fun now(): Instant
+}
+
+interface IdGenerator {
+    fun newId(): String
+}
+
+class CreateDraftUseCase(
+    private val clock: Clock,
+    private val idGenerator: IdGenerator,
+    private val repository: DraftRepository,
+) {
+    suspend operator fun invoke(authorId: Long): DraftId {
+        val draft = Draft(
+            id = DraftId(idGenerator.newId()),
+            authorId = authorId,
+            createdAt = clock.now(),
+            expiresAt = clock.now().plus(3, DateTimeUnit.DAY),
+        )
+        repository.save(draft)
+        return draft.id
+    }
+}
+```
+
+这段代码最重要的意义，是 UseCase 的业务规则终于不再依赖一个不可控的运行时世界。创建时间、过期时间和草稿 ID 现在都能被测试稳定替换，这会让 Domain 层更像一个可验证的业务边界，而不是“只要跟当前时间沾边就没法好好测”的黑盒。
+
+### 16. 幂等性和重复提交保护，也常常应该由 UseCase 负责
+
+Domain 层在真实项目里还有一个特别容易被漏掉的责任：防止同一个业务动作被意外执行两次。订单、支付、发布、提交评论这类动作，只要 UI 被连续点击、网络重试或系统恢复状态后重复触发，就可能产生重复副作用。`Clean Android Architecture` 和 Bennett 在事务性业务动作里都强调过，重复提交保护不应只靠按钮禁用，而应成为 UseCase 边界的一部分。
+
+```kotlin
+data class PublishArticleCommand(
+    val draftId: DraftId,
+    val requestId: String,
+)
+
+sealed interface PublishArticleResult {
+    data class Success(val articleId: Long) : PublishArticleResult
+    data object AlreadyProcessed : PublishArticleResult
+}
+
+interface ProcessedCommandStore {
+    suspend fun hasProcessed(requestId: String): Boolean
+    suspend fun markProcessed(requestId: String)
+}
+
+class PublishArticleUseCase(
+    private val processedCommandStore: ProcessedCommandStore,
+    private val repository: ArticleRepository,
+) {
+    suspend operator fun invoke(
+        command: PublishArticleCommand,
+    ): PublishArticleResult {
+        if (processedCommandStore.hasProcessed(command.requestId)) {
+            return PublishArticleResult.AlreadyProcessed
+        }
+
+        val articleId = repository.publishDraft(command.draftId)
+        processedCommandStore.markProcessed(command.requestId)
+        return PublishArticleResult.Success(articleId)
+    }
+}
+```
+
+这段代码真正说明的是：幂等性也属于业务边界。页面当然可以先禁用按钮，但真正决定“同一次业务动作能不能再执行一次”的，最好还是 Domain 层。只要这层责任守在 UseCase，重复点击、重试和恢复流程就不会轻易把业务副作用放大成两次。
+
+### 17. 实践任务
 
 起点条件:
 
@@ -402,7 +512,7 @@ class SubmitReviewUseCase(
 - 如果每个简单调用都被机械包一层，说明 Domain 层过度了。
 - 如果 UseCase 里还在操作页面文案和导航，说明边界划错了。
 
-### 15. 常见误区
+### 18. 常见误区
 
 - 把 UseCase 当成所有方法都要套的一层模板。
 - 分不清业务动作和数据策略。

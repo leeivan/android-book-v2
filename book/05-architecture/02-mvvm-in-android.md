@@ -428,7 +428,159 @@ class ArticleFeedViewModel(
 
 这里真正稳定下来的，是“页面此刻只能处于哪一种显示状态”这件事。`Loading`、`Empty`、`Content`、`Error` 四种情况不再靠布尔值互相猜测，而是被收成了一份互斥合同。只要页面真的存在明确互斥态，这种建模方式往往会让 `MVVM` 更像“先定义屏幕语义，再决定怎么显示”，而不是在 UI 层不断堆条件判断。
 
-### 16. 实践任务
+### 16. 错误也应该先被翻译成页面语义，而不是让 UI 自己读异常对象
+
+Bennett 和 Socorro 在讲 `MVVM` 时都有一个共同取舍：ViewModel 虽然不该直接碰 `Context` 和控件，但它仍然应该负责把数据层、领域层冒出来的错误，先翻译成页面能理解的状态语义。如果 View 直接拿 `IOException`、`HttpException` 或后端错误码自己判断“这次是弹 Snackbar，还是显示整页错误”，那么 `MVVM` 的状态边界其实并没有真正站稳。
+
+```kotlin
+sealed interface ArticleFeedFailure {
+    data object Offline : ArticleFeedFailure
+    data object Unauthorized : ArticleFeedFailure
+    data object Unknown : ArticleFeedFailure
+}
+
+sealed interface ArticleFeedUiState {
+    data object Loading : ArticleFeedUiState
+    data class Content(
+        val items: List<ArticleCardUiModel>,
+    ) : ArticleFeedUiState
+    data class Error(
+        val title: String,
+        val description: String,
+        val canRetry: Boolean,
+    ) : ArticleFeedUiState
+}
+
+class ArticleFeedViewModel(
+    private val repository: ArticleRepository,
+) : ViewModel() {
+
+    val uiState: StateFlow<ArticleFeedUiState> = repository.observeFeedResult()
+        .map { result ->
+            when (result) {
+                is FeedResult.Success -> ArticleFeedUiState.Content(result.items)
+                is FeedResult.Failure -> when (result.reason) {
+                    ArticleFeedFailure.Offline -> ArticleFeedUiState.Error(
+                        title = "网络不可用",
+                        description = "请检查网络后重试。",
+                        canRetry = true,
+                    )
+                    ArticleFeedFailure.Unauthorized -> ArticleFeedUiState.Error(
+                        title = "登录状态已失效",
+                        description = "请重新登录后继续。",
+                        canRetry = false,
+                    )
+                    ArticleFeedFailure.Unknown -> ArticleFeedUiState.Error(
+                        title = "加载失败",
+                        description = "稍后再试一次。",
+                        canRetry = true,
+                    )
+                }
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = ArticleFeedUiState.Loading,
+        )
+}
+```
+
+这里最重要的边界，是异常世界终于在 ViewModel 被翻译成了页面世界。页面不再理解 `401`、`IOException` 或奇怪的错误码，它只知道当前该显示哪一种错误态、能不能重试、要不要引导用户重新登录。只要这层翻译留在 ViewModel，View 就会继续保持轻量，而 `MVVM` 也会更像“页面语义先被整理，再被显示”。
+
+### 17. 弹窗、底部抽屉和确认流程，也应该被纳入页面合同
+
+Socorro 和 Bennett 在真实页面组织里都在做一件很容易被忽略的小事：弹窗、确认框、底部抽屉这类“暂时出现一下的 UI”，并没有因为持续时间短就天然属于 View 自己。只要这些 UI 的出现与消失携带业务语义，例如“确认删除哪条内容”“当前是否允许继续”，它们同样应该先被纳入页面状态合同，而不是让界面层靠局部变量临时拼出一套流程。
+
+```kotlin
+data class DeleteDialogState(
+    val articleId: Long,
+    val title: String,
+)
+
+data class ArticleEditorUiState(
+    val title: String = "",
+    val content: String = "",
+    val deleteDialog: DeleteDialogState? = null,
+)
+
+sealed interface ArticleEditorEffect {
+    data object CloseScreen : ArticleEditorEffect
+}
+
+class ArticleEditorViewModel(
+    private val repository: ArticleRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ArticleEditorUiState())
+    val uiState: StateFlow<ArticleEditorUiState> = _uiState.asStateFlow()
+
+    private val _effect = MutableSharedFlow<ArticleEditorEffect>()
+    val effect: SharedFlow<ArticleEditorEffect> = _effect.asSharedFlow()
+
+    fun requestDelete(articleId: Long, title: String) {
+        _uiState.update {
+            it.copy(deleteDialog = DeleteDialogState(articleId, title))
+        }
+    }
+
+    fun dismissDeleteDialog() {
+        _uiState.update { it.copy(deleteDialog = null) }
+    }
+
+    fun confirmDelete() {
+        val target = uiState.value.deleteDialog ?: return
+        viewModelScope.launch {
+            repository.deleteArticle(target.articleId)
+            _uiState.update { it.copy(deleteDialog = null) }
+            _effect.emit(ArticleEditorEffect.CloseScreen)
+        }
+    }
+}
+```
+
+这里最值得学走的点，是 modal UI 也被收成了状态和 effect 的一部分。页面不再自己记一份“当前弹窗是不是开着、里面对应哪条数据”，而只负责根据 `deleteDialog` 是否为空来显示或隐藏确认框。只要这层合同立住，MVVM 的边界就不会在“临时出现一下的 UI”这里悄悄失守。
+
+### 18. 表单的脏状态和保存能力，也应该先在 ViewModel 里算出来
+
+Socorro 和 Bennett 在表单页里都很少让 UI 自己临时判断“现在能不能保存、有没有改动”。原因很简单：只要这些判断散落在输入框回调和按钮点击里，页面语义很快就会失控。对 `MVVM` 来说，更稳的做法是让 ViewModel 把“表单是不是脏的”“当前能不能保存”“现在是不是正在提交”先算好，再交给 View 去显示。
+
+```kotlin
+data class EditorFormUiState(
+    val title: String = "",
+    val body: String = "",
+    val isSaving: Boolean = false,
+    val hasUnsavedChanges: Boolean = false,
+    val canSave: Boolean = false,
+)
+
+class ArticleEditorViewModel(
+    private val repository: ArticleRepository,
+) : ViewModel() {
+
+    private val initialSnapshot = MutableStateFlow(EditorFormUiState())
+    private val currentDraft = MutableStateFlow(EditorFormUiState())
+
+    val uiState: StateFlow<EditorFormUiState> = combine(
+        initialSnapshot,
+        currentDraft,
+    ) { original, draft ->
+        val dirty = draft.title != original.title || draft.body != original.body
+        draft.copy(
+            hasUnsavedChanges = dirty,
+            canSave = dirty && draft.title.isNotBlank() && !draft.isSaving,
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = EditorFormUiState(),
+    )
+}
+```
+
+这段代码真正稳定下来的，是“保存条该不该亮、返回前要不要提醒、提交按钮能不能点”这些本来就属于页面语义的判断。View 不再自己猜测当前草稿是不是脏的，而只消费一份已经解释好的状态。只要这种边界立住，表单页就不会因为输入框越来越多而慢慢退回到一堆局部变量拼装的旧写法。
+
+### 19. 实践任务
 
 起点条件:
 
@@ -460,7 +612,7 @@ class ArticleFeedViewModel(
 - 如果 ViewModel 里同时出现网络、数据库和复杂流程编排细节，通常说明数据层职责不够清楚。
 - 如果页面状态仍然靠很多零散字段拼装，优先补状态建模，而不是继续加回调。
 
-### 17. 常见误区
+### 20. 常见误区
 
 - 把 MVVM 简化成“页面 + ViewModel”。
 - 认为只要有 ViewModel 就自动拥有良好架构。

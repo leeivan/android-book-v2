@@ -407,7 +407,103 @@ class ArticleSearchViewModel(
 
 这段代码真正讲清的是“输入流”和“数据流”不是一回事。输入流需要先被整理，避免每次击键都重跑昂贵上游；真正进入 `repository.search()` 的，应该已经是一条更克制、更像业务输入的流。对这一章来说，这也是 Flow 很重要的一层价值：它不只是替代 `LiveData` 的容器，更让“输入怎样被加工后再进入上游”有了稳定写法。
 
-### 15. 实践任务
+### 15. 把“刷新请求”本身也建成一条流，会比散落的 reload 调用更稳
+
+前面已经讨论过状态流和输入流，但还有一种经常被写散的东西：用户点击刷新、页面首次进入、登录态恢复后重拉数据，这些“请重新计算一次”的动作。Bennett 和 Socorro 的写法里都能看到一个共同点：与其在多个函数里直接调用同一个加载方法，不如把刷新请求本身也收成一条流，再让它统一触发上游重算。这样一来，刷新就不再是散落的命令，而会成为状态系统的一部分。
+
+```kotlin
+class DashboardViewModel(
+    private val repository: DashboardRepository,
+) : ViewModel() {
+
+    private val refreshRequests = MutableSharedFlow<Unit>(replay = 1)
+
+    val uiState: StateFlow<DashboardUiState> = refreshRequests
+        .onStart { emit(Unit) }
+        .flatMapLatest {
+            repository.observeDashboard()
+                .onStart {
+                    emit(DashboardResult.Loading)
+                }
+        }
+        .map { result ->
+            when (result) {
+                DashboardResult.Loading -> DashboardUiState(isLoading = true)
+                is DashboardResult.Content -> DashboardUiState(
+                    isLoading = false,
+                    sections = result.sections,
+                )
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = DashboardUiState(isLoading = true),
+        )
+
+    fun refresh() {
+        refreshRequests.tryEmit(Unit)
+    }
+}
+```
+
+这段代码真正稳定下来的，是“重新触发上游计算”也有了自己的入口契约。页面不再需要知道底层到底是哪一条流该重跑、哪一段逻辑该重建；它只表达“我现在要刷新”，剩下的统一交给 Flow 链路去组织。对这一章来说，这也是 Flow 很值得学走的一点：它不仅承接结果，也能承接触发结果重算的动作。
+
+### 16. 对高频子状态做投影和去重，会比把整份页面状态一路下发更稳
+
+前面已经补了输入流和刷新流，这一章还差最后一个很实用的判断：并不是所有 UI 都需要整份页面状态。Bennett 和官方状态文档都在强调，如果某个控件只关心“提交按钮能不能点”，那就没必要每次整份 `uiState` 变化都让它重新解释一遍。把高频子状态先投影出来，再配上 `distinctUntilChanged()`，会比 UI 自己到处判断更稳。
+
+```kotlin
+class ProfileEditorViewModel : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ProfileEditorUiState())
+    val uiState: StateFlow<ProfileEditorUiState> = _uiState.asStateFlow()
+
+    val submitEnabled: StateFlow<Boolean> = uiState
+        .map { state ->
+            state.name.isNotBlank() &&
+                state.email.contains("@") &&
+                !state.isSubmitting
+        }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = false,
+        )
+}
+```
+
+这里的关键不是优化某个按钮，而是状态系统开始分层了。页面主状态仍然存在，但像“按钮是否可点”这种高频、局部、可投影的子状态，不必每次都让 UI 自己重新算。这样做既让 View 更轻，也能让 Flow 真正承担“整理状态出口”的职责，而不是只充当一个运输管道。
+
+### 17. `SharingStarted` 其实是在决定上游该活多久
+
+前面已经补过状态流、输入流和刷新流，但 Flow 在真实项目里还有一个经常被低估的决策点：上游到底该在没人看时停下来，还是继续活着。官方文档、Bennett 和 Socorro 都反复提到这层取舍，因为它直接影响资源占用和状态可见性。`SharingStarted` 不是一个装饰性参数，它本质上是在声明“这条热流该活多久”。
+
+```kotlin
+class TeamDashboardViewModel(
+    repository: TeamRepository,
+) : ViewModel() {
+
+    val presence: StateFlow<TeamPresenceUiState> = repository.observePresence()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = TeamPresenceUiState.Loading,
+        )
+
+    val syncState: StateFlow<SyncUiState> = repository.observeCriticalSyncState()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = SyncUiState.Unknown,
+        )
+}
+```
+
+这里有两个不同判断。在线成员状态只在页面可见时才值得持续维护，所以更适合 `WhileSubscribed`；关键同步状态则可能影响整块功能是否可用，所以可以更早启动并持续保留。只要把这层区别想清楚，`stateIn()` 和 `shareIn()` 的策略就不再是机械默认值，而会真正变成架构选择的一部分。
+
+### 18. 实践任务
 
 起点条件：
 
@@ -439,7 +535,7 @@ class ArticleSearchViewModel(
 - 页面不可见时仍在持续收集数据，优先检查是否缺少生命周期感知收集。
 - UI 层如果同时拼接太多流，优先把整理逻辑收回 ViewModel。
 
-### 16. 常见误区
+### 19. 常见误区
 
 - 把这一章理解成两个 API 的表面对比。
 - 以为只要用了 `Flow`，页面状态设计就自然合理。
