@@ -28,7 +28,7 @@ debug 面向开发者，所以它优先保证可调试、可观察、可快速�
 
 ### 2. 先分清楚 AAB 和 APK 的角色
 
-截至 2026 年 3 月，Google Play 对新应用的发布主格式仍然是 Android App Bundle（AAB）。这条主线自 2021 年 8 月起就已经生效，并且今天仍然是正式分发的默认路径。AAB 不是直接安装到用户设备上的最终文件，而是提交给 Google Play 的发布产物，Play 会基于它为不同设备生成更合适的 APK 组合。
+对 Google Play 发布来说，Android App Bundle（AAB）已经是长期主线。AAB 不是直接安装到用户设备上的最终文件，而是提交给 Google Play 的发布产物，Play 会基于它为不同设备生成更合适的 APK 组合。真正准备上架时，仍应在发布周再核对一次官方分发要求，而不要把教材里的当前描述当成永久不变的规则。
 
 这意味着两件事。第一，准备 Google Play 发布时，主线产物通常应是 AAB。第二，如果你要在本地设备上直接安装测试，往往还需要生成签名 APK，或借助 Android Studio / `bundletool` 从 bundle 派生可安装 APK。把这条边界分清楚，可以避免很多“为什么 bundle 不能像 APK 一样直接装”的困惑。
 

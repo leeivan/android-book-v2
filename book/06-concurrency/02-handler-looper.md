@@ -255,7 +255,7 @@ fun dispatchSearchResult(handler: Handler, text: String) {
 
 这也是很多旧代码最容易被误读的地方：看到 `sendMessage()` 就以为已经“异步化”了。实际上，如果消息只是被投递回主线程，那它解决的只是调度顺序问题，不是耗时执行问题。真正的后台工作仍然必须在 worker thread、协程或其他后台机制里完成，Handler 只负责把结果或控制信号送回合适的消息循环。
 
-Smyth 在远程绑定服务的 worked example 里还展示了 `Handler + Messenger` 的另一层价值：当消息不只是在一个线程里排队，而是要在两个组件之间约定“收到什么、回什么”时，`Message` 模型依然成立。它的核心并不是老式，而是协议足够显式。
+Smyth 在远程绑定服务的 worked example 里还展示了 `Handler + Messenger` 的另一层价值：当消息不只是在一个线程里排队，而是要在组件之间来回收发时，最好把“服务端 Handler”“客户端 `replyTo`”“绑定和解绑边界”放在同一个最小链路里理解。下面这个版本把最容易漏掉的绑定前提也补齐了：
 
 ```kotlin
 private const val MSG_SEND_STATUS = 1
@@ -283,10 +283,12 @@ class RemoteStatusService : Service() {
     override fun onBind(intent: Intent): IBinder = messenger.binder
 }
 
-class StatusClient(
-    private val remoteMessenger: Messenger,
+class RemoteStatusConnection(
+    private val context: Context,
     private val onReply: (String) -> Unit
-) {
+) : ServiceConnection {
+    private var remoteMessenger: Messenger? = null
+
     private val replyMessenger = Messenger(
         object : Handler(Looper.getMainLooper()) {
             override fun handleMessage(msg: Message) {
@@ -297,17 +299,37 @@ class StatusClient(
         }
     )
 
+    override fun onServiceConnected(name: ComponentName, service: IBinder) {
+        remoteMessenger = Messenger(service)
+    }
+
+    override fun onServiceDisconnected(name: ComponentName) {
+        remoteMessenger = null
+    }
+
+    fun bind() {
+        context.bindService(
+            Intent(context, RemoteStatusService::class.java),
+            this,
+            Context.BIND_AUTO_CREATE
+        )
+    }
+
+    fun unbind() {
+        context.unbindService(this)
+    }
+
     fun requestStatus(taskId: String) {
         val message = Message.obtain(null, MSG_SEND_STATUS).apply {
             data = Bundle().apply { putString(KEY_STATUS, taskId) }
             replyTo = replyMessenger
         }
-        remoteMessenger.send(message)
+        runCatching { remoteMessenger?.send(message) }
     }
 }
 ```
 
-这个例子值得观察四个点。第一，`Messenger` 并没有抛弃 Handler，它只是把 `IBinder`、`Message` 和 `replyTo` 组合成了一条可跨组件传递的消息通道。第二，服务端仍然在自己的 `Handler` 里解释 `what` 和 `Bundle`，这说明“消息协议”这层抽象并没有变化。第三，客户端把 `replyTo` 指回自己的 `Messenger` 后，返回结果仍然能安全回到主线程。第四，消息通信依旧不等于耗时工作已经被妥善分类，真正的重任务仍然应该在服务内部进一步交给后台执行单元，而不是直接塞进 `handleMessage()`。
+这个版本更适合教材读者观察五个点。第一，`Messenger` 并没有抛弃 Handler，它只是把 `IBinder`、`Message` 和 `replyTo` 组合成了一条可跨组件传递的消息通道。第二，服务端仍然在自己的 `Handler` 里解释 `what` 和 `Bundle`，这说明“消息协议”这层抽象并没有变化。第三，客户端只有在 `bindService(...)` 成功后才真正拿到远端 `Messenger`，这样“消息格式”和“连接前提”才不会被混成一件事。第四，`unbindService(...)` 让这段逻辑的生命周期边界清楚可见，不会给读者留下“连上以后就永远放着不管”的错觉。第五，消息通信依旧不等于耗时工作已经被妥善分类，真正的重任务仍然应该在服务内部进一步交给后台执行单元，而不是直接塞进 `handleMessage()`。
 
 ### 9. 什么场景下不必优先选择 Handler
 

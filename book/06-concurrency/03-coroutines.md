@@ -318,15 +318,12 @@ data class IndexTask(val articleId: String)
 
 class ArticleIndexCoordinator(
     private val indexer: ArticleIndexer,
-    externalScope: CoroutineScope
+    ownerScope: CoroutineScope
 ) {
     private val taskChannel = Channel<IndexTask>(capacity = 10)
-
-    init {
-        externalScope.launch(Dispatchers.Default) {
-            for (task in taskChannel) {
-                indexer.index(task.articleId)
-            }
+    private val workerJob = ownerScope.launch(Dispatchers.Default) {
+        for (task in taskChannel) {
+            indexer.index(task.articleId)
         }
     }
 
@@ -334,13 +331,14 @@ class ArticleIndexCoordinator(
         taskChannel.send(task)
     }
 
-    fun close() {
+    suspend fun close() {
         taskChannel.close()
+        workerJob.join()
     }
 }
 ```
 
-这段代码最重要的，不是把 `Channel` 当成“更酷的队列”，而是它把并发关系重新收紧了。生产者只负责提交任务，消费者负责按顺序处理；`capacity = 10` 表达的是“系统最多同时积压 10 个待处理索引任务”，一旦队列已满，新的 `send()` 就会自然形成背压，而不是继续无限堆积后台工作。对于日志整理、图片索引、离线导出这类后台流水线来说，这种有界队列常常比无限 `launch` 更稳定，因为它把吞吐上限直接写进了模型里。
+这段代码最重要的，不是把 `Channel` 当成“更酷的队列”，而是它把并发关系重新收紧了。生产者只负责提交任务，消费者负责按顺序处理；`capacity = 10` 表达的是“系统最多同时积压 10 个待处理索引任务”，一旦队列已满，新的 `send()` 就会自然形成背压，而不是继续无限堆积后台工作。更关键的是，这里故意不用含糊的全局 scope，而是显式要求外部传入一个 `ownerScope`。在真实项目里，这个 scope 应该来自真正拥有这条流水线生命周期的对象，例如 `viewModelScope`、页面级 `lifecycleScope` 或服务自己的 `serviceScope`。只有把所有权写清楚，前面反复强调的结构化并发边界才不会在示例里自己被冲淡。
 
 ### 9. 协程不会自动给你合理架构
 

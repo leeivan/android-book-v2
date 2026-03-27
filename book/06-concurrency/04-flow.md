@@ -310,7 +310,7 @@ class ArticleListViewModel : ViewModel() {
 
 这个例子最想帮读者建立的，不是“到底该永远用 Channel 还是 SharedFlow”，而是更底层的判断：状态和 effect 不是同一种东西。状态强调“此刻页面是什么样”；effect 强调“有一件一次性的动作需要被控制器消费”。只要这两类通道混在一起，Flow 再现代，页面行为也会很快变得不可预测。
 
-Big Nerd Ranch 在 `PhotoGalleryViewModel` 里把 `storedQuery` 和 `isPolling` 分开收集，已经足够说明“一页 UI 往往不只有一个上游”。如果想把这类多源数据进一步收成一份稳定的 UI 合约，`combine` 往往是最直接的工具。
+Big Nerd Ranch 在 `PhotoGalleryViewModel` 里把 `storedQuery` 和 `isPolling` 分开收集，已经足够说明“一页 UI 往往不只有一个上游”。如果想把这类多源数据进一步收成一份稳定的 UI 合约，`combine` 往往是最直接的工具，但要注意别把“只影响界面控制项的状态”也误写成“必须重建上游数据流的条件”。
 
 ```kotlin
 data class PhotoGalleryUiState(
@@ -324,23 +324,30 @@ class PhotoGalleryViewModel(
     private val galleryRepository: GalleryRepository
 ) : ViewModel() {
 
+    private val query = preferencesRepository.storedQuery
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = ""
+        )
+
+    private val galleryItems = query
+        .flatMapLatest { keyword ->
+            galleryRepository.observeGallery(keyword)
+        }
+
     val uiState: StateFlow<PhotoGalleryUiState> =
         combine(
-            preferencesRepository.storedQuery,
-            preferencesRepository.isPolling
-        ) { query, isPolling ->
-            query to isPolling
+            query,
+            preferencesRepository.isPolling,
+            galleryItems
+        ) { currentQuery, isPolling, images ->
+            PhotoGalleryUiState(
+                query = currentQuery,
+                isPolling = isPolling,
+                images = images
+            )
         }
-            .flatMapLatest { (query, isPolling) ->
-                galleryRepository.observeGallery(query)
-                    .map { images ->
-                        PhotoGalleryUiState(
-                            query = query,
-                            isPolling = isPolling,
-                            images = images
-                        )
-                    }
-            }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
@@ -349,7 +356,7 @@ class PhotoGalleryViewModel(
 }
 ```
 
-这段代码最适合拿来讲“多源收束”这件事。`storedQuery` 和 `isPolling` 都是持续变化的状态来源，它们任何一个变化，页面都应该重新得到一份新的 `PhotoGalleryUiState`。如果把这类拼装工作放到 Fragment 里，页面很快就会变成“自己订阅两三个流，再手动拼一遍状态”的控制器；而把它收进 `ViewModel` 之后，UI 依然只面对一个稳定出口。换句话说，`combine` 真正解决的不是“语法更炫”，而是“多条时间线怎样被整理成一份可消费的当前事实”。
+这样拆开之后，只有 `query` 变化才会真正重建 `observeGallery(...)` 这条上游数据流；`isPolling` 只是和图片列表一起在最后一步收束成 UI 状态，不会因为用户切了一个开关就把整条图片来源重新订阅一遍。对教材读者来说，这个边界特别重要，因为 `combine` 的真正价值不是“把所有流都拧在一起”，而是“先分清谁决定数据来源，谁只是决定页面怎么展示当前事实”，然后再把它们合成一份稳定输出。
 
 ### 8. 什么情况下不必强行上 Flow
 

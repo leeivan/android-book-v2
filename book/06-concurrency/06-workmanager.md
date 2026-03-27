@@ -304,14 +304,21 @@ fun enqueueWeeklyUpload(context: Context, accountId: String) {
 如果团队用的不是 Hilt，而是 Koin 或自定义依赖注入，Wangereka 的例子还补上了一层很容易被漏掉的工程细节：不要一边想让 Worker 走自己的工厂，一边又保留 WorkManager 的默认初始化。否则系统会先按默认方式创建 WorkManager，你自己的 `WorkerFactory` 根本接不上去。
 
 ```kotlin
-class ChapterEightApplication(
-    private val appWorkerFactory: WorkerFactory
-) : Application(), Configuration.Provider {
+class ChapterEightApplication : Application(), Configuration.Provider {
+    private val appContainer by lazy { AppContainer(this) }
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
-            .setWorkerFactory(appWorkerFactory)
+            .setWorkerFactory(appContainer.workerFactory)
             .build()
+}
+
+class AppContainer(context: Context) {
+    val workerFactory: WorkerFactory = AppWorkerFactory(
+        syncWorkerFactory = SyncWorkerFactory(
+            uploadMessagesUseCase = provideUploadMessagesUseCase(context)
+        )
+    )
 }
 
 class AppWorkerFactory(
@@ -344,7 +351,7 @@ class AppWorkerFactory(
 </provider>
 ```
 
-这一组代码想讲清的是：`@HiltWorker` 只是“如何把依赖送进 Worker”的一种实现，背后真正的工程边界是“Worker 创建权到底交给谁”。如果你自己接管 `WorkerFactory`，就必须同时把 `Configuration.Provider` 和默认初始化器移除这两件事一起做完；否则表面上依赖注入已经写好，运行时却仍然会落回默认创建路径。对大型项目来说，这一步非常关键，因为后台任务往往比页面入口更容易被忽略，而一旦工厂没接上，问题通常要到真机调度时才暴露。
+这一组代码想讲清的是：`@HiltWorker` 只是“如何把依赖送进 Worker”的一种实现，背后真正的工程边界是“Worker 创建权到底交给谁”。如果你自己接管 `WorkerFactory`，就必须同时把 `Configuration.Provider`、一个真正可用的依赖入口，以及默认初始化器移除这三件事一起做完。这里故意把依赖来源放进 `AppContainer`，而不是试图让 `Application` 走构造函数注入，就是为了避免一个很常见的教学误解：`Application` 实例由框架创建，不能靠自定义构造函数接依赖。对大型项目来说，这一步非常关键，因为后台任务往往比页面入口更容易被忽略，而一旦工厂没接上，问题通常要到真机调度时才暴露。
 
 如果页面需要把后台结果折回到 UI，也可以继续沿着 `WorkInfo` 读取输出数据：
 
