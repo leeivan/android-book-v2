@@ -339,7 +339,45 @@ fun disableArchivedTaskShortcut(context: Context, taskId: String) {
 ```
 
 这段代码真正要强调的是：快捷方式和小组件一样，一旦进入桌面就变成长期产品承诺。`setDynamicShortcuts()` 负责让高频入口跟着真实数据变化，`disableShortcuts()` 则负责在入口已经没有业务意义时，明确告诉系统和用户“这条路径不再有效”。只要把这层维护意识补上，桌面入口就不会慢慢堆成一组历史遗留按钮。
-### 8. 实践任务
+### 8. 小组件和快捷方式最好复用同一条内部路由契约
+
+桌面入口很容易写散：小组件点一下走一套 Intent，快捷方式又走另一套，通知点击再写第三套。短期看都能打开页面，长期却会出现参数不一致、回到错误上下文、某个入口忘记更新等问题。更稳的做法，是先把“进入任务详情”这件事收成一条统一路由，再让小组件和快捷方式都复用它。
+
+```kotlin
+object TaskEntryPoints {
+    private const val EXTRA_TASK_ID = "extra_task_id"
+
+    fun detailIntent(context: Context, taskId: String): Intent {
+        return Intent(context, TaskDetailActivity::class.java).apply {
+            action = Intent.ACTION_VIEW
+            putExtra(EXTRA_TASK_ID, taskId)
+        }
+    }
+}
+
+fun createTaskShortcut(context: Context, task: Task): ShortcutInfoCompat {
+    return ShortcutInfoCompat.Builder(context, "task-${task.id}")
+        .setShortLabel(task.title)
+        .setIntent(TaskEntryPoints.detailIntent(context, task.id))
+        .build()
+}
+
+fun createTaskWidgetPendingIntent(
+    context: Context,
+    taskId: String,
+): PendingIntent {
+    return PendingIntent.getActivity(
+        context,
+        taskId.hashCode(),
+        TaskEntryPoints.detailIntent(context, taskId),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+}
+```
+
+这组代码真正建立的是入口一致性。桌面小组件、动态快捷方式，甚至后面的通知点击，都可以继续复用同一条内部路由契约。只要入口都先回到统一语义，桌面能力就不会因为“看起来只是多一个入口”而慢慢变成三四条彼此漂移的跳转链。
+
+### 9. 实践任务
 
 起点条件：
 
@@ -371,7 +409,7 @@ fun disableArchivedTaskShortcut(context: Context, taskId: String) {
 - 快捷方式如果只是把用户带回首页，优先重新思考入口价值。
 - 如果你给桌面塞了很多“看起来很丰富”的入口，先删到只剩真正高频的那几个。
 
-### 9. 常见误区
+### 10. 常见误区
 
 - 把小组件和快捷方式当作装饰功能。
 - 不区分状态入口和快捷入口。

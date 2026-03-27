@@ -337,7 +337,69 @@ class NowPlayingActivity : AppCompatActivity() {
 ```
 
 这段代码真正想强调的，是 bound service 的价值并不是“让页面拿到一个万能后台对象”，而是为持续能力提供一个窄而稳定的观察/控制面。只读 `StateFlow` 让界面看到当前播放状态，却不需要知道播放器内部线程、缓冲细节和资源释放策略；Binder 仍然存在，但它更像一扇受控门，而不是把整个实现直接搬回 Activity。
-### 9. 实践任务
+### 9. 把启动、绑定和命令收成 controller，页面会更少碰到 Service 细节
+
+Service 真正难维护的地方，很多时候不是 Service 本身，而是页面里散落着 `startForegroundService()`、`bindService()`、`unbindService()`、`Intent action` 和 `Binder` 强转。只要这些细节直接摊在多个页面里，系统组件边界就很快会反过来污染 UI 层。更健康的做法通常是把它们收成一个 controller，让页面只面对“播放、暂停、观察状态”这类能力语义。
+
+```kotlin
+class PlaybackServiceController(
+    private val context: Context,
+) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var statusJob: Job? = null
+    private var isBound = false
+
+    private val _status = MutableStateFlow(PlaybackStatus())
+    val status: StateFlow<PlaybackStatus> = _status.asStateFlow()
+
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            val playbackService = (service as PlaybackService.LocalBinder).service()
+            statusJob = scope.launch {
+                playbackService.status.collect { _status.value = it }
+            }
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            statusJob?.cancel()
+            statusJob = null
+        }
+    }
+
+    fun bind() {
+        if (isBound) return
+        context.bindService(
+            Intent(context, PlaybackService::class.java),
+            connection,
+            Context.BIND_AUTO_CREATE,
+        )
+        isBound = true
+    }
+
+    fun unbind() {
+        if (!isBound) return
+        context.unbindService(connection)
+        isBound = false
+        statusJob?.cancel()
+        statusJob = null
+    }
+
+    fun play(episodeId: String) {
+        ContextCompat.startForegroundService(
+            context,
+            PlaybackService.playIntent(context, episodeId),
+        )
+    }
+
+    fun pause() {
+        context.startService(PlaybackService.pauseIntent(context))
+    }
+}
+```
+
+这段代码的价值，不是多包了一层类，而是把系统组件细节重新收回到一个更稳定的调用面。页面不再关心 action 常量、Binder 类型和绑定时机，只关心“我能做哪些操作、能看到什么状态”。只要这层 controller 站稳，Service 作为系统组件的复杂度就不会再轻易蔓延到每个页面里。
+
+### 10. 实践任务
 
 起点条件:
 
@@ -369,7 +431,7 @@ class NowPlayingActivity : AppCompatActivity() {
 - 用户明显依赖持续运行，却没有前台通知，优先检查设计是否有问题。
 - Service 里直接做重工作仍然卡顿，说明你把组件入口误当执行模型了。
 
-### 10. 常见误区
+### 11. 常见误区
 
 - 把 Service 当成后台线程。
 - 只要任务离开页面就想起 Service。

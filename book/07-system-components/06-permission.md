@@ -409,7 +409,50 @@ fun canShowFloatingRecorder(context: Context): Boolean {
 ```
 
 这段代码真正要建立的判断是：不是所有权限都属于“声明 -> 请求 -> 回调”这一条链。特殊权限通常意味着更高风险面，也意味着更强的系统控制权，所以它们往往要求用户离开当前页面，去系统设置里显式打开。把这类能力和普通运行时权限分开理解，读者就不会误以为所有敏感能力都能靠 `rememberLauncherForActivityResult()` 或 `RequestPermission()` 统一处理。
-### 9. 实践任务
+### 9. 把权限结果先映射成功能能力，而不是散落在页面里
+
+权限结果最容易写散的地方，是页面里到处都有 `if (granted) ... else ...`，最后没有人能说清“这个功能现在到底能做到哪一步”。更稳的做法，是先把权限结果收成一份能力模型，再让 UI 根据能力而不是原始权限布尔值渲染。这样一来，粗略定位、精确定位、拒绝后的降级路径也都会更清楚。
+
+```kotlin
+enum class LocationPrecision { NONE, APPROXIMATE, PRECISE }
+
+data class LocationCapability(
+    val canShowNearby: Boolean = false,
+    val precision: LocationPrecision = LocationPrecision.NONE,
+)
+
+fun Map<String, Boolean>.toLocationCapability(): LocationCapability {
+    val hasPrecise = this[Manifest.permission.ACCESS_FINE_LOCATION] == true
+    val hasApproximate = hasPrecise || this[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+
+    return when {
+        hasPrecise -> LocationCapability(
+            canShowNearby = true,
+            precision = LocationPrecision.PRECISE,
+        )
+        hasApproximate -> LocationCapability(
+            canShowNearby = true,
+            precision = LocationPrecision.APPROXIMATE,
+        )
+        else -> LocationCapability()
+    }
+}
+
+class NearbyPlacesViewModel : ViewModel() {
+    private val _uiState = MutableStateFlow(NearbyPlacesUiState())
+    val uiState: StateFlow<NearbyPlacesUiState> = _uiState.asStateFlow()
+
+    fun onLocationPermissionResult(result: Map<String, Boolean>) {
+        _uiState.update {
+            it.copy(locationCapability = result.toLocationCapability())
+        }
+    }
+}
+```
+
+这段代码真正把思路拉回了“用户现在能做什么”。页面最终看到的是“附近内容可不可用、精度到哪一级”，而不是一堆散落的权限判断。只要能力模型立住，后面不管是提示用户开启精确定位、还是退回近似位置模式，都会比在多个按钮和回调里直接判断权限更稳定。
+
+### 10. 实践任务
 
 起点条件：
 
@@ -441,7 +484,7 @@ fun canShowFloatingRecorder(context: Context): Boolean {
 - 功能只要权限被拒就完全瘫痪，优先检查是否缺少降级路径。
 - 还在把选图默认写成“先申请存储权限”，说明思路还停在旧范式。
 
-### 10. 常见误区
+### 11. 常见误区
 
 - 一上来就问“怎么申请”，不先问“需不需要申请”。
 - 过早、过多、无上下文地弹权限。

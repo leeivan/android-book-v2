@@ -364,7 +364,58 @@ fun shareReportPdf(context: Context, reportFile: File) {
 ```
 
 这段代码真正要建立的直觉是：Intent 有时不仅在表达动作，还在临时转交访问边界。`ACTION_SEND` 说明“我要把这个内容交给别的应用处理”，`FLAG_GRANT_READ_URI_PERMISSION` 则说明“但这次只允许读取这一份受控 URI”。把它和前面的 `TakePicture()` 放在一起看，读者会更容易理解：跨应用 Intent 设计的关键，始终不是把数据塞出去，而是把动作、结果和权限范围一起收紧到最小必要集。
-### 11. 实践任务
+### 11. 外部输入先收成内部路由，Intent 边界才会长期稳定
+
+Big Nerd Ranch 在显式 Intent、隐式 Intent、联系人选择和相机调用这些例子里反复强调的，其实是同一件事：外部动作入口可以很多，但应用内部最终最好只认一套更小、更稳定的路由语义。否则页面很快就会到处自己读 `extra`、自己猜 `data` URI、自己补兜底逻辑，组件边界会再次变得松散。
+
+```kotlin
+private const val ACTION_OPEN_ARTICLE = "com.example.reader.action.OPEN_ARTICLE"
+private const val ACTION_EDIT_DRAFT = "com.example.reader.action.EDIT_DRAFT"
+private const val EXTRA_ARTICLE_ID = "extra_article_id"
+
+sealed interface ArticleRoute {
+    data class Detail(val id: String) : ArticleRoute
+    data class EditDraft(val id: String) : ArticleRoute
+    data object Home : ArticleRoute
+}
+
+object ArticleRouteParser {
+    fun parse(intent: Intent): ArticleRoute {
+        val articleId = intent.getStringExtra(EXTRA_ARTICLE_ID)
+        val idFromUri = intent.data?.lastPathSegment
+
+        return when {
+            intent.action == ACTION_OPEN_ARTICLE && !articleId.isNullOrBlank() -> {
+                ArticleRoute.Detail(articleId)
+            }
+            intent.action == Intent.ACTION_VIEW && !idFromUri.isNullOrBlank() -> {
+                ArticleRoute.Detail(idFromUri)
+            }
+            intent.action == ACTION_EDIT_DRAFT && !articleId.isNullOrBlank() -> {
+                ArticleRoute.EditDraft(articleId)
+            }
+            else -> ArticleRoute.Home
+        }
+    }
+}
+
+class ArticleEntryActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        when (val route = ArticleRouteParser.parse(intent)) {
+            is ArticleRoute.Detail -> openArticle(route.id)
+            is ArticleRoute.EditDraft -> openDraftEditor(route.id)
+            ArticleRoute.Home -> openHome()
+        }
+        finish()
+    }
+}
+```
+
+这段代码真正建立的是一个很稳的工程习惯：外部世界来的 `Intent`、deep link、通知点击和分享返回，都可以先被解析成内部路由模型，再由页面或导航层决定后续怎么走。这样一来，外部输入再多，应用内部也仍然只围绕少数几种明确语义组织，而不是让每个页面都自己处理一遍系统输入。
+
+### 12. 实践任务
 
 起点条件:
 
@@ -396,7 +447,7 @@ fun shareReportPdf(context: Context, reportFile: File) {
 - 隐式 Intent 总是匹配不到，优先检查 action、data、category 组合是否一致。
 - 应用内普通对象也在滥用 Intent，说明分层还没理顺。
 
-### 12. 常见误区
+### 13. 常见误区
 
 - 把 Intent 理解成“页面跳转参数包”。
 - 用大量 extra 拼凑组件能力。

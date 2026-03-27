@@ -290,7 +290,44 @@ fun createMarkDonePendingIntent(context: Context, taskId: String): PendingIntent
 
 这段代码的价值，不在于 `PendingIntent` 的参数顺序，而在于它把“内部事件入口”和“对外可被其他应用理解的广播协议”明确分开了。只要发送方和接收方都在自己应用内，显式 Receiver 往往比再设计一条公开 action 更稳；只有当你真的要让外部来源参与这条事件链时，才需要回到前面那套 exported、permission 和发送侧约束一起成立的开放协议。
 
-### 10. 实践任务
+### 10. 把 Intent 解析收成纯函数，Receiver 才更容易测试
+
+BroadcastReceiver 还有一个很容易被忽略的工程边界：如果 `onReceive()` 里一边读 `action`、一边拆 `extra`、一边决定后续任务，接收器就会越来越难测。更稳的做法通常是先把输入 Intent 收成几种有限命令，再让 Receiver 只负责分发。这样一来，你不必每次都启动完整组件去验证“这条广播到底会触发什么”。
+
+```kotlin
+private const val ACTION_MARK_DONE = "com.example.todo.action.MARK_DONE"
+private const val ACTION_SNOOZE = "com.example.todo.action.SNOOZE"
+private const val EXTRA_TASK_ID = "extra_task_id"
+
+sealed interface ReminderCommand {
+    data class MarkDone(val taskId: String) : ReminderCommand
+    data class Snooze(val taskId: String) : ReminderCommand
+    data object Ignore : ReminderCommand
+}
+
+fun Intent.toReminderCommand(): ReminderCommand {
+    val taskId = getStringExtra(EXTRA_TASK_ID)
+    return when (action) {
+        ACTION_MARK_DONE -> taskId?.let(ReminderCommand::MarkDone) ?: ReminderCommand.Ignore
+        ACTION_SNOOZE -> taskId?.let(ReminderCommand::Snooze) ?: ReminderCommand.Ignore
+        else -> ReminderCommand.Ignore
+    }
+}
+
+class ReminderActionReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        when (val command = intent.toReminderCommand()) {
+            is ReminderCommand.MarkDone -> markTaskDone(command.taskId)
+            is ReminderCommand.Snooze -> enqueueSnooze(command.taskId)
+            ReminderCommand.Ignore -> Unit
+        }
+    }
+}
+```
+
+这段代码的关键不在语法，而在职责拆分。Intent 解析被收成了纯函数，Receiver 自己只保留有限分发职责。这样一来，动作缺少关键 `extra` 时怎么忽略、外部输入格式不对时怎样兜底，都能先在更轻的层级里验证，而不是等到系统真正把广播发进来才发现边界没收住。
+
+### 11. 实践任务
 
 起点条件：
 
@@ -323,7 +360,7 @@ fun createMarkDonePendingIntent(context: Context, taskId: String): PendingIntent
 - 如果接收器总是忘记注销，优先把注册位置继续缩小并贴近生命周期。
 - 如果你说不清谁能给这个接收器发广播，说明边界还没有设计稳。
 
-### 11. 常见误区
+### 12. 常见误区
 
 - 把 BroadcastReceiver 当成后台任务容器。
 - 只要想接系统事件，就先写成清单注册。

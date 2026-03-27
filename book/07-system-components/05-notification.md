@@ -399,7 +399,62 @@ fun buildPlaybackNotification(
 ```
 
 这段代码真正想说明的是：通知样式本身也是交互设计的一部分。`MediaStyle` 不是简单换个外观，而是在强调“这是一条持续中的媒体会话通知，用户最需要的是立即控制它”。和前面的 `MessagingStyle`、`InboxStyle` 放在一起看，读者会更容易形成稳定判断：通知样式应服务于任务类型和上下文承载，而不是为了把一条通知做得更花哨。
-### 9. 实践任务
+### 9. 把“是否通知”和“怎样构建通知”拆开，设计会更稳
+
+通知章节里一个很容易被忽略的工程判断是：决定“该不该通知”的，往往是业务层；决定“这条通知长什么样、走哪个渠道、点哪里”的，则更适合收在专门的通知装配层里。如果 ViewModel、Worker、Service 都各自手写一份 `NotificationCompat.Builder`，渠道、id、点击路径和样式很快就会飘散。
+
+```kotlin
+data class ReminderNotificationPayload(
+    val id: Int,
+    val channelId: String,
+    val title: String,
+    val message: String,
+    val contentIntent: PendingIntent,
+    val autoCancel: Boolean,
+)
+
+class ReminderNotificationFactory(
+    private val context: Context,
+) {
+    fun build(payload: ReminderNotificationPayload): Notification {
+        return NotificationCompat.Builder(context, payload.channelId)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(payload.title)
+            .setContentText(payload.message)
+            .setContentIntent(payload.contentIntent)
+            .setAutoCancel(payload.autoCancel)
+            .build()
+    }
+}
+
+class ReminderNotifier(
+    private val context: Context,
+    private val factory: ReminderNotificationFactory,
+) {
+    fun showTaskDue(taskId: String, title: String) {
+        val payload = ReminderNotificationPayload(
+            id = taskId.hashCode(),
+            channelId = CHANNEL_REMINDERS,
+            title = "待办即将到期",
+            message = title,
+            contentIntent = TaskStackBuilder.create(context)
+                .addNextIntentWithParentStack(TaskDetailActivity.newIntent(context, taskId))
+                .getPendingIntent(
+                    taskId.hashCode(),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                ),
+            autoCancel = true,
+        )
+
+        NotificationManagerCompat.from(context)
+            .notify(payload.id, factory.build(payload))
+    }
+}
+```
+
+这组代码真正收紧的是职责边界。UseCase、Worker 或页面负责回答“现在值不值得打扰用户”，`ReminderNotifier` 负责回答“如果值得，这条通知应该怎样被系统构建出来”。只要这两件事分开，通知设计就不会再退化成项目里到处散落的 `Builder` 片段，渠道、点击路径和稳定 id 也更容易长期维护。
+
+### 10. 实践任务
 
 起点条件：
 
@@ -434,7 +489,7 @@ fun buildPlaybackNotification(
 - 如果点击通知只能回到模糊首页，说明通知入口设计仍然不完整。
 - 如果权限请求总在用户还看不到价值时弹出，授权通过率通常不会高。
 
-### 10. 常见误区
+### 11. 常见误区
 
 - 把通知当成后台日志输出口。
 - 不分渠道，把所有通知混成一类。

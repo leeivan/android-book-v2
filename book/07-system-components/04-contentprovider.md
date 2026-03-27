@@ -345,7 +345,42 @@ fun importTaskTemplate(
 ```
 
 这段代码真正补上的，是 Provider 作为共享协议的“批量语义”。如果你导入的是一整套任务模板、一次联系人合并，或者某组修改天然应该被视为同一批动作，那么 `applyBatch()` 会比连续散落的多次 `insert()` 更容易保持一致性，也更容易让调用方明确知道：这不是几条互相独立的写入，而是一份应该整体处理的共享请求。
-### 9. 实践任务
+### 9. 合同类会让 Provider 协议长期可维护
+
+Provider 一旦真的要对外暴露，就不只是“我这里有几个 CRUD 方法”，而是“我准备长期维护一套 URI、列名、类型和访问规则”。这也是为什么很多老资料都会引入 contract class。它的价值不在于多建一个对象，而在于让客户端和 Provider 自己都围绕同一份协议工作，而不是各自手写字符串。
+
+```kotlin
+object TasksContract {
+    const val AUTHORITY = "com.example.todo.tasks"
+    const val PATH_TASKS = "tasks"
+
+    val CONTENT_URI: Uri = Uri.parse("content://$AUTHORITY/$PATH_TASKS")
+
+    object Columns : BaseColumns {
+        const val TITLE = "title"
+        const val IS_DONE = "is_done"
+    }
+
+    fun itemUri(id: Long): Uri = ContentUris.withAppendedId(CONTENT_URI, id)
+}
+
+class TaskProvider : ContentProvider() {
+
+    companion object {
+        private const val TASKS = 1
+        private const val TASK_ID = 2
+    }
+
+    private val uriMatcher = UriMatcher(UriMatcher.NO_MATCH).apply {
+        addURI(TasksContract.AUTHORITY, TasksContract.PATH_TASKS, TASKS)
+        addURI(TasksContract.AUTHORITY, "${TasksContract.PATH_TASKS}/#", TASK_ID)
+    }
+}
+```
+
+这段代码最值得学走的是协议意识。`authority`、路径、列名和 item URI 都集中在一处之后，Provider 自己、`ContentResolver` 调用方和后续测试就能围绕同一份约定说话。这样一来，自定义 Provider 的难点才会真正回到“这份协议该怎样承诺”，而不是散落在各处的字符串有没有写对。
+
+### 10. 实践任务
 
 起点条件:
 
@@ -377,7 +412,7 @@ fun importTaskTemplate(
 - 只想着 CRUD 不想着权限和 URI 承诺，说明 Provider 边界还没想清楚。
 - 需要共享文件时还在直接传文件路径，优先考虑 FileProvider。
 
-### 10. 常见误区
+### 11. 常见误区
 
 - 认为每个应用都应该有一个自定义 ContentProvider。
 - 把 Provider 当成普通本地数据库接口。
