@@ -220,7 +220,157 @@ internal class AddToCartUseCaseImpl(
 
 这样做的直接收益有两个。第一，UseCase 不会因为某个页面改文案就一起被牵着改，领域规则的稳定性更高。第二，多个页面如果共享同一个业务动作，也不会因为 UI 表达不同就被迫复制一份逻辑。只要这条边界守住，UseCase 才真正像 Domain 层，而不是“换个名字的页面辅助类”。
 
-### 10. 实践任务
+### 10. 一个 UseCase 往往也是一次业务事务的边界
+
+`Clean Android Architecture` 和 Bennett 的例子都在强调，UseCase 不只是把几个 Repository 调用排一下序，更像“这次业务动作从哪里开始，到哪里才算完成”的边界。如果一次动作要跨登录、库存、支付和下单多个步骤，ViewModel 就不该再一段段手写流程，而应把这条业务事务收回一个 UseCase 里。
+
+```kotlin
+sealed interface CheckoutResult {
+    data class Success(val orderId: String) : CheckoutResult
+    data object LoginRequired : CheckoutResult
+    data object EmptyCart : CheckoutResult
+    data object PaymentUnavailable : CheckoutResult
+}
+
+class CheckoutCartUseCase(
+    private val authRepository: AuthRepository,
+    private val cartRepository: CartRepository,
+    private val paymentRepository: PaymentRepository,
+    private val orderRepository: OrderRepository,
+) {
+    suspend operator fun invoke(): CheckoutResult {
+        if (!authRepository.isLoggedIn()) return CheckoutResult.LoginRequired
+
+        val items = cartRepository.getItems()
+        if (items.isEmpty()) return CheckoutResult.EmptyCart
+
+        val paymentToken = paymentRepository.prepare(items)
+            ?: return CheckoutResult.PaymentUnavailable
+
+        val orderId = orderRepository.placeOrder(
+            items = items,
+            paymentToken = paymentToken,
+        )
+
+        cartRepository.clear()
+        return CheckoutResult.Success(orderId)
+    }
+}
+```
+
+这段代码的关键，不是“动作更多所以要多建一层”，而是业务完成条件终于被收成了一处。只有当下单成功时才清空购物车，只有登录通过后才继续准备支付，这些顺序和条件都属于业务事务本身，而不是页面渲染逻辑。只要读者把这一点想清楚，就会更容易判断哪些流程该继续留在 ViewModel，哪些已经值得抽成 UseCase。
+
+### 11. UseCase 一旦能被独立测试，业务边界就会非常清楚
+
+UseCase 之所以值得单独存在，很大一个原因是它终于把“业务规则是否成立”从页面和框架里剥离出来了。Bennett 和 Big Nerd Ranch 都给过类似启发：只要一个动作真的被抽成稳定输入输出，你就可以先测试规则本身，再去测试 ViewModel 怎样把它翻译成界面状态。
+
+```kotlin
+class CheckoutCartUseCaseTest {
+
+    @Test
+    fun returns_login_required_when_user_is_not_signed_in() = runTest {
+        val useCase = CheckoutCartUseCase(
+            authRepository = FakeAuthRepository(isLoggedIn = false),
+            cartRepository = FakeCartRepository(items = listOf(fakeCartItem())),
+            paymentRepository = FakePaymentRepository(),
+            orderRepository = FakeOrderRepository(),
+        )
+
+        val result = useCase()
+
+        assertEquals(CheckoutResult.LoginRequired, result)
+    }
+}
+```
+
+这段测试的价值在于：页面文案、导航动作和按钮状态都还没出现，但业务规则已经能被确认了。只要 UseCase 可以在纯 Kotlin 语境里被验证，Domain 层边界就会清楚很多。反过来，如果一个所谓的 UseCase 还必须依赖页面对象、资源字符串或 Android 组件才能测，通常也说明它还没有真正从 UI 层里抽出来。
+
+### 12. 观察型 UseCase 也很常见，但输出仍然应该先服务业务语义
+
+很多读者一提到 UseCase，脑子里首先想到的都是“点一下按钮，执行一次动作”。这当然是常见场景，但 Bennett 和 `Clean Android Architecture` 都提醒过，Domain 层也经常要提供“持续观察某个业务结果”的能力。关键不是它是不是 `Flow`，而是它的输出是否仍然在表达业务语义，而不是直接把原始数据源扔给 UI。
+
+```kotlin
+data class CheckoutSummary(
+    val totalPrice: Money,
+    val canSubmit: Boolean,
+    val blockedReason: CheckoutBlockedReason?,
+)
+
+class ObserveCheckoutSummaryUseCase(
+    private val cartRepository: CartRepository,
+    private val accountRepository: AccountRepository,
+    private val couponRepository: CouponRepository,
+) {
+    operator fun invoke(): Flow<CheckoutSummary> {
+        return combine(
+            cartRepository.observeItems(),
+            accountRepository.observeLoginState(),
+            couponRepository.observeAppliedCoupon(),
+        ) { items, isLoggedIn, coupon ->
+            val totalPrice = coupon.applyTo(items.totalPrice())
+            val blockedReason = when {
+                items.isEmpty() -> CheckoutBlockedReason.EMPTY_CART
+                !isLoggedIn -> CheckoutBlockedReason.LOGIN_REQUIRED
+                else -> null
+            }
+
+            CheckoutSummary(
+                totalPrice = totalPrice,
+                canSubmit = blockedReason == null,
+                blockedReason = blockedReason,
+            )
+        }
+    }
+}
+```
+
+这段代码的价值，在于它把“购物车总价怎样计算、什么时候允许提交、当前被什么业务条件拦住”先收成了一份领域结果。到了 ViewModel，你再把 `LOGIN_REQUIRED` 映射成登录引导，把 `EMPTY_CART` 映射成空购物车提示；但这些都已经建立在 Domain 层先把业务判断算清楚的前提上。只要读者把这一点想通，就不会再把“返回 `Flow`”误解成“直接把 Repository 流照搬出来”。
+
+### 13. 当 UseCase 输入开始膨胀时，用 Command 对象会比长参数表更稳
+
+`Clean Android Architecture` 和 Bennett 在复杂业务动作的例子里都做了同一个取舍：一旦一个动作需要的输入开始变多，就不要再让 ViewModel 把一串彼此有关联的参数拆开传进去。对 Domain 层来说，这些输入通常本来就属于同一个业务命令，把它们收成 `Command` 对象，会比维护一长串参数表更稳，也更方便在边界上做验证。
+
+```kotlin
+data class SubmitReviewCommand(
+    val articleId: Long,
+    val rating: Int,
+    val comment: String,
+    val containsSpoiler: Boolean,
+)
+
+sealed interface SubmitReviewResult {
+    data object Success : SubmitReviewResult
+    data object RatingOutOfRange : SubmitReviewResult
+    data object CommentTooLong : SubmitReviewResult
+}
+
+class SubmitReviewUseCase(
+    private val repository: ReviewRepository,
+) {
+    suspend operator fun invoke(
+        command: SubmitReviewCommand,
+    ): SubmitReviewResult {
+        if (command.rating !in 1..5) {
+            return SubmitReviewResult.RatingOutOfRange
+        }
+        if (command.comment.length > 300) {
+            return SubmitReviewResult.CommentTooLong
+        }
+
+        repository.submit(
+            articleId = command.articleId,
+            rating = command.rating,
+            comment = command.comment,
+            containsSpoiler = command.containsSpoiler,
+        )
+        return SubmitReviewResult.Success
+    }
+}
+```
+
+这里真正稳定下来的，是输入语义本身。评分、评论内容和 spoiler 标记不再只是三四个零散参数，而是同一次“提交评论”业务动作的完整命令。这样一来，UseCase 就更容易在边界上做校验、做测试，也更不容易在参数逐渐变多后退化成看不懂的长方法签名。
+
+### 14. 实践任务
 
 起点条件:
 
@@ -252,7 +402,7 @@ internal class AddToCartUseCaseImpl(
 - 如果每个简单调用都被机械包一层，说明 Domain 层过度了。
 - 如果 UseCase 里还在操作页面文案和导航，说明边界划错了。
 
-### 11. 常见误区
+### 15. 常见误区
 
 - 把 UseCase 当成所有方法都要套的一层模板。
 - 分不清业务动作和数据策略。

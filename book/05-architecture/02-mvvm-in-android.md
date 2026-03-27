@@ -268,7 +268,167 @@ fun LoginRoute(
 
 Socorro 的聊天页和 `LaunchedEffect(Unit)` 初始化链路也在说明同一件事：Compose 页面可以很声明式，但那些只该发生一次的动作，仍然要有单独通道。MVVM 真正落地时，稳定状态和一次性事件最好一开始就分开建模，否则 ViewModel 很容易为了图省事，把所有东西又塞回一个越来越臃肿的 `uiState` 里。
 
-### 12. 实践任务
+### 12. Route / Content 分层，会让 MVVM 边界更容易守住
+
+Bennett 的 Compose 样板和 Socorro 的聊天页都在做同一个切分：让拿 ViewModel、收生命周期流、处理 effect 的那一层停在 Route，让真正负责渲染的那一层停在 Content。这样做的意义，不是为了多拆一个函数，而是为了让“页面状态入口”和“纯显示层”更容易分开。
+
+```kotlin
+@Composable
+fun ArticleListRoute(
+    viewModel: ArticleListViewModel = hiltViewModel(),
+    onOpenArticle: (Long) -> Unit,
+    showSnackbar: suspend (String) -> Unit,
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is ArticleListEffect.OpenArticle -> onOpenArticle(effect.id)
+                is ArticleListEffect.ShowSnackbar -> showSnackbar(effect.text)
+            }
+        }
+    }
+
+    ArticleListContent(
+        uiState = uiState,
+        onRefresh = { viewModel.onAction(ArticleListAction.Refresh) },
+        onKeywordChanged = {
+            viewModel.onAction(ArticleListAction.KeywordChanged(it))
+        },
+        onArticleClick = {
+            viewModel.onAction(ArticleListAction.ArticleClicked(it))
+        },
+    )
+}
+```
+
+当 Route 和 Content 分开之后，很多边界会一下子清楚起来。`Route` 负责拿依赖、接状态、收 effect、转发导航；`Content` 只负责根据 `uiState` 画出界面，并把用户动作回传出去。这样一来，Compose 页面就不会因为方便而慢慢把 ViewModel、导航、Snackbar、UI 渲染重新揉成一个大函数。MVVM 真正落地时，很多“为什么又写回胖页面了”的问题，往往就是从这里开始失守的。
+
+### 13. Content 一旦变成无状态函数，预览和测试都会轻很多
+
+Route / Content 分层还有一个经常被低估的收益：只要 `Content` 真正只依赖输入参数，它就会立刻变得更容易预览、更容易做 UI 测试，也更不容易在重构时把 ViewModel、导航和副作用混回去。这一点在 Bennett 的 Compose 组织方式里很明显，因为 Route 负责拿状态，Content 负责纯渲染。
+
+```kotlin
+@Preview(showBackground = true)
+@Composable
+fun ArticleListContentPreview() {
+    ArticleListContent(
+        uiState = ArticleListUiState(
+            isLoading = false,
+            articles = listOf(
+                Article(id = 1, title = "Modern Android"),
+                Article(id = 2, title = "Compose State"),
+            ),
+        ),
+        onRefresh = {},
+        onKeywordChanged = {},
+        onArticleClick = {},
+    )
+}
+```
+
+这个预览的教学价值，不是让页面“看起来能预览”，而是反过来检查 MVVM 边界有没有守住。如果一个 `Content` 函数还非得自己拿 ViewModel、自己发导航、自己解释 effect，它往往就已经不再是纯显示层了。只要预览和测试开始变得轻松，通常也说明 View 和 ViewModel 的分工真的站稳了。
+
+### 14. ViewModel 输出应该尽量是 UI 语言，而不是把领域对象原样扔给页面
+
+Vainigli 和 Bennett 在 MVVM 章节里都反复强调过同一个判断：页面真正需要的不是“领域对象本体”，而是“当前这块界面要怎样显示”。如果 ViewModel 只是把 `Article`、`UserProfile` 这类领域对象原样暴露给 UI，很多显示语义最终还是会重新散落回页面层。更稳的做法，是让 ViewModel 先把领域数据整理成更接近界面语言的 `UiModel`。
+
+```kotlin
+data class ArticleCardUiModel(
+    val id: Long,
+    val title: String,
+    val subtitle: String,
+    val badge: String?,
+    val isBookmarked: Boolean,
+)
+
+data class ArticleListUiState(
+    val isLoading: Boolean = false,
+    val cards: List<ArticleCardUiModel> = emptyList(),
+)
+
+class ArticleListViewModel(
+    private val repository: ArticleRepository,
+) : ViewModel() {
+
+    val uiState: StateFlow<ArticleListUiState> = repository.observeArticles()
+        .map { articles ->
+            ArticleListUiState(
+                isLoading = false,
+                cards = articles.map { article ->
+                    ArticleCardUiModel(
+                        id = article.id,
+                        title = article.title,
+                        subtitle = "${article.authorName} · ${article.readMinutes} 分钟",
+                        badge = if (article.isBreaking) "快讯" else null,
+                        isBookmarked = article.isBookmarked,
+                    )
+                },
+            )
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = ArticleListUiState(isLoading = true),
+        )
+}
+```
+
+这里最值得学走的点，是显示语义被收回到了 ViewModel。作者名和阅读时长怎样拼成副标题、什么情况下显示“快讯”角标、收藏态怎样映射到页面所需字段，这些都已经属于页面状态组织，而不再是 `Content` 函数里临时拼字符串的工作。只要这一步做扎实，View 才会真正轻下来，MVVM 也才更像“状态先被解释，再被显示”，而不是“领域对象直接冲到最上层”。
+
+### 15. 页面存在互斥状态时，用 `sealed ui state` 会比一组布尔值更稳
+
+Bennett 和 Vainigli 都在状态建模章节里反复提醒过一个问题：如果页面同时维护 `isLoading`、`isEmpty`、`hasError`、`showContent` 这些布尔值，它迟早会走到“理论上不该同时成立，但代码里还是能同时成立”的局面。对 MVVM 来说，这往往说明 ViewModel 还没有把页面状态真正收成一份互斥模型。只要页面状态本身就是互斥的，`sealed interface` 往往会比一组布尔值更稳。
+
+```kotlin
+sealed interface ArticleFeedUiState {
+    data object Loading : ArticleFeedUiState
+    data object Empty : ArticleFeedUiState
+    data class Content(
+        val items: List<ArticleCardUiModel>,
+    ) : ArticleFeedUiState
+    data class Error(
+        val message: String,
+    ) : ArticleFeedUiState
+}
+
+class ArticleFeedViewModel(
+    private val repository: ArticleRepository,
+) : ViewModel() {
+
+    val uiState: StateFlow<ArticleFeedUiState> = repository.observeArticles()
+        .map<ArticleFeedUiState> { items ->
+            if (items.isEmpty()) {
+                ArticleFeedUiState.Empty
+            } else {
+                ArticleFeedUiState.Content(
+                    items = items.map { article ->
+                        ArticleCardUiModel(
+                            id = article.id,
+                            title = article.title,
+                            subtitle = article.authorName,
+                            badge = null,
+                            isBookmarked = article.isBookmarked,
+                        )
+                    },
+                )
+            }
+        }
+        .catch {
+            emit(ArticleFeedUiState.Error("文章加载失败"))
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = ArticleFeedUiState.Loading,
+        )
+}
+```
+
+这里真正稳定下来的，是“页面此刻只能处于哪一种显示状态”这件事。`Loading`、`Empty`、`Content`、`Error` 四种情况不再靠布尔值互相猜测，而是被收成了一份互斥合同。只要页面真的存在明确互斥态，这种建模方式往往会让 `MVVM` 更像“先定义屏幕语义，再决定怎么显示”，而不是在 UI 层不断堆条件判断。
+
+### 16. 实践任务
 
 起点条件:
 
@@ -300,7 +460,7 @@ Socorro 的聊天页和 `LaunchedEffect(Unit)` 初始化链路也在说明同一
 - 如果 ViewModel 里同时出现网络、数据库和复杂流程编排细节，通常说明数据层职责不够清楚。
 - 如果页面状态仍然靠很多零散字段拼装，优先补状态建模，而不是继续加回调。
 
-### 13. 常见误区
+### 17. 常见误区
 
 - 把 MVVM 简化成“页面 + ViewModel”。
 - 认为只要有 ViewModel 就自动拥有良好架构。

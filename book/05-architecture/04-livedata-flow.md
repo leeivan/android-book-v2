@@ -262,7 +262,152 @@ viewLifecycleOwner.lifecycleScope.launch {
 
 这也是为什么很多读者会在学习 Compose 后，突然更理解 ViewModel 和 `StateFlow` 的组合。并不是 Compose 让概念变了，而是它把“UI 只是状态的函数”这件事表现得更明显。
 
-### 11. 实践任务
+### 11. 冷上游最好先在 ViewModel 里收成热状态，再交给 UI
+
+Bennett 和 Socorro 的例子里都有一个容易被忽略的共识：Repository 暴露出来的往往是一条冷流，但屏幕真正需要的是一份“随时可读的当前状态”。如果直接让多个 UI 位置各自去 `collect` 同一条冷流，上游查询、网络或数据库转换就可能被重复触发。更稳的做法，是先在 ViewModel 里把它收成热状态，再提供给 UI。
+
+```kotlin
+class DashboardViewModel(
+    private val repository: DashboardRepository,
+) : ViewModel() {
+
+    private val filter = MutableStateFlow(DashboardFilter.ALL)
+
+    private val articles = repository.observeArticles()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
+
+    val uiState: StateFlow<DashboardUiState> = combine(
+        articles,
+        filter,
+    ) { items, currentFilter ->
+        DashboardUiState(
+            items = items.filter { currentFilter.accept(it) },
+            currentFilter = currentFilter,
+            isLoading = false,
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = DashboardUiState(isLoading = true),
+    )
+
+    fun updateFilter(value: DashboardFilter) {
+        filter.value = value
+    }
+}
+```
+
+这段代码真正回答的是“谁来持有当前状态”。Repository 负责提供原始数据流，ViewModel 把它们整理成当前屏幕真正要消费的热状态，UI 再通过生命周期感知方式读取这份结果。只要先在 ViewModel 把冷上游收热，页面里“同一个状态被多次订阅、重复触发上游工作”的问题就会少很多。需要共享事件生产过程时，再考虑 `shareIn()`；而需要共享当前页面状态时，优先想 `stateIn()`。
+
+### 12. 需要共享同一条昂贵上游时，再考虑 `shareIn()`
+
+前面说过 `stateIn()` 更适合承接当前页面状态，但它不是唯一答案。如果上游本身是一条昂贵且持续的流，比如 WebSocket 连接状态、长轮询结果或实时分析事件，而页面里又有多个位置都要消费同一条上游，那么更适合先把“生产过程”共享出去，再由不同消费者各自处理。这个场景下，`shareIn()` 往往比直接让每个收集者各跑一遍上游更稳。
+
+```kotlin
+class ChatViewModel(
+    repository: ChatRepository,
+) : ViewModel() {
+
+    private val incomingMessages = repository.observeIncomingMessages()
+        .shareIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            replay = 0,
+        )
+
+    val messages: StateFlow<List<Message>> = incomingMessages
+        .scan(emptyList<Message>()) { items, message -> items + message }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
+
+    val unreadCount: StateFlow<Int> = incomingMessages
+        .scan(0) { count, _ -> count + 1 }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = 0,
+        )
+}
+```
+
+这段代码体现的是另一种边界：`shareIn()` 共享的是“上游生产过程”，而 `stateIn()` 承接的是“某个消费者视角下的当前状态”。消息流只连一次上游，但可以分别整理成消息列表和未读数。只要读者把这两个角色分清，就不容易在页面状态和共享事件生产之间混用 API。
+
+### 13. 旧页面迁移时，可以先在 ViewModel 边界桥接 `Flow` 和 `LiveData`
+
+很多真实项目不会在一周内把所有旧页面都迁成 `StateFlow + Compose`。Vainigli 和 Bennett 在谈迁移时都给过一个很务实的建议：与其在 UI 层到处临时把 `Flow` 和 `LiveData` 混着拼，不如先在 ViewModel 边界上把新旧出口都准备好，让新页面逐步吃 `Flow`，旧页面继续吃 `LiveData`。这样迁移成本会小很多，状态建模也不会因为过渡期而重新发散。
+
+```kotlin
+class ProfileViewModel(
+    repository: ProfileRepository,
+) : ViewModel() {
+
+    private val uiStateFlow = repository.observeProfile()
+        .map { profile ->
+            ProfileUiState(
+                isLoading = false,
+                name = profile.displayName,
+                email = profile.email,
+            )
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = ProfileUiState(isLoading = true),
+        )
+
+    val uiState: StateFlow<ProfileUiState> = uiStateFlow
+
+    val uiStateLiveData: LiveData<ProfileUiState> = uiStateFlow.asLiveData()
+}
+```
+
+这段代码的重点不是“同时暴露两个字段”，而是迁移边界终于被收在了一处。新页面可以直接 `collectAsStateWithLifecycle()`，旧 Fragment 也还能继续 `observe(viewLifecycleOwner)`；真正的状态来源仍然只有一份，桥接只是为了兼容旧消费方式，而不是允许每个页面再各自造一条状态线。只要这层边界守住，Flow 迁移就会更像稳定替换承载容器，而不是全项目一起改写的硬切换。
+
+### 14. 搜索和筛选这类用户输入，最好先做去抖和去重，再接上游数据流
+
+Socorro 和 Bennett 在聊天页、列表页这些实时搜索例子里其实都在说明同一个问题：用户输入是高频变化的，而上游查询、数据库检索或网络搜索通常不是。只要把文本输入原样一路往上游传，Flow 再优雅也会被你用成“每按一个字就重跑一次整条链”。更稳的做法，是先把输入流做去抖、去重，再进入真正昂贵的上游工作。
+
+```kotlin
+class ArticleSearchViewModel(
+    private val repository: ArticleRepository,
+) : ViewModel() {
+
+    private val query = MutableStateFlow("")
+
+    val uiState: StateFlow<SearchUiState> = query
+        .debounce(300)
+        .map { it.trim() }
+        .distinctUntilChanged()
+        .mapLatest { keyword ->
+            val items = repository.search(keyword)
+            SearchUiState(
+                keyword = keyword,
+                items = items,
+                isLoading = false,
+            )
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = SearchUiState(isLoading = true),
+        )
+
+    fun updateQuery(value: String) {
+        query.value = value
+    }
+}
+```
+
+这段代码真正讲清的是“输入流”和“数据流”不是一回事。输入流需要先被整理，避免每次击键都重跑昂贵上游；真正进入 `repository.search()` 的，应该已经是一条更克制、更像业务输入的流。对这一章来说，这也是 Flow 很重要的一层价值：它不只是替代 `LiveData` 的容器，更让“输入怎样被加工后再进入上游”有了稳定写法。
+
+### 15. 实践任务
 
 起点条件：
 
@@ -294,7 +439,7 @@ viewLifecycleOwner.lifecycleScope.launch {
 - 页面不可见时仍在持续收集数据，优先检查是否缺少生命周期感知收集。
 - UI 层如果同时拼接太多流，优先把整理逻辑收回 ViewModel。
 
-### 12. 常见误区
+### 16. 常见误区
 
 - 把这一章理解成两个 API 的表面对比。
 - 以为只要用了 `Flow`，页面状态设计就自然合理。

@@ -183,7 +183,174 @@ class ArticleListViewModel(
 
 Big Nerd Ranch 在这里给过一个特别值得直接记住的提醒：Activity 或 Fragment 可以持有 ViewModel，但 ViewModel 不应该反过来持有 Activity、Fragment 或 View 的引用。原因不是抽象洁癖，而是生命周期事实本身。ViewModel 会跨配置变化继续活着，旧页面实例却会被销毁；如果 ViewModel 留着旧页面引用，就既会泄漏旧实例，也可能在后续状态更新时操作一块已经失效的界面。也因此，`onCleared()` 真正该做的是取消观察、断开连接、清理与当前屏幕绑定的资源，而不是再去碰 UI。
 
-### 8. 实践任务
+### 8. 把轻量可恢复参数直接建成 `StateFlow`，会比手动同步更稳
+
+Big Nerd Ranch 在 `GeoQuiz` 里保存的只是 `currentIndex`，而不是整题库；这个例子最值得记住的地方，不是 API 名字，而是“只保存最少且必须恢复的信息”。放到今天更常见的页面里，这些信息往往是搜索词、当前 tab、筛选条件，而不是整个列表结果。
+
+```kotlin
+enum class ArticleTab { ALL, BOOKMARKED }
+
+data class ArticleFeedUiState(
+    val isLoading: Boolean = false,
+    val selectedTab: ArticleTab = ArticleTab.ALL,
+    val articles: List<Article> = emptyList(),
+)
+
+class ArticleFeedViewModel(
+    private val repository: ArticleRepository,
+    private val savedStateHandle: SavedStateHandle,
+) : ViewModel() {
+
+    private val query = savedStateHandle.getStateFlow("query", "")
+    private val selectedTab = savedStateHandle.getStateFlow(
+        key = "selected_tab",
+        initialValue = ArticleTab.ALL,
+    )
+
+    val uiState: StateFlow<ArticleFeedUiState> = combine(
+        query,
+        selectedTab,
+    ) { keyword, tab ->
+        keyword to tab
+    }
+        .flatMapLatest { (keyword, tab) ->
+            repository.observeArticles(keyword = keyword, tab = tab)
+                .map { articles ->
+                    ArticleFeedUiState(
+                        isLoading = false,
+                        selectedTab = tab,
+                        articles = articles,
+                    )
+                }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = ArticleFeedUiState(isLoading = true),
+        )
+
+    fun updateQuery(value: String) {
+        savedStateHandle["query"] = value
+    }
+
+    fun selectTab(tab: ArticleTab) {
+        savedStateHandle["selected_tab"] = tab
+    }
+}
+```
+
+这里真正值得读者学走的有两点。第一，`SavedStateHandle` 存的是“重新回来时还应该记得什么”，所以只保留关键轻量参数，不保留大对象和长期数据；第二，`getStateFlow()` 让这些参数从一开始就能自然参与 `combine`、`flatMapLatest` 和 `stateIn` 这条现代状态链，而不必再靠手动同步多个字段。只要这条线立住，ViewModel 就更像一个屏幕状态骨架，而不是一堆临时变量仓库。
+
+### 9. SavedStateHandle 的另一个好处，是状态恢复可以被直接测试
+
+Big Nerd Ranch 在 `QuizViewModel` 里不只演示了 `SavedStateHandle` 的用法，还顺手展示了它为什么更容易测试。因为状态恢复逻辑不再分散在 Activity 的回调里，而是被收回到 ViewModel 构造和属性计算中，你就可以直接用一个带初始值的 `SavedStateHandle` 去验证“恢复后应该看到什么”。
+
+```kotlin
+class ArticleFeedViewModelTest {
+
+    @Test
+    fun restores_selected_tab_from_saved_state() = runTest {
+        val handle = SavedStateHandle(
+            mapOf("selected_tab" to ArticleTab.BOOKMARKED)
+        )
+        val viewModel = ArticleFeedViewModel(
+            repository = FakeArticleRepository(),
+            savedStateHandle = handle,
+        )
+
+        assertEquals(ArticleTab.BOOKMARKED, handle.get<ArticleTab>("selected_tab"))
+        assertEquals(
+            ArticleTab.BOOKMARKED,
+            viewModel.uiState.value.selectedTab,
+        )
+    }
+}
+```
+
+这里最值得学走的不是测试语法，而是结构收益。只要关键恢复状态被放进 ViewModel 和 `SavedStateHandle`，你就不必再启动完整页面去验证旋转或进程恢复后的行为。状态恢复一旦可测，ViewModel 就不再只是“理论上更稳”，而是能在开发阶段直接把很多页面级 bug 提前拦下来。
+
+### 10. 多个页面共享同一份状态时，要共享 ViewModel 作用域，而不是退回单例
+
+Big Nerd Ranch 在多 Fragment 协作页里一直提醒一个边界：多个页面如果在服务同一条业务流，应该共享同一份屏幕级状态，而不是各自拷贝一份，更不该为了图省事退回全局单例。放到今天更常见的导航图里，这意味着编辑页、预览页、确认页如果本质上都在操作同一份草稿，就应该共享同一个导航图作用域下的 ViewModel。
+
+```kotlin
+@Composable
+fun ArticleEditorRoute(
+    navController: NavHostController,
+    onOpenPreview: () -> Unit,
+) {
+    val parentEntry = remember(navController) {
+        navController.getBackStackEntry("article_editor_graph")
+    }
+    val viewModel: ArticleEditorViewModel = hiltViewModel(parentEntry)
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    ArticleEditorScreen(
+        uiState = uiState,
+        onTitleChanged = viewModel::updateTitle,
+        onBodyChanged = viewModel::updateBody,
+        onOpenPreview = onOpenPreview,
+    )
+}
+
+@Composable
+fun ArticlePreviewRoute(
+    navController: NavHostController,
+    onPublish: () -> Unit,
+) {
+    val parentEntry = remember(navController) {
+        navController.getBackStackEntry("article_editor_graph")
+    }
+    val viewModel: ArticleEditorViewModel = hiltViewModel(parentEntry)
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    ArticlePreviewScreen(
+        draft = uiState.draft,
+        onPublish = {
+            viewModel.publish()
+            onPublish()
+        },
+    )
+}
+```
+
+这段代码真正讲清的是“共享状态”不等于“全局状态”。`ArticleEditorViewModel` 只跟 `article_editor_graph` 这一段业务流共存，编辑页和预览页共享同一份草稿，但离开这条导航流后它就会自然释放。这样既避免了页面之间各写各的临时状态副本，也避免了用单例把局部编辑态误抬升成全局应用状态。对 ViewModel 来说，作用域判断始终比“类放在哪个包里”更重要。
+
+### 11. 把导航参数验证收在 ViewModel 边界，页面会更轻也更稳
+
+Big Nerd Ranch 在 `GeoQuiz` 和 `CriminalIntent` 系列例子里一直提醒一个朴素原则：页面应该尽早把“我到底要显示哪条数据”这件事确定下来，而不是让这个判断在多个回调和多个页面层函数之间来回漂移。放到今天更常见的 Navigation 和 Compose 页面里，一个很稳的做法是把导航参数验证直接收进 ViewModel 构造边界，让页面只负责把作用域和入口搭起来。
+
+```kotlin
+@HiltViewModel
+class ArticleDetailViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    private val repository: ArticleRepository,
+) : ViewModel() {
+
+    private val articleId: Long = checkNotNull(
+        savedStateHandle["article_id"]
+    )
+
+    val uiState: StateFlow<ArticleDetailUiState> = flow {
+        emit(ArticleDetailUiState(isLoading = true))
+        val article = repository.getArticle(articleId)
+        emit(
+            ArticleDetailUiState(
+                isLoading = false,
+                article = article,
+            )
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = ArticleDetailUiState(isLoading = true),
+    )
+}
+```
+
+这段代码的价值，不只是少写了一次参数传递，而是“入口验证”终于被收到了状态持有层。页面不再需要先判断参数有没有、再决定要不要发请求、再把错误转成各种临时 UI 分支；ViewModel 从一开始就知道自己服务的是哪条数据，也能围绕这个前提组织后续状态。只要导航参数确实属于屏幕身份的一部分，这种边界往往会让页面层和状态层都更稳。
+
+### 12. 实践任务
 
 起点条件：
 
@@ -217,7 +384,7 @@ Big Nerd Ranch 在这里给过一个特别值得直接记住的提醒：Activity
 - 如果 ViewModel 里开始出现大量数据库、网络和框架细节，先回头检查 Repository 边界。
 - 如果你什么状态都往 `SavedStateHandle` 里塞，说明它已经被误当成持久化存储了。
 
-### 9. 常见误区
+### 13. 常见误区
 
 - 把 ViewModel 理解成“比 Activity 活得久一点的对象”。
 - 让 ViewModel 直接持有 UI 细节对象。

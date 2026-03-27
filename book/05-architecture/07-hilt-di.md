@@ -250,7 +250,129 @@ class LoginRepositoryTest {
 
 这组测试代码说明，测试替换不该靠“偷偷改构造链”来完成，而应当仍然沿着同一套依赖图去做。只要生产实现和测试实现都通过 Hilt 明确声明，Repository 和 ViewModel 的代码就不用因为测试而额外开后门。
 
-### 10. 实践任务
+### 10. 作用域要跟对象语义对齐，而不是都标成 `@Singleton`
+
+前面已经说过作用域很重要，但真正落地时最容易犯的错，是图省事把一切都做成 `@Singleton`。Socorro 和 Codwell 在依赖装配章节里都反复提醒：Hilt 的作用域不是“哪个能复用就都单例”，而是“对象应该跟谁同生共死”。如果草稿状态只服务当前编辑流程，它就不该活到整个应用生命周期里。
+
+```kotlin
+@ActivityRetainedScoped
+class ArticleDraftStore @Inject constructor()
+
+@ViewModelScoped
+class ArticleEditor @Inject constructor(
+    private val draftStore: ArticleDraftStore,
+    private val repository: ArticleRepository,
+) {
+    suspend fun load(id: Long): ArticleDraft = repository.getDraft(id)
+}
+
+@HiltViewModel
+class ArticleEditorViewModel @Inject constructor(
+    private val editor: ArticleEditor,
+) : ViewModel()
+```
+
+这组代码最值得记住的是三层寿命。`@Singleton` 适合数据库、网络客户端这类全局基础设施；`@ActivityRetainedScoped` 更适合在同一 Activity 范围内跨配置变化继续存在的状态；`@ViewModelScoped` 则适合只服务一个 ViewModel 的协作者。只要作用域跟对象语义对齐，依赖图才不会一边到处复用，一边又在不该共享的地方把状态串到别的页面去。
+
+### 11. 当上层依赖接口时，用 `@Binds` 维护依赖方向会更清楚
+
+Socorro 在聊天项目里用了一个很好的做法：Repository 的实现留在 data 层，但 ViewModel 和 UseCase 依赖的却是 domain 层接口。这样一来，依赖方向就不会从上层反过来指回具体实现。放到 Hilt 里，最自然的接法通常就是用 `@Binds` 把实现绑定到接口上。
+
+```kotlin
+interface IChatRoomRepository {
+    suspend fun getInitialChatRoom(id: String): ChatRoom
+}
+
+class ChatRoomRepository @Inject constructor(
+    private val dataSource: ChatRoomDataSource,
+) : IChatRoomRepository {
+    override suspend fun getInitialChatRoom(id: String): ChatRoom {
+        return dataSource.getInitialChatRoom(id).toDomain()
+    }
+}
+
+@Module
+@InstallIn(ViewModelComponent::class)
+abstract class ChatBindingsModule {
+
+    @Binds
+    abstract fun bindChatRoomRepository(
+        impl: ChatRoomRepository,
+    ): IChatRoomRepository
+}
+```
+
+这组代码真正收紧的是依赖方向，而不只是少写几行创建代码。UseCase 或 ViewModel 面对的是接口，data 层提供的是实现，Hilt 负责在装配阶段把两者接起来。只要这条线立住，后面无论你要替换远程实现、补本地缓存，还是给测试换 fake，都不用把上层代码重新牵回具体实现类。
+
+### 12. 遇到 Hilt 不能直接创建的系统对象时，用 EntryPoint 补齐边界
+
+大多数页面、ViewModel、Service 都能直接走 `@AndroidEntryPoint`，但真实项目总会碰到一些框架自己创建的对象，例如 `AppWidgetProvider`、自定义 `ContentProvider` 或第三方 SDK 回调入口。Hilt 官方文档和 Codwell 的测试装配案例都在提醒同一个边界：这类对象不适合为了注入方便就硬改成全局单例，更稳的做法是通过 `EntryPoint` 在边界处拿到需要的依赖。
+
+```kotlin
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface TodayTasksWidgetEntryPoint {
+    fun taskRepository(): TaskRepository
+}
+
+class TodayTasksWidgetProvider : AppWidgetProvider() {
+
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray,
+    ) {
+        val entryPoint = EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            TodayTasksWidgetEntryPoint::class.java,
+        )
+        val repository = entryPoint.taskRepository()
+
+        appWidgetIds.forEach { appWidgetId ->
+            updateWidget(
+                context = context,
+                appWidgetManager = appWidgetManager,
+                appWidgetId = appWidgetId,
+                repository = repository,
+            )
+        }
+    }
+}
+```
+
+这段代码最重要的工程判断，是 Hilt 仍然在管理依赖图，但边界对象不必为了注入而伪装成普通页面类。`EntryPoint` 适合用在“系统先创建对象，我只能在回调里补拿依赖”的场景；它不应该取代正常的 `@Inject` / `@AndroidEntryPoint`，却能很好地补上那一小块 Hilt 无法直接接管的系统边角。只要这层边界讲清楚，依赖图就不会在框架入口处突然失控。
+
+### 13. 协程调度器也应该注入，而不是在业务代码里写死 `Dispatchers.IO`
+
+Socorro、Codwell 和很多现代 Android 样板都会顺手做一件小事：把协程调度器也放进依赖图里。这看起来像细节，但它正好说明依赖注入真正关心的是“对象和环境从哪里来”。如果 Repository、UseCase 里到处直接写 `Dispatchers.IO`，测试环境就很难稳定替换，代码也会越来越依赖某个写死的运行上下文。
+
+```kotlin
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class IoDispatcher
+
+@Module
+@InstallIn(SingletonComponent::class)
+object CoroutineDispatchersModule {
+
+    @IoDispatcher
+    @Provides
+    fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
+}
+
+class ArticleRepository @Inject constructor(
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+    private val articleDao: ArticleDao,
+) {
+    suspend fun bookmark(id: Long) = withContext(ioDispatcher) {
+        articleDao.markBookmarked(id)
+    }
+}
+```
+
+这段代码的重要性，不在于“少写一个 `Dispatchers.IO`”，而在于运行环境终于也成了可替换依赖。生产代码里它是 `Dispatchers.IO`，测试里可以换成 `StandardTestDispatcher` 或其他受控实现；Repository 本身只关心“我要一个适合做 IO 的调度器”，而不用知道这个环境是怎么来的。只要这种边界立住，Hilt 的价值就会从对象创建进一步延伸到执行环境管理。
+
+### 14. 实践任务
 
 起点条件:
 
@@ -282,7 +404,7 @@ class LoginRepositoryTest {
 - 如果页面里到处都是手工装配链，说明 Hilt 还没有真正落地。
 - 如果你把局部临时对象也都强行注入，说明依赖注入已经开始过度。
 
-### 11. 常见误区
+### 15. 常见误区
 
 - 把 Hilt 理解成“自动生成对象”的黑盒。
 - 只记注解，不理解作用域。

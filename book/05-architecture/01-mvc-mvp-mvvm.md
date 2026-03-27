@@ -236,7 +236,47 @@ class ArticleListViewModel @Inject constructor(
 
 这也是为什么今天很多团队虽然口头上说自己在用 `MVVM`，但项目里仍然会失控。只要页面继续直接改多个数据源、ViewModel 同时输出稳定状态和一次性事件却没有边界、或 UI 要靠大量命令式回调才能工作，那么代码只是换了类名，并没有真正进入状态驱动结构。
 
-### 10. 不要把架构模式理解成模板答案
+### 10. 如果页面动作越来越多，把状态更新收成 reducer 会更稳
+
+Bennett 和 Vainigli 在单向数据流示例里都在强调同一件事：页面动作一旦开始变多，真正先失控的往往不是 `ViewModel` 类名，而是状态改动散落在多个分支里。今天这里 `copy(isLoading = true)`，明天那里 `copy(keyword = ...)`，后天又在错误分支里补一段 `copy(errorMessage = ...)`，几轮迭代后，页面就很难说清“哪些动作会把状态改成什么样”。
+
+这时一个很实用的办法，就是先把“状态怎么变”收成一个 reducer，再把真正的异步副作用留给单独函数处理：
+
+```kotlin
+private fun reduce(
+    old: ArticleListUiState,
+    action: ArticleListAction,
+): ArticleListUiState {
+    return when (action) {
+        ArticleListAction.Refresh -> old.copy(
+            isLoading = true,
+            errorMessage = null,
+        )
+        is ArticleListAction.KeywordChanged -> old.copy(
+            keyword = action.value,
+        )
+        is ArticleListAction.ArticleClicked -> old
+    }
+}
+
+fun onAction(action: ArticleListAction) {
+    _uiState.update { old -> reduce(old, action) }
+
+    when (action) {
+        ArticleListAction.Refresh -> refresh()
+        is ArticleListAction.KeywordChanged -> refresh()
+        is ArticleListAction.ArticleClicked -> {
+            viewModelScope.launch {
+                _effect.emit(ArticleListEffect.OpenArticle(action.id))
+            }
+        }
+    }
+}
+```
+
+这段代码的价值，不是把 `when` 挪了个地方，而是把“状态变化规则”和“副作用执行时机”明确拆开。前者更像页面状态合同，后者才是请求、导航、提示消息这类会跟外部世界交互的动作。只要读者先把这层边界写清楚，后面无论页面继续变复杂，还是从 View 系统迁到 Compose，状态流向都会更容易维护。
+
+### 11. 不要把架构模式理解成模板答案
 
 这一章最容易产生的误解，是把三种模式当成“必须选一个照搬”的固定模板。真实项目里，架构模式更像一组取舍原则:
 
@@ -247,7 +287,170 @@ class ArticleListViewModel @Inject constructor(
 
 如果这些问题已经回答清楚，那么模式名称本身反而没有那么重要。相反，如果这些问题没有解决，哪怕满项目都在写 `ViewModel`，也不代表真的进入了良好架构。
 
-### 11. 实践任务
+### 12. 当状态合同能被单测时，MVVM 才真正不只是换名字
+
+Bennett 在讲单向数据流和状态测试时有一个很实用的提醒：如果页面状态变化只能靠真机点一遍才知道对不对，那么所谓“架构更清楚”往往还只是口头说法。真正稳的状态合同，应该能在不启动 Activity、Fragment 或 Compose 树的前提下，直接验证某个动作会把状态改成什么样。
+
+```kotlin
+class ArticleListReducerTest {
+
+    @Test
+    fun keywordChanged_only_updates_keyword() {
+        val old = ArticleListUiState(
+            keyword = "android",
+            isLoading = false,
+        )
+
+        val new = reduce(
+            old = old,
+            action = ArticleListAction.KeywordChanged("compose"),
+        )
+
+        assertEquals("compose", new.keyword)
+        assertEquals(false, new.isLoading)
+    }
+}
+```
+
+这段测试看起来很小，但它正好说明了为什么现代 Android 越来越强调状态合同。只要 `action -> state` 的关系被写成稳定函数，你就能先验证状态规则，再去验证副作用和 UI 渲染。这样一来，MVVM 真正带来的收益就不只是“多了一个 ViewModel 类”，而是页面复杂度第一次能被拆成可测试的几层。
+
+### 13. 当页面同时要服务 View 系统和 Compose 时，把页面合同单独收出来会更稳
+
+Vainigli 在模式演进里强调过一个很容易被低估的点：真正能跨技术栈复用的，往往不是某个 Activity、Fragment 或 Composable，而是“这个页面到底有哪些状态、动作和副作用”。Bennett 在 Compose 路线里进一步把这件事讲得更具体：一旦 `UiState`、`Action` 和 `Effect` 先被单独收成页面合同，页面从 RecyclerView 迁到 Compose、从 Fragment 拆成 Route / Content 时，真正稳定的那一层就不会被 UI 技术选择牵着走。
+
+```kotlin
+object ArticleListContract {
+
+    data class UiState(
+        val isLoading: Boolean = false,
+        val keyword: String = "",
+        val articles: List<ArticleCardUiModel> = emptyList(),
+    )
+
+    sealed interface Action {
+        data object Refresh : Action
+        data class KeywordChanged(val value: String) : Action
+        data class ArticleClicked(val id: Long) : Action
+    }
+
+    sealed interface Effect {
+        data class OpenArticle(val id: Long) : Effect
+        data class ShowMessage(val text: String) : Effect
+    }
+}
+
+class ArticleListViewModel(
+    private val repository: ArticleRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ArticleListContract.UiState())
+    val uiState: StateFlow<ArticleListContract.UiState> = _uiState.asStateFlow()
+
+    private val _effect = MutableSharedFlow<ArticleListContract.Effect>()
+    val effect: SharedFlow<ArticleListContract.Effect> = _effect.asSharedFlow()
+
+    fun onAction(action: ArticleListContract.Action) {
+        when (action) {
+            ArticleListContract.Action.Refresh -> refresh()
+            is ArticleListContract.Action.KeywordChanged -> {
+                _uiState.update { it.copy(keyword = action.value) }
+                refresh()
+            }
+            is ArticleListContract.Action.ArticleClicked -> {
+                viewModelScope.launch {
+                    _effect.emit(ArticleListContract.Effect.OpenArticle(action.id))
+                }
+            }
+        }
+    }
+
+    private fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val cards = repository.getArticles(
+                keyword = _uiState.value.keyword,
+            )
+            _uiState.update {
+                it.copy(isLoading = false, articles = cards)
+            }
+        }
+    }
+}
+```
+
+这段代码真正守住的是“页面合同先于页面实现”这件事。只要合同稳定，Fragment 可以继续拿它更新 RecyclerView，Compose 也可以拿它驱动 `LazyColumn`；UI 技术可以变，页面状态语义和动作入口却不用跟着重新发明。对初学者来说，这也是理解模式演进最实际的一步：`MVVM` 真正比 `MVC`、`MVP` 更稳的地方，不是又多了一个类，而是页面终于开始围绕一份可复用、可测试的合同组织。
+
+### 14. 从 MVP 迁到 MVVM 时，真正要迁的是状态出口，而不是类名
+
+Vainigli 在比较 `MVP` 和 `MVVM` 时一直在强调一件很容易被忽略的事：迁移不是把 `Presenter` 机械改名成 `ViewModel`，而是把原来那串回调式 View 合同，收束成更稳定的状态出口和副作用出口。Bennett 在单向数据流章节里把这件事讲得更直接：只要页面还在同时接 `showLoading()`、`showArticles()`、`showError()` 这一类分散回调，所谓迁到 `MVVM` 往往还只是换了类名。
+
+```kotlin
+interface ArticleListView {
+    fun showLoading()
+    fun showArticles(items: List<ArticleCardUiModel>)
+    fun showError(message: String)
+    fun openArticle(id: Long)
+}
+
+class ArticleListPresenter(
+    private val repository: ArticleRepository,
+) {
+    suspend fun bind(view: ArticleListView) {
+        view.showLoading()
+        runCatching { repository.getArticles() }
+            .onSuccess(view::showArticles)
+            .onFailure { view.showError("加载失败") }
+    }
+
+    fun onArticleClicked(view: ArticleListView, id: Long) {
+        view.openArticle(id)
+    }
+}
+
+data class ArticleListUiState(
+    val isLoading: Boolean = false,
+    val articles: List<ArticleCardUiModel> = emptyList(),
+    val errorMessage: String? = null,
+)
+
+sealed interface ArticleListEffect {
+    data class OpenArticle(val id: Long) : ArticleListEffect
+}
+
+class ArticleListViewModel(
+    private val repository: ArticleRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ArticleListUiState())
+    val uiState: StateFlow<ArticleListUiState> = _uiState.asStateFlow()
+
+    private val _effect = MutableSharedFlow<ArticleListEffect>()
+    val effect: SharedFlow<ArticleListEffect> = _effect.asSharedFlow()
+
+    fun load() {
+        viewModelScope.launch {
+            _uiState.value = ArticleListUiState(isLoading = true)
+            runCatching { repository.getArticles() }
+                .onSuccess { articles ->
+                    _uiState.value = ArticleListUiState(articles = articles)
+                }
+                .onFailure {
+                    _uiState.value = ArticleListUiState(errorMessage = "加载失败")
+                }
+        }
+    }
+
+    fun onArticleClicked(id: Long) {
+        viewModelScope.launch {
+            _effect.emit(ArticleListEffect.OpenArticle(id))
+        }
+    }
+}
+```
+
+这组代码真正拉开的差距，不是 `Presenter` 和 `ViewModel` 的名字，而是页面接口终于从“等别人按时回调我”变成了“我始终可以读取当前状态”。导航这类一次性动作也不再跟 `showLoading()`、`showError()` 混在一处，而是单独走 effect 通道。只要读者把这一点看清，迁移路径就会稳很多：先收状态出口，再谈 UI 技术和类名变化。
+
+### 15. 实践任务
 
 起点条件:
 
@@ -279,7 +482,7 @@ class ArticleListViewModel @Inject constructor(
 - 如果你把所有逻辑都搬进 ViewModel，只是把页面类问题换了位置，不算真正落地 `MVVM`。
 - 如果项目里状态来源超过两个且没有单一出口，优先补状态设计，而不是继续加类。
 
-### 12. 常见误区
+### 16. 常见误区
 
 - 把架构模式当成缩写记忆题。
 - 以为用了某个模式名字，代码自然就会变好。

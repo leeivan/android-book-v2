@@ -239,7 +239,141 @@ class PetsRepositoryImpl(
 
 只要读者把这条边界立住，Repository 就不会被写成“凡是跟数据沾边都塞进来”的大杂烩。它真正该负责的，是把不同来源的时效性、可靠性和读取方式整理成上层可理解的一套数据能力；至于具体页面怎么显示、某次动作要不要触发导航，那已经是 ViewModel 或 UseCase 该继续承接的问题了。
 
-### 10. 实践任务
+### 10. 写路径也要经过可信来源，必要时再做回滚
+
+Repository 最容易被写薄的地方，是只把“读路径”设计得很漂亮，写路径却仍然让页面直接调接口、直接改状态。Vainigli 在 `Repository + Caching` 的讨论里一直在强调：真正稳定的多来源结构，不只体现在“怎么读”，也体现在“怎么写”。如果本地数据库是可信来源，那么收藏、重命名、勾选完成这类写操作也应该先回到这条可信来源，再由它把变化稳定地传回 UI。
+
+```kotlin
+suspend fun toggleFavorite(id: String) = withContext(ioDispatcher) {
+    val current = catDao.getCatById(id) ?: return@withContext
+    val updated = current.copy(isFavorite = !current.isFavorite)
+
+    catDao.upsert(updated)
+
+    runCatching {
+        api.updateFavorite(id = id, isFavorite = updated.isFavorite)
+    }.onFailure {
+        catDao.upsert(current)
+    }
+
+    memoryCache.update { cache ->
+        val latest = catDao.getCatById(id)?.toDomain() ?: return@update cache
+        cache + (id to latest)
+    }
+}
+```
+
+这段代码真正表达的是“写路径也要服从可信来源”。UI 不直接相信一次网络返回值，而是先让本地数据库成为状态变更的落点；如果远程同步失败，再决定是否回滚本地结果。这样一来，列表页、详情页和返回栈里的其他页面仍然都在观察同一条来源，而不是各自临时猜测“这次操作到底成没成功”。Repository 一旦能同时稳住读路径和写路径，它才真正像一层数据策略，而不是只包了一层接口调用。
+
+### 11. 让上层依赖 Repository 接口，会比直接依赖实现更稳
+
+Socorro、Bennett 和 Wangereka 在仓库层上虽然举例不同，但都指向同一个边界：上层真正需要依赖的，往往不是某个具体实现类，而是一组稳定的数据能力。只要 ViewModel 直接依赖 `PetsRepositoryImpl`、`MessagesRepository` 这种具体实现，替换数据源、切测试假对象或拆模块时就会越来越被底层细节牵着走。
+
+```kotlin
+interface ArticleRepository {
+    fun observeArticles(): Flow<List<Article>>
+    suspend fun refreshArticles()
+}
+
+internal class DefaultArticleRepository(
+    private val remote: ArticleRemoteDataSource,
+    private val local: ArticleDao,
+) : ArticleRepository {
+
+    override fun observeArticles(): Flow<List<Article>> {
+        return local.observeAll().map { rows -> rows.map { it.toDomain() } }
+    }
+
+    override suspend fun refreshArticles() {
+        val latest = remote.fetchArticles()
+        local.replaceAll(latest.map { it.toEntity() })
+    }
+}
+
+class ArticleListViewModel(
+    private val repository: ArticleRepository,
+) : ViewModel()
+```
+
+这段代码最值得注意的是依赖方向。ViewModel 只知道自己要观察文章、要触发刷新，却不需要知道底层到底是 Room、Retrofit、缓存文件还是别的同步策略。这样一来，Repository 模式真正提供的就不是“一个名字更长的类”，而是一条更稳定的上层边界。等到后面接 Hilt、加测试替身或拆模块时，这种接口边界的价值会非常明显。
+
+### 12. 刷新时机和过期判断，也应该留在 Repository 里统一决定
+
+Wangereka 和 Bennett 在离线缓存、同步策略这些章节里都强调过一个经常被忽略的事实：Repository 不只是决定“数据从哪里来”，也应该决定“什么时候值得重新拉”。如果页面自己判断“要不要刷新”，很快就会出现首页一套规则、详情页一套规则、下拉刷新又一套规则。更稳的做法，是把过期时间、最近同步成功时间和强制刷新入口统一收回 Repository。
+
+```kotlin
+interface ArticleSyncMetadataStore {
+    suspend fun lastSuccessfulSyncAt(): Long
+    suspend fun markSuccessfulSync(timestamp: Long)
+}
+
+class DefaultArticleRepository(
+    private val remote: ArticleRemoteDataSource,
+    private val local: ArticleDao,
+    private val metadataStore: ArticleSyncMetadataStore,
+    private val clock: Clock,
+) : ArticleRepository {
+
+    override suspend fun refreshIfStale(
+        maxAgeMs: Long,
+        force: Boolean,
+    ) {
+        val now = clock.millis()
+        val lastSync = metadataStore.lastSuccessfulSyncAt()
+
+        if (!force && now - lastSync < maxAgeMs) return
+
+        val latest = remote.fetchArticles()
+        local.replaceAll(latest.map { it.toEntity() })
+        metadataStore.markSuccessfulSync(now)
+    }
+}
+```
+
+这段代码真正补上的，是“数据策略”里很关键但常被漏掉的一半。页面只知道自己需要最新文章，却不需要知道多久算过期、成功同步后要把时间戳记到哪里、哪次刷新属于用户强制触发。只要这些判断统一留在 Repository，页面层和 ViewModel 层就不会慢慢被同步细节重新拖重，Repository 也才真正承担起“对上游提供稳定数据能力”的职责。
+
+### 13. 需要离线写入时，把待同步队列也收进 Repository 会更稳
+
+Bennett、Wangereka 和官方 offline-first 文档里有一个共同点：只要应用允许离线修改，本地数据库通常就不只是“缓存远程结果”的地方，而会变成用户当前操作事实的落点。也正因为如此，待同步队列不该由页面、ViewModel 或 Worker 各自散落维护，而应和本地写入一起收在 Repository 里。
+
+```kotlin
+data class PendingBookmarkMutation(
+    val articleId: Long,
+    val bookmarked: Boolean,
+)
+
+interface PendingSyncQueue {
+    suspend fun enqueue(item: PendingBookmarkMutation)
+}
+
+class OfflineFirstArticleRepository(
+    private val articleDao: ArticleDao,
+    private val queue: PendingSyncQueue,
+    private val ioDispatcher: CoroutineDispatcher,
+) : ArticleRepository {
+
+    suspend fun setBookmarked(
+        articleId: Long,
+        bookmarked: Boolean,
+    ) = withContext(ioDispatcher) {
+        articleDao.updateBookmark(
+            id = articleId,
+            bookmarked = bookmarked,
+            syncState = SyncState.PENDING,
+        )
+        queue.enqueue(
+            PendingBookmarkMutation(
+                articleId = articleId,
+                bookmarked = bookmarked,
+            )
+        )
+    }
+}
+```
+
+这段代码的教学重点是：离线写入的第一落点仍然是可信来源，本地数据库和待同步队列应该一起被数据层维护。页面只知道“我切换了收藏态”，却不需要知道这次操作是在线立即同步、还是离线排队稍后补传。只要读者把这层边界守住，Repository 就不会只在读路径上好看，写路径也会真正变成稳定的数据策略入口。
+
+### 14. 实践任务
 
 起点条件：
 
@@ -271,7 +405,7 @@ class PetsRepositoryImpl(
 - 如果远程和本地数据都能各自直接改页面，优先先确定可信来源。
 - 如果 Repository 里开始充满页面文案和导航判断，说明边界又混了。
 
-### 11. 常见误区
+### 15. 常见误区
 
 - 把 Repository 写成对 DAO 或接口的机械透传。
 - 不区分 Repository 和数据源。
@@ -286,6 +420,8 @@ Repository 模式真正解决的是“数据入口和数据策略混乱”的问
 
 - 参考并改写自本地 PDF：`Clean Android Architecture`，`ConcreteDataSource -> ConcreteDataRepository -> ConcreteDataUseCase -> MainViewModel` 的分层演进、数据边界与可替换数据源相关章节。
 - 参考并整理自本地 PDF：Bennett M.，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)，repository 接口、data-domain-presentation 分层与 `AddToCartUseCase` 跨仓库编排相关章节。
+- 参考并改写自本地 PDF：Luca Vainigli，《Ultimate Android Design Patterns》(2025)，Repository、Caching 与单一可信来源相关章节。
+- 参考并整理自本地 PDF：Wangereka H.，《Mastering Kotlin for Android 14》(2024)，`PetsRepository`、`PetsViewModel` 与依赖注入重构相关章节。
 - Data layer guide: <https://developer.android.com/topic/architecture/data-layer>
 - Offline-first architecture: <https://developer.android.com/topic/architecture/data-layer/offline-first>
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
