@@ -208,6 +208,162 @@ class ArticleListActivity : AppCompatActivity() {
 `requestVoiceQuery()` 对应的又是第三层：动作描述依然由 Intent 完成，但结果回收已经换成了 Activity Result API。这个组合非常适合帮助读者建立现代直觉: Activity Result API 改进的是结果管理方式，而不是把 Intent 从动作表达层里拿掉。
 
 再往前走一步，你会发现真正让 Intent 设计长期可维护的，往往不是会不会写 `startActivity()`，而是这三条边界有没有守住。应用内显式跳转只传最小必要参数；跨应用动作只描述动作和必要数据；结果回收则通过现代 API 把生命周期问题收束到更清楚的位置。只要这三层不混，组件之间就不会越来越像“互相偷看内部实现”。
+
+如果动作来自应用外部，例如浏览器、邮件或聊天工具里的文章链接，更健康的做法也不是让业务页面自己一路解析 `Uri`，而是先在入口层把外部协议翻译成应用内部已经稳定的最小路由。
+
+```xml
+<activity
+    android:name=".article.ArticleEntryActivity"
+    android:exported="true">
+    <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data
+            android:scheme="https"
+            android:host="news.example.com"
+            android:pathPrefix="/articles" />
+    </intent-filter>
+</activity>
+```
+
+```kotlin
+class ArticleEntryActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        val articleId = intent?.data
+            ?.pathSegments
+            ?.lastOrNull()
+            ?.takeIf { it.isNotBlank() }
+
+        val nextIntent = if (articleId != null) {
+            ArticleDetailActivity.newIntent(this, articleId)
+        } else {
+            Intent(this, ArticleListActivity::class.java)
+        }
+
+        startActivity(nextIntent)
+        finish()
+    }
+}
+```
+
+这段代码最值得学习的，不是 `android:autoVerify="true"` 这一个属性，而是它把外部入口协议控制在一层很薄的边界里。浏览器发来的是 `ACTION_VIEW + Uri`，而应用内部真正长期维护的仍然只是 `articleId` 这类稳定参数。这样一来，`ArticleDetailActivity` 不需要知道外部链接长什么样，列表页和详情页也不需要到处散落 URI 解析代码。对长期维护来说，这种“先把外部 Intent 收束，再进入内部路由”的做法会稳很多。
+
+如果你已经知道“某个外部动作最终会返回一类固定结果”，再往前一步的现代做法通常不是继续手写 `ACTION_PICK + StartActivityForResult`，而是优先使用更具体的 Activity Result contract。它的价值不只是代码更短，而是把“我期望什么输入、会拿到什么输出”写成显式契约。
+
+```kotlin
+class CrimeDetailFragment : Fragment() {
+
+    private val selectSuspect = registerForActivityResult(
+        ActivityResultContracts.PickContact()
+    ) { uri: Uri? ->
+        uri ?: return@registerForActivityResult
+        parseContactSelection(uri)
+    }
+
+    fun onChooseSuspectClicked() {
+        selectSuspect.launch()
+    }
+
+    private fun parseContactSelection(contactUri: Uri) {
+        val projection = arrayOf(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
+        requireContext().contentResolver.query(
+            contactUri,
+            projection,
+            null,
+            null,
+            null,
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val nameIndex = cursor.getColumnIndexOrThrow(
+                    ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
+                )
+                viewModel.updateSuspect(cursor.getString(nameIndex))
+            }
+        }
+    }
+}
+```
+
+这段代码真正想教会读者的，不是联系人 API 细节，而是“动作用更明确的 contract 表达，返回值再沿着 URI 协议继续处理”这条现代路径。相比手写 `ACTION_PICK`、自己约定 request code、再手动拆结果，`PickContact()` 让输入输出契约更清楚，也让调用点更接近真正的意图表达。它本质上仍然是在做隐式 Intent，只是把常见场景收进了一个更稳的上层接口。
+
+如果需求是“让用户拍一张照片并把结果带回应用”，现代写法同样更适合用具体 contract，而不是自己手写 `ACTION_IMAGE_CAPTURE` 和 request code。这里最关键的不是拍照本身，而是你必须先为外部相机应用准备一个受控 URI，让它只写入你明确允许的那一个文件。
+
+```xml
+<provider
+    android:name="androidx.core.content.FileProvider"
+    android:authorities="${applicationId}.fileprovider"
+    android:exported="false"
+    android:grantUriPermissions="true">
+    <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/file_paths" />
+</provider>
+
+<!-- res/xml/file_paths.xml -->
+<paths>
+    <files-path
+        name="report_photos"
+        path="." />
+</paths>
+```
+
+```kotlin
+class ReportComposerFragment : Fragment() {
+
+    private var pendingPhotoName: String? = null
+
+    private val takePhoto = registerForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { saved ->
+        if (saved) {
+            pendingPhotoName?.let(viewModel::attachPhoto)
+        }
+    }
+
+    fun onAddPhotoClicked() {
+        val photoName = "report_${System.currentTimeMillis()}.jpg"
+        val photoFile = File(requireContext().filesDir, photoName)
+        val photoUri = FileProvider.getUriForFile(
+            requireContext(),
+            "${BuildConfig.APPLICATION_ID}.fileprovider",
+            photoFile,
+        )
+
+        pendingPhotoName = photoName
+        takePhoto.launch(photoUri)
+    }
+}
+```
+
+这段代码真正值得学习的，不是相机 Intent 的旧 action 名字，而是它把“外部应用帮你完成动作”和“结果文件仍受你控制”这两件事同时保住了。`FileProvider` 负责把私有文件翻译成一次性的可分享 URI，`TakePicture()` 负责把输入输出契约收紧成“给我一个 Uri，最后告诉我是否真的写入成功”。和前面的 `PickContact()` 放在一起看，你会更容易建立现代直觉：Intent 仍然在描述跨组件动作，但权限范围和结果边界应该尽量被 contract 和受控 URI 收紧，而不是散落在 request code 和临时 extra 里。
+
+
+如果你要把应用私有目录里的文件交给外部应用处理，Intent 还多了一层经常被忽略的职责：它不只是描述“我要分享这个附件”，还要把“这次允许对方读哪一个 URI”一起安全地带出去。只把 `file://` 路径塞进 extra 已经不是健康做法，更稳的路径是继续结合 `FileProvider` 和临时读取授权。
+
+```kotlin
+fun shareReportPdf(context: Context, reportFile: File) {
+    val reportUri = FileProvider.getUriForFile(
+        context,
+        "${BuildConfig.APPLICATION_ID}.fileprovider",
+        reportFile,
+    )
+
+    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "application/pdf"
+        putExtra(Intent.EXTRA_STREAM, reportUri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        clipData = ClipData.newUri(context.contentResolver, "report", reportUri)
+    }
+
+    context.startActivity(Intent.createChooser(shareIntent, "发送报告"))
+}
+```
+
+这段代码真正要建立的直觉是：Intent 有时不仅在表达动作，还在临时转交访问边界。`ACTION_SEND` 说明“我要把这个内容交给别的应用处理”，`FLAG_GRANT_READ_URI_PERMISSION` 则说明“但这次只允许读取这一份受控 URI”。把它和前面的 `TakePicture()` 放在一起看，读者会更容易理解：跨应用 Intent 设计的关键，始终不是把数据塞出去，而是把动作、结果和权限范围一起收紧到最小必要集。
 ### 11. 实践任务
 
 起点条件:
@@ -253,10 +409,13 @@ Intent 真正的价值，不是让页面跳起来，而是用统一语义表达�
 
 ## 参考资料
 
-- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 7 章与第 13 章。
+- 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，第 7 章、第 13 章与第 17 章。
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，Intent、Activity Result 与系统能力调用相关章节。
 - 参考并改写自：James Steele、Nelson To，《The Android Developer's Cookbook》(2011)，显式 Intent、结果回传与 `RecognizerIntent` 相关 recipes。
 - Intents and intent filters: <https://developer.android.com/guide/components/intents-filters>
 - Common intents: <https://developer.android.com/guide/components/intents-common>
 - Get a result from an activity: <https://developer.android.com/training/basics/intents/result>
+
+
+
 

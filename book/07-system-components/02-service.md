@@ -184,6 +184,159 @@ class NowPlayingActivity : AppCompatActivity() {
 
 反过来看，如果一个需求只是“页面关闭后把待发送草稿补传到服务器”，那它通常只需要可靠调度，而不需要把自己包装成用户可感知的持续能力。把这种任务做成 Service，大概率只是在拿更重的组件解决更轻的问题。
 
+如果同一个 `PlaybackService` 既要接受页面按钮，又要接受通知动作，入口最好继续收成有限命令协议，而不是把整个 Service 暴露成“谁都能随便调”的后台对象。
+
+```kotlin
+class PlaybackService : Service() {
+
+    companion object {
+        private const val ACTION_PLAY = "com.example.player.action.PLAY"
+        private const val ACTION_PAUSE = "com.example.player.action.PAUSE"
+        private const val EXTRA_EPISODE_ID = "extra_episode_id"
+
+        fun playIntent(context: Context, episodeId: String): Intent {
+            return Intent(context, PlaybackService::class.java).apply {
+                action = ACTION_PLAY
+                putExtra(EXTRA_EPISODE_ID, episodeId)
+            }
+        }
+
+        fun pauseIntent(context: Context): Intent {
+            return Intent(context, PlaybackService::class.java).apply {
+                action = ACTION_PAUSE
+            }
+        }
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            ACTION_PLAY -> {
+                val episodeId = intent.getStringExtra(EXTRA_EPISODE_ID)
+                    ?: return START_NOT_STICKY
+
+                startForeground(PLAYER_NOTIFICATION_ID, buildPlaybackNotification())
+                serviceScope.launch {
+                    player.prepare(episodeId)
+                    player.play()
+                }
+            }
+
+            ACTION_PAUSE -> player.pause()
+        }
+        return START_NOT_STICKY
+    }
+}
+```
+
+这段补充代码强调的是另一个经常被忽略的边界：Service 对外暴露的最好是几条明确命令，而不是一整套随意可变的内部实现。页面、通知动作、耳机按钮乃至系统恢复流程，都可以共用 `ACTION_PLAY` / `ACTION_PAUSE` 这类有限协议；真正的播放器状态、并发控制和资源释放仍然留在 Service 内部。started service 在这里承接的是命令入口，bound service 承接的是界面交互面，两者分工会比“所有地方都直接拿 Binder 调对象”清楚得多。
+
+前台 Service 还有一个经常被忽略的边界：它不只是“怎样进前台”，还包括“什么时候明确退出前台”。如果通知已经没有继续存在的理由，而 Service 却迟迟不结束，用户看到的就不是持续能力，而是悬空状态。
+
+```kotlin
+class PlaybackService : Service() {
+
+    companion object {
+        private const val ACTION_STOP = "com.example.player.action.STOP"
+
+        fun stopIntent(context: Context): Intent {
+            return Intent(context, PlaybackService::class.java).apply {
+                action = ACTION_STOP
+            }
+        }
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            ACTION_STOP -> stopPlayback()
+        }
+        return START_NOT_STICKY
+    }
+
+    private fun stopPlayback() {
+        player.stop()
+        stopForeground(true)
+        stopSelf()
+    }
+}
+```
+
+这里真正要建立的工程直觉是：前台通知和 Service 生命周期应该一起收尾。`stopForeground(true)` 负责把“持续运行中”的用户可见承诺撤掉，`stopSelf()` 则结束这次组件实例。只要退出路径和进入路径一样明确，前台 Service 才不会慢慢演变成一个“明明不该继续活着，却一直挂着通知”的历史包袱。
+
+如果播放能力可能在页面不再位于前台时被重新拉起，调用侧也应该明确表达“我要启动的是前台持续能力”，而不是继续把它当普通后台命令。更稳的写法通常是：Service 自己负责尽快调用 `startForeground(...)`，调用侧则通过更明确的前台启动入口把这个承诺说出来。
+
+```xml
+<service
+    android:name=".player.PlaybackService"
+    android:exported="false"
+    android:foregroundServiceType="mediaPlayback" />
+```
+
+```kotlin
+fun startEpisodePlayback(context: Context, episodeId: String) {
+    ContextCompat.startForegroundService(
+        context,
+        PlaybackService.playIntent(context, episodeId),
+    )
+}
+```
+
+这里真正要建立的工程判断是：`ContextCompat.startForegroundService()` 不是“更强力的 startService”，而是在告诉系统和读者，这次启动会很快进入一个用户可见、带持续通知的能力状态。只要调用侧、Service 内部的 `startForeground(...)`，以及 manifest 里的 `foregroundServiceType` 三者语义一致，前台 Service 的入口才算完整；如果任务本身并不打算让用户感知它持续运行，那就应该退回 `WorkManager` 或其他更轻的执行层，而不是先把它提升成前台服务再说。
+
+
+绑定服务还有一个经常被忽略的设计点：页面不应该因为拿到了 Binder，就顺手把整个 Service 当成业务对象来揉。更健康的做法通常是：Binder 只负责暴露一个很小的控制面，持续变化的播放状态则通过只读状态流提供给界面观察。
+
+```kotlin
+data class PlaybackStatus(
+    val title: String = "",
+    val isPlaying: Boolean = false,
+    val positionMs: Long = 0L,
+)
+
+class PlaybackService : Service() {
+
+    private val _status = MutableStateFlow(PlaybackStatus())
+    val status: StateFlow<PlaybackStatus> = _status.asStateFlow()
+
+    private val binder = LocalBinder()
+
+    inner class LocalBinder : Binder() {
+        fun service(): PlaybackService = this@PlaybackService
+    }
+
+    override fun onBind(intent: Intent): IBinder = binder
+
+    private fun publishPlaybackStatus(title: String, isPlaying: Boolean, positionMs: Long) {
+        _status.value = PlaybackStatus(
+            title = title,
+            isPlaying = isPlaying,
+            positionMs = positionMs,
+        )
+    }
+}
+
+class NowPlayingActivity : AppCompatActivity() {
+
+    private var statusJob: Job? = null
+
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            val playbackService = (service as PlaybackService.LocalBinder).service()
+            statusJob = lifecycleScope.launch {
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    playbackService.status.collect(::render)
+                }
+            }
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            statusJob?.cancel()
+            statusJob = null
+        }
+    }
+}
+```
+
+这段代码真正想强调的，是 bound service 的价值并不是“让页面拿到一个万能后台对象”，而是为持续能力提供一个窄而稳定的观察/控制面。只读 `StateFlow` 让界面看到当前播放状态，却不需要知道播放器内部线程、缓冲细节和资源释放策略；Binder 仍然存在，但它更像一扇受控门，而不是把整个实现直接搬回 Activity。
 ### 9. 实践任务
 
 起点条件:
@@ -237,5 +390,8 @@ Service 在 Android 中真正的角色，是承载某些脱离界面但仍需要
 - Services overview: <https://developer.android.com/develop/background-work/services>
 - Foreground services overview: <https://developer.android.com/develop/background-work/services/foreground-services>
 - Background work overview: <https://developer.android.com/develop/background-work>
+
+
+
 
 

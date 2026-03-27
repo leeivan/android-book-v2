@@ -233,6 +233,182 @@ class NoteComposerViewModel : ViewModel() {
 
 把 Photo Picker、`RequestPermission()` 和页面状态放在一起看，权限管理的主线就会变得非常稳定：先优先采用更小范围的系统入口；只有在能力确实需要授权时，才围绕用户当前动作申请；申请结果则继续作为页面能力边界的一部分被建模和解释。这样写出来的权限流程，才真正符合今天 Android 的设计方向。
 
+如果某项能力确实同时依赖多项权限，例如“录制带声音的视频”同时需要摄像头和麦克风，就不要把它写成两条彼此独立、互相看不见的回调支线，而要把“组合能力是否真的就绪”直接建模出来。
+
+```kotlin
+data class VideoCapturePermissionState(
+    val cameraGranted: Boolean = false,
+    val microphoneGranted: Boolean = false,
+) {
+    val canStartVideoCapture: Boolean
+        get() = cameraGranted && microphoneGranted
+}
+
+class VideoNoteActivity : ComponentActivity() {
+
+    private val requestVideoPermissions = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        viewModel.onVideoPermissionsResult(
+            cameraGranted = result[Manifest.permission.CAMERA] == true,
+            microphoneGranted = result[Manifest.permission.RECORD_AUDIO] == true,
+        )
+    }
+
+    fun onCaptureVideoClicked() {
+        val missingPermissions = buildList {
+            if (
+                ContextCompat.checkSelfPermission(
+                    this@VideoNoteActivity,
+                    Manifest.permission.CAMERA,
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                add(Manifest.permission.CAMERA)
+            }
+            if (
+                ContextCompat.checkSelfPermission(
+                    this@VideoNoteActivity,
+                    Manifest.permission.RECORD_AUDIO,
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                add(Manifest.permission.RECORD_AUDIO)
+            }
+        }
+
+        if (missingPermissions.isEmpty()) {
+            viewModel.startVideoCapture()
+        } else {
+            requestVideoPermissions.launch(missingPermissions.toTypedArray())
+        }
+    }
+}
+
+class VideoNoteViewModel : ViewModel() {
+
+    private val _permissionState = MutableStateFlow(VideoCapturePermissionState())
+    val permissionState: StateFlow<VideoCapturePermissionState> = _permissionState.asStateFlow()
+
+    fun onVideoPermissionsResult(cameraGranted: Boolean, microphoneGranted: Boolean) {
+        _permissionState.value = VideoCapturePermissionState(
+            cameraGranted = cameraGranted,
+            microphoneGranted = microphoneGranted,
+        )
+    }
+}
+```
+
+这段代码真正解决的是“多权限功能到底什么时候才算真的可用”。现代权限设计不应该只看某一个回调是否返回了 `true`，而要从最终功能出发，组合出 `canStartVideoCapture` 这样的派生能力。这样一来，页面就能自然表达“可以开始录制”“只能拍静音视频”“暂时完全不能录制”这些真实状态，而不是把多权限流程拆成几段互相不知道彼此存在的 if/else。
+
+如果页面本身是 Compose，权限请求的 launcher 仍然应该留在 UI 层，但结果最好继续流回状态层，而不是把权限判断重新写成一套独立于页面状态的局部逻辑。
+
+```kotlin
+@Composable
+fun MicrophonePermissionCard(
+    permissionState: AudioPermissionState,
+    onPermissionResult: (Boolean) -> Unit,
+) {
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        onPermissionResult(granted)
+    }
+
+    FilledTonalButton(
+        onClick = { launcher.launch(Manifest.permission.RECORD_AUDIO) },
+        enabled = permissionState != AudioPermissionState.Granted,
+    ) {
+        Text(
+            if (permissionState == AudioPermissionState.Granted) {
+                "麦克风已开启"
+            } else {
+                "开启语音备注"
+            }
+        )
+    }
+}
+```
+
+这段代码真正想说明的，是 Compose 并没有改变权限设计原则。`rememberLauncherForActivityResult()` 只是让 UI 层更自然地持有“如何发起请求”这件事；真正的授权结果、说明文案和后续能力判断，仍然应该回到 `UiState` 或 ViewModel 去统一建模。把这两层拆清楚以后，Compose 页面就不会慢慢长成一堆分散的权限 if/else。
+
+还有一类权限误区特别常见：功能只需要大致范围，却一上来就把最精确的权限也一起要了。定位权限就是最典型的例子。很多页面只需要“附近商圈”或“当前城区”这种级别的信息，这时先请求粗略定位往往已经足够；只有当用户真的进入导航、轨迹记录这类高精度场景时，再继续申请精确定位才更符合最小授权原则。
+
+```kotlin
+data class NearbyPermissionState(
+    val hasApproximateLocation: Boolean = false,
+    val hasPreciseLocation: Boolean = false,
+) {
+    val canShowNearbyStores: Boolean
+        get() = hasApproximateLocation || hasPreciseLocation
+
+    val canStartTurnByTurnNavigation: Boolean
+        get() = hasPreciseLocation
+}
+
+class NearbyStoreViewModel : ViewModel() {
+
+    private val _permissionState = MutableStateFlow(NearbyPermissionState())
+    val permissionState: StateFlow<NearbyPermissionState> = _permissionState.asStateFlow()
+
+    fun onApproximateLocationResult(granted: Boolean) {
+        _permissionState.update { it.copy(hasApproximateLocation = granted) }
+    }
+
+    fun onPreciseLocationResult(granted: Boolean) {
+        _permissionState.update {
+            it.copy(
+                hasApproximateLocation = it.hasApproximateLocation || granted,
+                hasPreciseLocation = granted,
+            )
+        }
+    }
+}
+
+class NearbyStoreActivity : ComponentActivity() {
+
+    private val requestApproximateLocation = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.onApproximateLocationResult(granted)
+    }
+
+    private val requestPreciseLocation = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.onPreciseLocationResult(granted)
+    }
+
+    fun onOpenNearbyStoresClicked() {
+        requestApproximateLocation.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+    }
+
+    fun onStartNavigationClicked() {
+        requestPreciseLocation.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+}
+```
+
+这段代码真正想建立的，不是定位 API 细节，而是权限申请应该随着能力层级逐步升级。`canShowNearbyStores` 和 `canStartTurnByTurnNavigation` 对应的是两档完全不同的产品承诺，所以它们也不该默认绑到同一轮授权里。只要把“粗略定位已经够不够”“什么时候才真的需要精确定位”先想清楚，权限设计就会比“先把所有定位权限都要到再说”健康得多。
+
+
+还有一类权限不该再用 `RequestPermission()` 这套心智去理解。像悬浮窗这类特殊权限，本质上属于系统设置里的“特殊应用访问”，它不是普通运行时弹窗能解决的问题，平台也故意把这类能力做成更高摩擦的授权路径。
+
+```kotlin
+fun ensureOverlayAccess(activity: Activity) {
+    if (Settings.canDrawOverlays(activity)) return
+
+    val intent = Intent(
+        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+        Uri.parse("package:${activity.packageName}"),
+    )
+    activity.startActivity(intent)
+}
+
+fun canShowFloatingRecorder(context: Context): Boolean {
+    return Settings.canDrawOverlays(context)
+}
+```
+
+这段代码真正要建立的判断是：不是所有权限都属于“声明 -> 请求 -> 回调”这一条链。特殊权限通常意味着更高风险面，也意味着更强的系统控制权，所以它们往往要求用户离开当前页面，去系统设置里显式打开。把这类能力和普通运行时权限分开理解，读者就不会误以为所有敏感能力都能靠 `rememberLauncherForActivityResult()` 或 `RequestPermission()` 统一处理。
 ### 9. 实践任务
 
 起点条件：
@@ -280,7 +456,15 @@ class NoteComposerViewModel : ViewModel() {
 
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，权限请求、媒体访问与系统能力调用相关章节。
 - 参考并改写自：`Android Security - Attacks and Defenses`，权限边界、最小授权与平台安全模型相关章节。
-- 参考并改写自：`The Android Malware Handbook`，权限滥用、风险面与安全判断相关章节。
+- 参考并改写自：`The Android Malware Handbook`，权限滥用、`SYSTEM_ALERT_WINDOW` 风险面与安全判断相关章节。
+- 参考并改写自：Krzysztof Hermans，《Mastering Android Security》(2023)，权限类型划分、special permissions 与特殊应用访问相关内容。
+- 参考并改写自：Dominik Panjuta、Louis Nwokike，《Tiny Android Projects Using Kotlin》(2024)，运行时权限与 RequestMultiplePermissions 相关内容。
+- 参考并改写自：Harrison Wangereka，《Mastering Kotlin for Android 14》(2024)，Compose 中 `rememberLauncherForActivityResult()` 与权限请求相关内容。
+- 参考并改写自：Rick Boyer、Kyle Mew，《Android Application Development Cookbook, 2nd Edition》(2016)，ACCESS_COARSE_LOCATION、ACCESS_FINE_LOCATION 与定位精度相关内容。
 - Request app permissions: <https://developer.android.com/training/permissions/requesting>
 - App permission best practices: <https://developer.android.com/privacy-and-security/minimize-permission-requests>
 - Photo Picker: <https://developer.android.com/training/data-storage/shared/photopicker>
+
+
+
+

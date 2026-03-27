@@ -196,6 +196,149 @@ fun publishTaskShortcuts(context: Context) {
 
 把两段代码放在一起，差异会非常鲜明：小组件是持续可见的状态投影，需要认真维护更新策略和点击后的上下文恢复；快捷方式则是高频动作入口，重点在于缩短路径而不是展示状态。只要按照这个分工去设计，桌面能力就不容易做成“看起来很丰富、实际上长期没人愿意维护”的负担。
 
+如果某个具体任务本身就值得长期留在桌面，而不是只出现在应用打开时，快捷方式还可以进一步做成 pinned shortcut。它和动态快捷方式的差别在于：动态快捷方式由应用主动维护和替换，而 pinned shortcut 一旦被用户固定到桌面，就变成用户明确保留的长期入口。
+
+```kotlin
+fun requestPinTaskShortcut(
+    context: Context,
+    taskId: String,
+    title: String,
+) {
+    if (!ShortcutManagerCompat.isRequestPinShortcutSupported(context)) return
+
+    val shortcut = ShortcutInfoCompat.Builder(context, "task-$taskId")
+        .setShortLabel(title)
+        .setLongLabel("打开待办：$title")
+        .setIcon(IconCompat.createWithResource(context, R.drawable.ic_today))
+        .setIntent(
+            TaskDetailActivity.newIntent(context, taskId)
+                .setAction(Intent.ACTION_VIEW)
+        )
+        .build()
+
+    ShortcutManagerCompat.requestPinShortcut(context, shortcut, null)
+}
+```
+
+这段代码真正强调的是产品语义差异。动态快捷方式更像应用给出的“高频入口建议”，适合随着上下文一起更新；pinned shortcut 则更像用户亲手挑出来、希望长期保留在桌面的任务入口。也正因为如此，真正值得被固定的通常不是“打开应用”这种泛入口，而是“打开某个固定项目”“开始某个固定流程”这种目标非常明确的动作。把这层差异想清楚，桌面入口设计就不会越做越散。
+
+如果小组件要展示的不是一行摘要，而是一组可点击条目，`AppWidgetProvider` 自己一次性拼完所有 `RemoteViews` 往往不够稳。更常见的做法是把列表数据交给 `RemoteViewsService` 和 `RemoteViewsFactory`，让集合视图的填充脱离 Receiver 的短生命周期。
+
+```kotlin
+class TodayTaskListService : RemoteViewsService() {
+    override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
+        return TodayTaskListFactory(applicationContext)
+    }
+}
+
+class TodayTaskListFactory(
+    private val context: Context,
+) : RemoteViewsService.RemoteViewsFactory {
+
+    private var tasks: List<TaskSummary> = emptyList()
+
+    override fun onDataSetChanged() {
+        tasks = TaskRepository.get(context).loadTodayTasks()
+    }
+
+    override fun getCount(): Int = tasks.size
+
+    override fun getViewAt(position: Int): RemoteViews {
+        val task = tasks[position]
+        return RemoteViews(context.packageName, R.layout.widget_today_task_row).apply {
+            setTextViewText(R.id.title, task.title)
+            val fillInIntent = Intent().putExtra("extra_task_id", task.id)
+            setOnClickFillInIntent(R.id.row_root, fillInIntent)
+        }
+    }
+
+    override fun onCreate() = Unit
+    override fun onDestroy() = Unit
+    override fun getLoadingView(): RemoteViews? = null
+    override fun getViewTypeCount(): Int = 1
+    override fun getItemId(position: Int): Long = tasks[position].id.hashCode().toLong()
+    override fun hasStableIds(): Boolean = true
+}
+```
+
+```kotlin
+val serviceIntent = Intent(context, TodayTaskListService::class.java)
+views.setRemoteAdapter(R.id.task_list, serviceIntent)
+
+val clickTemplate = PendingIntent.getActivity(
+    context,
+    0,
+    TaskDetailActivity.newIntent(context, taskId = ""),
+    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+)
+views.setPendingIntentTemplate(R.id.task_list, clickTemplate)
+```
+
+这段代码真正补上的，是集合型小组件的实现边界。`AppWidgetProvider` 仍然只负责更新入口和整体外壳；真正把一组条目映射成远程列表项的，是 `RemoteViewsFactory`；单项点击则通过 `setPendingIntentTemplate()` 和 `setOnClickFillInIntent()` 再补上任务上下文。只要把这三层拆开，读者就会更容易理解为什么复杂小组件并不是“把 RecyclerView 搬到桌面”，而是一套受限但稳定的远程视图协议。
+
+集合型小组件还有一个很容易被忽略的更新细节：摘要外壳刷新和列表数据刷新并不是同一件事。前者靠 `updateAppWidget()` 重画当前 `RemoteViews`，后者则要明确通知系统“这组远程列表数据已经变了，需要重新取一遍”。
+
+```kotlin
+fun onTodayTasksChanged(context: Context) {
+    val appWidgetManager = AppWidgetManager.getInstance(context)
+    val widgetIds = appWidgetManager.getAppWidgetIds(
+        ComponentName(context, TodayTasksWidgetProvider::class.java),
+    )
+    if (widgetIds.isEmpty()) return
+
+    appWidgetManager.notifyAppWidgetViewDataChanged(widgetIds, R.id.task_list)
+    refreshTodayTaskWidgets(context)
+}
+```
+
+这段代码真正补上的，是小组件更新策略里的“两层刷新”。列表项数据交给 `notifyAppWidgetViewDataChanged()`，摘要数字、标题和点击外壳仍然通过你自己的 `refreshTodayTaskWidgets()` 去重绘。把这两层分清楚之后，桌面列表就不会因为你只更新了外壳而保留旧数据，也不会因为每次数据变化都整块暴力重画而显得迟钝。
+
+快捷方式也有类似的“长期维护”细节。入口一旦被放到桌面或启动器建议区域，应用就应该继续告诉系统：哪些入口真的被频繁使用，哪些只是曾经创建过。
+
+```kotlin
+fun openTaskFromShortcut(
+    context: Context,
+    shortcutId: String,
+    taskId: String,
+) {
+    ShortcutManagerCompat.reportShortcutUsed(context, shortcutId)
+    context.startActivity(
+        TaskDetailActivity.newIntent(context, taskId).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+    )
+}
+```
+
+这里真正想说明的是：快捷方式不是静态图标集合，而是和用户行为一起演化的入口层。`reportShortcutUsed()` 并不会替你设计产品，但它会把“这个入口确实有人在用”反馈给系统。对动态快捷方式和启动器建议来说，这类使用信号能帮助桌面入口更贴近真实高频动作，而不是停留在应用第一次发布时拍脑袋定下来的那几项。
+
+
+快捷方式做出来以后，并不是永远把它们放在那里就结束了。真正的维护工作还包括：高频入口变化时重新发布动态快捷方式，某个任务已经归档或失效时及时更新，必要时把不再可达的入口显式禁用，而不是让用户继续点进一条已经失效的桌面路径。
+
+```kotlin
+fun syncTaskShortcuts(context: Context, tasks: List<TaskSummary>) {
+    val shortcuts = tasks.take(4).map { task ->
+        ShortcutInfoCompat.Builder(context, "task-${task.id}")
+            .setShortLabel(task.title)
+            .setLongLabel("打开待办：${task.title}")
+            .setIcon(IconCompat.createWithResource(context, R.drawable.ic_today))
+            .setIntent(TaskDetailActivity.newIntent(context, task.id).setAction(Intent.ACTION_VIEW))
+            .build()
+    }
+
+    ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts)
+}
+
+fun disableArchivedTaskShortcut(context: Context, taskId: String) {
+    ShortcutManagerCompat.disableShortcuts(
+        context,
+        listOf("task-$taskId"),
+        "这条待办已经归档",
+    )
+}
+```
+
+这段代码真正要强调的是：快捷方式和小组件一样，一旦进入桌面就变成长期产品承诺。`setDynamicShortcuts()` 负责让高频入口跟着真实数据变化，`disableShortcuts()` 则负责在入口已经没有业务意义时，明确告诉系统和用户“这条路径不再有效”。只要把这层维护意识补上，桌面入口就不会慢慢堆成一组历史遗留按钮。
 ### 8. 实践任务
 
 起点条件：
@@ -243,5 +386,9 @@ fun publishTaskShortcuts(context: Context) {
 
 - 参考并改写自：Neil Smyth，《Android Studio Narwhal Essentials》(2025)，App Widgets、快捷方式与启动器集成相关章节。
 - 参考并改写自：Bill Phillips、Chris Stewart、Kristin Marsicano、Brian Gardner，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》(2022)，系统入口与应用交互边界相关内容。
+- 参考并改写自：Satya Komatineni、Dave Smith，《Pro Android 4》(2012)，`RemoteViewsService`、`RemoteViewsFactory` 与集合型 App Widget 相关内容。
 - App widgets overview: <https://developer.android.com/develop/ui/views/appwidgets>
 - App shortcuts overview: <https://developer.android.com/develop/ui/views/launch/shortcuts>
+
+
+

@@ -214,6 +214,82 @@ override fun onReceive(context: Context, intent: Intent) {
 
 把运行时注册例子、`BOOT_COMPLETED` 例子和 `goAsync()` 放在一起看，广播接收器的角色就会非常稳定：它既不是万能后台入口，也不是只能写一句 `if (intent.action ...)` 的装饰层，而是一个需要认真控制作用域、导出边界和后续转交方式的事件入口组件。
 
+如果一个 Receiver 确实要对外开放，更健康的做法也不是“只把 `android:exported` 设成 `true` 就结束”，而是继续限定谁有资格向它发送这类事件。
+
+```xml
+<permission
+    android:name="com.example.sync.permission.TRIGGER_SYNC"
+    android:protectionLevel="signature" />
+
+<receiver
+    android:name=".sync.SyncTriggerReceiver"
+    android:exported="true"
+    android:permission="com.example.sync.permission.TRIGGER_SYNC">
+    <intent-filter>
+        <action android:name="com.example.sync.action.TRIGGER_SYNC" />
+    </intent-filter>
+</receiver>
+```
+
+```kotlin
+class SyncTriggerReceiver : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != ACTION_TRIGGER_SYNC) return
+
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            "remote-triggered-sync",
+            ExistingWorkPolicy.REPLACE,
+            OneTimeWorkRequestBuilder<InboxSyncWorker>().build(),
+        )
+    }
+
+    companion object {
+        const val ACTION_TRIGGER_SYNC = "com.example.sync.action.TRIGGER_SYNC"
+    }
+}
+```
+
+这里 `android:permission` 的意义，不是“再多写一个 manifest 属性”，而是把“谁有资格触发这个 Receiver”正式写成组件契约。只要 Receiver 还对外暴露，就要继续考虑发送方身份、输入数据可信度和后续执行成本，而不能把 exported 理解成一个单纯的开关。把这条边界补上以后，广播设计才真正从“能收到”升级成“收得安全、也收得住”。
+
+接收侧声明了权限之后，发送侧最好也把这层约束真正写出来。否则你虽然在 manifest 里表达了“只有谁能收”，但调用点本身仍然像一条到处乱飞的开放广播。
+
+```kotlin
+private const val PERMISSION_TRIGGER_SYNC =
+    "com.example.sync.permission.TRIGGER_SYNC"
+
+fun requestInboxSync(context: Context, reason: String) {
+    val intent = Intent(SyncTriggerReceiver.ACTION_TRIGGER_SYNC).apply {
+        setPackage(context.packageName)
+        putExtra("extra_reason", reason)
+    }
+
+    context.sendBroadcast(intent, PERMISSION_TRIGGER_SYNC)
+}
+```
+
+这段代码里最值得学习的是两个小动作。`setPackage(context.packageName)` 把广播继续收束在当前应用包内，避免它被系统里其他同 action 的 Receiver 意外接住；`sendBroadcast(intent, PERMISSION_TRIGGER_SYNC)` 则把“接收方必须持有这项权限”补成发送时的显式约束。这样一来，发送侧和接收侧共同组成一条更完整的安全边界，而不是只在 manifest 里单方面表达愿望。
+
+如果事件来源其实完全在你自己应用内部，例如通知动作、小组件点击或前台页面里的次级操作，那么比“包名受限的隐式广播”更稳的一步，往往是直接指向具体 Receiver 类。这样系统不需要再做 action 匹配，你也不用额外暴露一条给外部世界理解的动作语义。
+
+```kotlin
+fun createMarkDonePendingIntent(context: Context, taskId: String): PendingIntent {
+    val intent = Intent(context, TaskActionReceiver::class.java).apply {
+        action = ACTION_MARK_DONE
+        putExtra(EXTRA_TASK_ID, taskId)
+    }
+
+    return PendingIntent.getBroadcast(
+        context,
+        taskId.hashCode(),
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+}
+```
+
+这段代码的价值，不在于 `PendingIntent` 的参数顺序，而在于它把“内部事件入口”和“对外可被其他应用理解的广播协议”明确分开了。只要发送方和接收方都在自己应用内，显式 Receiver 往往比再设计一条公开 action 更稳；只有当你真的要让外部来源参与这条事件链时，才需要回到前面那套 exported、permission 和发送侧约束一起成立的开放协议。
+
 ### 10. 实践任务
 
 起点条件：
@@ -271,4 +347,6 @@ BroadcastReceiver 在现代 Android 里的真正角色，是接住“某件事�
 - BroadcastReceiver reference: <https://developer.android.com/reference/android/content/BroadcastReceiver>
 - Background work overview: <https://developer.android.com/develop/background-work>
 - Android 14 behavior changes for runtime-registered receivers: <https://developer.android.com/about/versions/14/behavior-changes-14#runtime-registered-broadcasts-receivers-exported>
+
+
 

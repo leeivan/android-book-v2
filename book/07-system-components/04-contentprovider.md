@@ -225,6 +225,126 @@ fun loadSharedTasks(context: Context): List<String> {
 
 把 `FileProvider` 和自定义 `TaskProvider` 放在一起看，会很容易建立一个成熟判断：如果你只是做一次受控文件共享，就优先用系统已经给好的 Provider；如果你要长期对外开放一套结构化数据接口，才认真承担 URI 设计、权限门禁和协议维护的成本。ContentProvider 的难点从来不是“会不会写四个 CRUD 方法”，而是你是否真的准备好了这份对外承诺。
 
+Provider 真正比普通 DAO 多出来的一层价值，是“数据变化后，调用方还能沿着同一个 URI 协议继续保持同步”。这时 `query()` 里的 `setNotificationUri()`、写操作里的 `notifyChange()` 和客户端侧的 `ContentObserver` 才会连成完整闭环。
+
+```kotlin
+override fun insert(uri: Uri, values: ContentValues?): Uri {
+    val db = taskOpenHelper.writableDatabase
+    val newId = db.insertOrThrow("tasks", null, values)
+    val createdUri = ContentUris.withAppendedId(CONTENT_URI, newId)
+    context?.contentResolver?.notifyChange(createdUri, null)
+    return createdUri
+}
+```
+
+```kotlin
+fun observeSharedTasks(context: Context): Flow<List<String>> = callbackFlow {
+    val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            trySend(loadSharedTasks(context))
+        }
+    }
+
+    context.contentResolver.registerContentObserver(
+        TaskProvider.CONTENT_URI,
+        true,
+        observer,
+    )
+    trySend(loadSharedTasks(context))
+
+    awaitClose {
+        context.contentResolver.unregisterContentObserver(observer)
+    }
+}
+```
+
+这组代码最值得学习的，不是 `ContentObserver` 的回调语法，而是 Provider 的“变化通知协议”终于完整了。`setNotificationUri()` 让查询结果和某个 URI 绑定，`notifyChange()` 在写入后向这个 URI 广播变更，`ContentObserver` 再把“重新查询”收进客户端自己的状态流。只有把这三步一起理解，读者才会真正明白 Provider 为什么不仅是“别人能查一下数据”，而是一份可以长期维护、可被观察的共享接口。
+
+还有一类 Provider 场景不是“返回几行结构化数据”，而是直接对外暴露一个受控文件句柄。这时重点就不在 `Cursor`，而在于 Provider 如何把 URI 映射成一个可授权、可读取的二进制入口。
+
+```kotlin
+override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
+    require(mode == "r") { "TaskAttachmentProvider 只支持只读访问" }
+
+    val attachmentId = ContentUris.parseId(uri)
+    val file = attachmentRepository.resolveSharedAttachment(attachmentId)
+
+    return ParcelFileDescriptor.open(
+        file,
+        ParcelFileDescriptor.MODE_READ_ONLY,
+    )
+}
+```
+
+```kotlin
+fun openSharedAttachment(context: Context, attachmentUri: Uri): InputStream? {
+    return context.contentResolver.openInputStream(attachmentUri)
+}
+```
+
+这组代码真正补上的，是 Provider 的另一条现实用法：它不仅能共享“表里的数据”，也能共享“通过 URI 才能安全打开的内容”。一旦对外部调用者承诺了 `content://.../attachments/42` 这样的 URI，调用方就不需要知道文件真正落在哪个目录，也不需要直接触碰绝对路径。对 Provider 来说，这仍然是一种协议设计，只是返回的不再是 `Cursor`，而是可授权的文件访问入口。
+
+Provider 的权限边界还有一个特别容易被忽略的细节：把一个 `content://` URI 交给外部组件，并不等于对方天然就能读写它。真正的临时授权，要么跟着 Intent 一起通过 flag 交出去，要么在你明确知道目标包名时，用 `grantUriPermission()` 做一次更窄的定向授权。
+
+```kotlin
+fun openAttachmentInViewer(context: Context, attachmentUri: Uri, mimeType: String) {
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(attachmentUri, mimeType)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+
+    context.startActivity(Intent.createChooser(intent, "打开附件"))
+}
+
+fun handoffEditableDraft(
+    context: Context,
+    targetPackage: String,
+    draftUri: Uri,
+) {
+    context.grantUriPermission(
+        targetPackage,
+        draftUri,
+        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+    )
+}
+
+fun revokeEditableDraft(context: Context, draftUri: Uri) {
+    context.revokeUriPermission(
+        draftUri,
+        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+    )
+}
+```
+
+这段代码真正想补上的，是 Provider 权限的时间维度。`FLAG_GRANT_READ_URI_PERMISSION` 很适合“我现在通过 Intent 把这个内容交给查看器”，它把读取资格跟这次动作一起打包出去；`grantUriPermission()` 则更适合“我明确知道要把哪一个 URI 临时交给哪个包处理”。一旦这次协作结束，再用 `revokeUriPermission()` 把入口收回来，Provider 才算把共享边界、目标对象和有效时长一起管理清楚。
+
+
+如果调用方要一次提交多条相关修改，Provider 还有一个比“连着调很多次 insert/update”更稳的入口：`ContentProviderOperation` 和 `applyBatch()`。它的意义不是让代码看起来高级，而是把“一组应该一起成功或一起失败的修改”真正收成一次批量协议。
+
+```kotlin
+fun importTaskTemplate(
+    context: Context,
+    projectId: Long,
+    titles: List<String>,
+) {
+    val operations = ArrayList<ContentProviderOperation>()
+
+    titles.forEach { title ->
+        operations += ContentProviderOperation.newInsert(TaskProvider.CONTENT_URI)
+            .withValue("project_id", projectId)
+            .withValue("title", title)
+            .withValue("status", "todo")
+            .build()
+    }
+
+    context.contentResolver.applyBatch(
+        TaskProvider.CONTENT_URI.authority ?: error("Missing authority"),
+        operations,
+    )
+}
+```
+
+这段代码真正补上的，是 Provider 作为共享协议的“批量语义”。如果你导入的是一整套任务模板、一次联系人合并，或者某组修改天然应该被视为同一批动作，那么 `applyBatch()` 会比连续散落的多次 `insert()` 更容易保持一致性，也更容易让调用方明确知道：这不是几条互相独立的写入，而是一份应该整体处理的共享请求。
 ### 9. 实践任务
 
 起点条件:
@@ -275,7 +395,14 @@ ContentProvider 真正要解决的，是结构化数据在组件和应用边界�
 - 参考并改写自：`Android Security - Attacks and Defenses`，ContentProvider 权限边界与访问控制相关章节。
 - 参考并改写自：James Steele、Nelson To，《The Android Developer's Cookbook》(2011)，自定义 ContentProvider 与跨应用查询相关 recipes。
 - 参考并改写自：Neil Smyth，《Android Studio Jellyfish Essentials》(2024)，Provider 客户端访问、内容 URI 与 query permission 相关章节。
+- 参考并改写自：Reto Meier、Ian Lake，《Android in Action, 2nd Edition》(2011)，ContentObserver、registerContentObserver() 与数据变化通知相关内容。
+- 参考并改写自：Mark Murphy，《Programming Android》(2011)，`openFile()`、内容 URI、`ContentProviderOperation` 与 `applyBatch()` 相关内容。
+- 参考并改写自：Neil Daswani、Anubhav Singh，《Application Security for the Android Platform》(2012)，URI 临时授权、grantUriPermission() 与 revokeUriPermission() 相关内容。
 - Content providers overview: <https://developer.android.com/guide/topics/providers/content-providers>
 - ContentResolver reference: <https://developer.android.com/reference/android/content/ContentResolver>
 - FileProvider reference: <https://developer.android.com/reference/androidx/core/content/FileProvider>
+
+
+
+
 

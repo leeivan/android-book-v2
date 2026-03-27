@@ -242,6 +242,163 @@ class ReplyMessageReceiver : BroadcastReceiver() {
 
 这里最重要的教学点并不是 `RemoteInput` 的语法，而是通知动作也应该继续遵守同一套边界: 入口短、动作明确、结果回到正确上下文、必要时交给更稳定的执行层。只要把权限、渠道、返回路径和动作转交一起设计，通知就不会再退化成“系统层弹一条字”。
 
+通知的生命周期本身也应该被设计，而不是“每次状态变一下就再发一条”。对下载、上传、转码这类持续一段时间但又值得用户感知的任务，更好的做法通常是用同一个 notification id 持续更新进度，结束后再切成完成态或主动取消。
+
+```kotlin
+class EpisodeDownloadNotifier(private val context: Context) {
+
+    private val manager = NotificationManagerCompat.from(context)
+
+    fun showProgress(episodeId: String, progress: Int) {
+        ensureDownloadsChannel(context)
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_DOWNLOADS)
+            .setSmallIcon(R.drawable.ic_download)
+            .setContentTitle("正在下载离线音频")
+            .setContentText("已完成 $progress%")
+            .setOnlyAlertOnce(true)
+            .setOngoing(true)
+            .setProgress(100, progress, false)
+            .build()
+
+        manager.notify(episodeId.hashCode(), notification)
+    }
+
+    fun showCompleted(episodeId: String, title: String) {
+        val notification = NotificationCompat.Builder(context, CHANNEL_DOWNLOADS)
+            .setSmallIcon(R.drawable.ic_download_done)
+            .setContentTitle("下载完成")
+            .setContentText(title)
+            .setAutoCancel(true)
+            .setProgress(0, 0, false)
+            .build()
+
+        manager.notify(episodeId.hashCode(), notification)
+    }
+
+    fun cancel(episodeId: String) {
+        manager.cancel(episodeId.hashCode())
+    }
+}
+```
+
+这段代码真正要建立的直觉，是通知也有自己的状态机。同一个任务应稳定复用同一个 notification id，避免每次进度变化都制造一条新通知；`setOnlyAlertOnce(true)` 则可以避免每次刷新都重新打断用户。任务结束后，要么切换成完成态，要么主动取消，让通知栏继续只保留仍然有价值的信息。这样写出来的通知，才更像一条正式沟通通道，而不是任务日志。
+
+消息类通知如果还停留在“你有一条新消息”这种纯标题正文结构，用户往往还是不知道上下文。对会话场景来说，更健康的做法通常是把最近几条对话一起带上，让通知本身就足够说明发生了什么。
+
+```kotlin
+fun showConversationNotification(
+    context: Context,
+    conversationId: String,
+    title: String,
+    messages: List<Pair<String, String>>,
+) {
+    val me = Person.Builder().setName("我").build()
+    val contentIntent = TaskStackBuilder.create(context)
+        .addNextIntentWithParentStack(ChatActivity.newIntent(context, conversationId))
+        .getPendingIntent(
+            conversationId.hashCode(),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+    val style = NotificationCompat.MessagingStyle(me).apply {
+        messages.forEach { (sender, text) ->
+            addMessage(
+                text,
+                System.currentTimeMillis(),
+                Person.Builder().setName(sender).build(),
+            )
+        }
+    }
+
+    val notification = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
+        .setSmallIcon(R.drawable.ic_message)
+        .setContentTitle(title)
+        .setStyle(style)
+        .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+        .setContentIntent(contentIntent)
+        .setAutoCancel(true)
+        .build()
+
+    NotificationManagerCompat.from(context)
+        .notify(conversationId.hashCode(), notification)
+}
+```
+
+这段代码的关键不在于 `MessagingStyle` 的 API 记法，而在于消息通知终于开始承载“最近发生了什么”这层上下文。这样用户在通知栏里就能先判断是否值得点开，再决定要不要进入会话页。通知内容一旦有了上下文，Direct Reply、点击返回路径和会话状态更新才真正能串成同一条产品体验链。
+
+如果短时间内会连续产生多条同类通知，仅仅把它们都塞进同一个渠道还不够。渠道解决的是“由谁来控制这一类打扰”，分组和 summary notification 解决的则是“通知栏里怎样保持上下文和秩序”。
+
+```kotlin
+private const val GROUP_IMPORT_RESULTS = "group_import_results"
+private const val IMPORT_SUMMARY_ID = 9001
+
+fun showImportNotifications(
+    context: Context,
+    importedTitles: List<String>,
+) {
+    val manager = NotificationManagerCompat.from(context)
+
+    importedTitles.take(3).forEachIndexed { index, title ->
+        val itemNotification = NotificationCompat.Builder(context, CHANNEL_IMPORTS)
+            .setSmallIcon(R.drawable.ic_import)
+            .setContentTitle("导入完成")
+            .setContentText(title)
+            .setGroup(GROUP_IMPORT_RESULTS)
+            .setAutoCancel(true)
+            .build()
+
+        manager.notify(IMPORT_SUMMARY_ID + index + 1, itemNotification)
+    }
+
+    val summaryStyle = NotificationCompat.InboxStyle()
+        .setBigContentTitle("本次共导入 ${importedTitles.size} 篇内容")
+        .also { style ->
+            importedTitles.take(5).forEach(style::addLine)
+        }
+
+    val summaryNotification = NotificationCompat.Builder(context, CHANNEL_IMPORTS)
+        .setSmallIcon(R.drawable.ic_import)
+        .setContentTitle("导入结果汇总")
+        .setStyle(summaryStyle)
+        .setGroup(GROUP_IMPORT_RESULTS)
+        .setGroupSummary(true)
+        .build()
+
+    manager.notify(IMPORT_SUMMARY_ID, summaryNotification)
+}
+```
+
+这段代码最值得学习的地方，是它把“单条事件”和“这一批事件的整体上下文”分成了两层。单条通知仍然保留各自的标题和点击入口，summary notification 则负责在通知栏里给用户一个更稳定的总览。对批量导入、批量上传、同步结果、多人消息汇总这类场景来说，这种分组方式通常比简单地重复发很多条同类通知更克制，也更容易让用户快速判断现在到底发生了什么。
+
+
+通知样式也不只是“展开以后长得更好看”。不同样式其实在告诉系统和用户：这条通知承载的上下文到底是什么。像播放类场景，如果仍然只放一行标题正文，用户往往看得见播放在继续，却很难直接理解哪些控制应该在通知层完成。
+
+```kotlin
+fun buildPlaybackNotification(
+    context: Context,
+    title: String,
+    previousIntent: PendingIntent,
+    pauseIntent: PendingIntent,
+    nextIntent: PendingIntent,
+): Notification {
+    return NotificationCompat.Builder(context, CHANNEL_PLAYER)
+        .setSmallIcon(R.drawable.ic_music)
+        .setContentTitle(title)
+        .setContentText("正在播放")
+        .setOnlyAlertOnce(true)
+        .addAction(R.drawable.ic_previous, "上一首", previousIntent)
+        .addAction(R.drawable.ic_pause, "暂停", pauseIntent)
+        .addAction(R.drawable.ic_next, "下一首", nextIntent)
+        .setStyle(
+            androidx.media.app.NotificationCompat.MediaStyle()
+                .setShowActionsInCompactView(0, 1, 2)
+        )
+        .build()
+}
+```
+
+这段代码真正想说明的是：通知样式本身也是交互设计的一部分。`MediaStyle` 不是简单换个外观，而是在强调“这是一条持续中的媒体会话通知，用户最需要的是立即控制它”。和前面的 `MessagingStyle`、`InboxStyle` 放在一起看，读者会更容易形成稳定判断：通知样式应服务于任务类型和上下文承载，而不是为了把一条通知做得更花哨。
 ### 9. 实践任务
 
 起点条件：
@@ -295,7 +452,10 @@ Notification 真正的价值，是在系统层和用户层之间建立一条正�
 - 参考并整理自本地 EPUB：Bryan Sills、Brian Gardner、Kristin Marsicano、Chris Stewart，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》，通知渠道、PendingIntent 与通知类别设计相关内容。
 - 参考并整理自本地 EPUB：Dawn Griffiths、David Griffiths，《Head First Android Development》，`DelayedMessageService`、`TaskStackBuilder` 与通知返回路径相关示例。
 - 参考并整理自本地 PDF：Neil Smyth，《Android Studio Narwhal Essentials: Java Edition》(2025)，第 58-59 章，涵盖通知概览、渠道、`POST_NOTIFICATIONS`、动作按钮与 Direct Reply。
-- 参考并整理自本地 PDF：Rick Boyer、Kyle Mew，《Android Application Development Cookbook, 2nd Edition》(2016)，通知构建、动作按钮与 `PendingIntent` 相关 recipes。
+- 参考并整理自本地 PDF：Rick Boyer、Kyle Mew，《Android Application Development Cookbook, 2nd Edition》(2016)，通知构建、动作按钮、`PendingIntent`、`InboxStyle` 与 `MediaStyle` 相关 recipes。
 - Notification runtime permission: <https://developer.android.com/develop/ui/views/notifications/notification-permission>
 - Create and manage notification channels: <https://developer.android.com/develop/ui/views/notifications/channels>
 - Create a notification: <https://developer.android.com/develop/ui/views/notifications/build-notification>
+
+
+
