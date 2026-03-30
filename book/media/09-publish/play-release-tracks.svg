@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="440" viewBox="0 0 980 440" role="img" aria-labelledby="title desc">
+  <title id="title">Google Play 测试轨道与发布路径图</title>
+  <desc id="desc">展示内部测试、封闭测试、开放测试和正式发布之间的递进关系，以及商店资料和政策检查如何贯穿其中。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c2d12"/>
+    </marker>
+    <style>
+      .bg { fill: #fff7ed; }
+      .panel { fill: #ffffff; stroke: #9a3412; stroke-width: 2; rx: 16; ry: 16; }
+      .soft { fill: #ffedd5; stroke: #c2410c; stroke-width: 2; rx: 16; ry: 16; }
+      .accent { fill: #ecfccb; stroke: #4d7c0f; stroke-width: 2; rx: 16; ry: 16; }
+      .note { fill: #eff6ff; stroke: #2563eb; stroke-width: 2; rx: 16; ry: 16; }
+      .title { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 24px; font-weight: 700; fill: #1f2937; }
+      .head { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 18px; font-weight: 700; fill: #9a3412; }
+      .tiny { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 15px; fill: #475569; }
+      .line { stroke: #9a3412; stroke-width: 2.8; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #2563eb; stroke-width: 2.4; fill: none; stroke-dasharray: 8 6; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="980" height="440"/>
+  <text class="title" x="40" y="48">Google Play 更像受控放量路径，而不是“把包传上去”</text>
+
+  <rect class="note" x="56" y="92" width="868" height="70"/>
+  <text class="tiny" x="82" y="124">贯穿整条路径的固定检查：AAB 与 mapping 文件、商店页、隐私政策、数据安全披露、目标 API 核对、版本记录</text>
+
+  <rect class="soft" x="76" y="214" width="170" height="108"/>
+  <text class="head" x="110" y="250">内部测试</text>
+  <text class="tiny" x="96" y="280">最小范围快速验证</text>
+  <text class="tiny" x="96" y="306">安装、升级、关键路径</text>
+
+  <rect class="accent" x="296" y="214" width="170" height="108"/>
+  <text class="head" x="330" y="250">封闭测试</text>
+  <text class="tiny" x="316" y="280">可控真实用户验证</text>
+  <text class="tiny" x="316" y="306">质量、披露、一致性</text>
+
+  <rect class="soft" x="516" y="214" width="170" height="108"/>
+  <text class="head" x="550" y="250">开放测试</text>
+  <text class="tiny" x="536" y="280">更大范围自愿加入</text>
+  <text class="tiny" x="536" y="306">观察真实反馈与稳定性</text>
+
+  <rect class="panel" x="736" y="214" width="170" height="108"/>
+  <text class="head" x="770" y="250">正式发布</text>
+  <text class="tiny" x="756" y="280">分阶段放量</text>
+  <text class="tiny" x="756" y="306">上线后继续回看 vitals</text>
+
+  <path class="line" d="M 246 268 L 296 268"/>
+  <path class="line" d="M 466 268 L 516 268"/>
+  <path class="line" d="M 686 268 L 736 268"/>
+  <text class="tiny" x="76" y="382">关键纪律：不要让正式版成为第一批真实用户验证环境；先在更小轨道消化安装、升级、政策和质量风险</text>
+</svg>

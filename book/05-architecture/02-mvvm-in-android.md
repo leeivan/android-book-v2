@@ -310,15 +310,26 @@ fun ArticleListRoute(
 Route / Content 分层还有一个经常被低估的收益：只要 `Content` 真正只依赖输入参数，它就会立刻变得更容易预览、更容易做 UI 测试，也更不容易在重构时把 ViewModel、导航和副作用混回去。这一点在 Bennett 的 Compose 组织方式里很明显，因为 Route 负责拿状态，Content 负责纯渲染。
 
 ```kotlin
+data class ArticleUiModel(
+    val title: String,
+    val subtitle: String,
+)
+
 @Preview(showBackground = true)
 @Composable
 fun ArticleListContentPreview() {
     ArticleListContent(
         uiState = ArticleListUiState(
             isLoading = false,
-            articles = listOf(
-                Article(id = 1, title = "Modern Android"),
-                Article(id = 2, title = "Compose State"),
+            items = listOf(
+                ArticleUiModel(
+                    title = "Modern Android",
+                    subtitle = "Compose 与状态管理",
+                ),
+                ArticleUiModel(
+                    title = "Route / Content",
+                    subtitle = "让页面边界更清楚",
+                ),
             ),
         ),
         onRefresh = {},
@@ -618,6 +629,12 @@ class ArticleEditorViewModel(
 - 认为只要有 ViewModel 就自动拥有良好架构。
 - 页面层仍直接处理网络、数据库和复杂业务流程。
 - 把所有复杂度机械搬进 ViewModel。
+
+## 练习题
+
+1. 概念理解题：为什么 ViewModel 在 Android 里的核心价值不是“比 Activity 活得更久”，而是“替页面稳定持有状态”？
+2. 编码实现题：选一个已有列表页或表单页，把零散字段收成一个 `UiState`，再把一个一次性动作改成单独的 `effect` 通道。
+3. 拓展思考题：如果一个页面同时依赖远程数据、本地缓存和导航动作，你会怎样划分 View、ViewModel、Repository 和 UseCase 的边界，才能避免胖页面和胖 ViewModel 同时出现？
 
 ## 小结
 

@@ -36,6 +36,8 @@
 
 ### 3. 测试轨道的价值，是把正式上线变成可控迭代
 
+![Google Play 测试轨道与发布路径图](../media/09-publish/play-release-tracks.svg)
+
 Google Play 提供多层测试轨道，其核心价值不是让流程显得复杂，而是让你能在真实用户规模逐步扩大之前，先验证安装、升级、关键路径和政策披露是否站得住。按照 Play Console 当前主线，常见选择通常是：
 
 - 内部测试：适合最小范围快速验证，具体人数和权限边界应在发布当期回到官方文档核对。
@@ -206,3 +208,4 @@ Google Play 上架真正要求的是一套完整的产品交付能力：候选�
 - Target API level requirements for Google Play apps: <https://support.google.com/googleplay/android-developer/answer/11926878>
 - Set up an open, closed, or internal test: <https://support.google.com/googleplay/android-developer/answer/9845334>
 - App testing requirements for new personal developer accounts: <https://support.google.com/googleplay/android-developer/answer/14151465>
+

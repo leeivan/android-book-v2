@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="440" viewBox="0 0 980 440" role="img" aria-labelledby="title desc">
+  <title id="title">模块化边界与依赖方向图</title>
+  <desc id="desc">展示 feature、domain/data 以及 core 模块之间更健康的依赖方向和协作边界。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0f766e"/>
+    </marker>
+    <style>
+      .bg { fill: #f0fdfa; }
+      .panel { fill: #ffffff; stroke: #0f766e; stroke-width: 2; rx: 16; ry: 16; }
+      .soft { fill: #ccfbf1; stroke: #0f766e; stroke-width: 2; rx: 16; ry: 16; }
+      .accent { fill: #ecfccb; stroke: #4d7c0f; stroke-width: 2; rx: 16; ry: 16; }
+      .note { fill: #eff6ff; stroke: #2563eb; stroke-width: 2; rx: 16; ry: 16; }
+      .title { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 24px; font-weight: 700; fill: #1f2937; }
+      .head { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 18px; font-weight: 700; fill: #0f766e; }
+      .tiny { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 15px; fill: #475569; }
+      .line { stroke: #0f766e; stroke-width: 2.8; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #2563eb; stroke-width: 2.4; fill: none; stroke-dasharray: 8 6; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="980" height="440"/>
+  <text class="title" x="40" y="48">模块化真正想保护的，不是目录整齐，而是边界、依赖和所有权一起变清楚</text>
+
+  <rect class="soft" x="54" y="114" width="176" height="96"/>
+  <text class="head" x="100" y="150">feature:news</text>
+  <text class="tiny" x="82" y="180">首页 / 列表 / 详情入口</text>
+  <rect class="soft" x="54" y="242" width="176" height="96"/>
+  <text class="head" x="82" y="278">feature:bookmark</text>
+  <text class="tiny" x="86" y="308">收藏能力与页面状态</text>
+
+  <rect class="accent" x="404" y="114" width="176" height="96"/>
+  <text class="head" x="456" y="150">domain</text>
+  <text class="tiny" x="430" y="180">UseCase / Repository 接口</text>
+  <rect class="accent" x="404" y="242" width="176" height="96"/>
+  <text class="head" x="468" y="278">data</text>
+  <text class="tiny" x="440" y="308">RepositoryImpl / mapper / cache</text>
+
+  <rect class="note" x="754" y="82" width="166" height="88"/>
+  <text class="head" x="802" y="116" fill="#2563eb">core:ui</text>
+  <text class="tiny" x="778" y="142">设计系统、通用组件</text>
+  <rect class="note" x="754" y="196" width="166" height="88"/>
+  <text class="head" x="778" y="230" fill="#2563eb">core:network</text>
+  <text class="tiny" x="778" y="256">Retrofit / OkHttp 基础设施</text>
+  <rect class="note" x="754" y="310" width="166" height="88"/>
+  <text class="head" x="786" y="344" fill="#2563eb">core:database</text>
+  <text class="tiny" x="786" y="370">Room / DataStore 基础设施</text>
+
+  <path class="line" d="M 230 162 L 404 162"/>
+  <path class="line" d="M 230 290 L 404 290"/>
+  <path class="line" d="M 580 290 L 754 240"/>
+  <path class="line" d="M 580 290 L 754 354"/>
+  <path class="dash" d="M 230 150 L 754 126"/>
+  <text class="tiny" x="248" y="142">feature 优先依赖稳定边界，而不是到处直连基础设施</text>
+  <text class="tiny" x="40" y="420">关键纪律：feature 承接产品能力，data 承接实现细节，core 只沉已经证明会长期稳定复用的基础设施</text>
+</svg>

@@ -227,6 +227,12 @@ class BootReceiver : BroadcastReceiver() {
 - 把 Android 学习理解成“会摆控件就会做应用”。
 - 以为 Android 官网文档可以直接替代课程、练习和样例项目。
 
+## 练习题
+
+1. 概念理解题：为什么学习 Android 时不能把应用理解成一个只靠 `main()` 线性执行的普通程序？组件入口、系统调度和 `API Level` 在这里分别意味着什么？
+2. 编码实现题：打开一个新建工程，定位 `AndroidManifest.xml`、`minSdk` / `targetSdk` 配置和默认入口 Activity，并说明它们各自会影响什么。
+3. 拓展思考题：如果你要向初学者解释“为什么今天应直接从 Kotlin、AndroidX、Jetpack 开始”，你会怎样同时交代历史 API 和现代主线的关系？
+
 ## 小结
 
 本章真正完成的，不是知识点罗列，而是视角校准。读者应该开始把 Android 看成一个平台：系统拥有调度权，应用通过正式组件入口参与协作，版本坐标要靠 `API Level` 和平台行为来理解，而现代学习主线应直接建立在 Kotlin、AndroidX 和 Jetpack 之上。

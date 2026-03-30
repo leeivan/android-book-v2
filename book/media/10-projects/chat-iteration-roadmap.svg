@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="420" viewBox="0 0 940 420" role="img" aria-labelledby="title desc">
+  <title id="title">聊天应用迭代路线图</title>
+  <desc id="desc">展示聊天教学案例从本地主线到实时复杂度的推荐推进顺序。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0f766e"/>
+    </marker>
+    <style>
+      .bg { fill: #f0fdfa; }
+      .card { fill: #ffffff; stroke: #0f766e; stroke-width: 2.2; rx: 16; ry: 16; }
+      .soft { fill: #ccfbf1; stroke: #0f766e; stroke-width: 2; rx: 16; ry: 16; }
+      .accent { fill: #ecfccb; stroke: #4d7c0f; stroke-width: 2; rx: 16; ry: 16; }
+      .warn { fill: #fff7ed; stroke: #c2410c; stroke-width: 2; rx: 16; ry: 16; }
+      .label { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 24px; fill: #1f2937; font-weight: 700; }
+      .small { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 18px; fill: #0f766e; font-weight: 700; }
+      .tiny { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 16px; fill: #475569; }
+      .line { stroke: #0f766e; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="940" height="420"/>
+  <text class="label" x="40" y="52">聊天案例更适合按复杂度分阶段逼近</text>
+  <rect class="soft" x="54" y="126" width="240" height="148"/>
+  <text class="small" x="116" y="164">第一阶段：本地主线</text>
+  <text class="tiny" x="86" y="194">会话列表、消息列表、本地假发送</text>
+  <text class="tiny" x="86" y="220">PENDING / SENT / FAILED 基本状态</text>
+  <text class="tiny" x="86" y="246">先立住最小消息流</text>
+  <rect class="accent" x="350" y="126" width="240" height="148"/>
+  <text class="small" x="400" y="164">第二阶段：可信来源</text>
+  <text class="tiny" x="382" y="194">Room 持久化、失败重试、会话摘要</text>
+  <text class="tiny" x="382" y="220">未读计数、页面恢复、补拉历史</text>
+  <text class="tiny" x="382" y="246">把本地事实和恢复能力做稳</text>
+  <rect class="warn" x="646" y="126" width="240" height="148"/>
+  <text class="small" x="704" y="164" fill="#c2410c">第三阶段：实时复杂度</text>
+  <text class="tiny" x="678" y="194">实时连接、后台通知、附件消息</text>
+  <text class="tiny" x="678" y="220">前后台协作、重连、同步顺序</text>
+  <text class="tiny" x="678" y="246">最后再接高实时性能力</text>
+  <path class="line" d="M 294 200 L 350 200"/>
+  <path class="line" d="M 590 200 L 646 200"/>
+  <text class="tiny" x="106" y="322">先把消息事实和页面反馈理顺，再引入连接与通知这类高协作能力</text>
+</svg>

@@ -1,180 +1,160 @@
-# 参考资料与后续学习路径
+# 参考资料
 
-读完整本书以后，最容易出现的新问题不是“没有资料”，而是“资料太多，入口太散”。本仓库的 `reference/` 目录已经积累了大量 Android 相关书籍、手册和配套文件，它足够支撑后续扩写、重写和自学，但前提是我们先把它整理成可用的资料地图，而不是继续把所有文件视为平行入口。
+学完整本书以后，最常见的问题往往不是“找不到资料”，而是“资料太多，不知道下一本该看什么”。`reference/` 目录确实收集了大量本地材料，但对读者来说，它的价值不在于逐本翻完，而在于帮助你围绕当前问题补一段最需要的学习路径。
 
-这一章的目标，就是把 `reference/` 从“文件堆”变成“写作工作台”。后续无论是继续补正文、重写某一章，还是自己深入一个专题，都应先回到这里判断：这次需要的是基础教材、项目实践、架构资料、安全资料，还是一份历史对照材料。只要这一步先做对，正文就不容易再写成资料摘抄。
+因此，这一章不再把 `reference/` 当成完整编目来介绍，而是把它当成一张使用地图。你真正需要掌握的，不是哪本书名字最长，而是怎样根据自己当前的薄弱点，挑一份主参考、一份补充参考，再回到正文和实践里完成闭环。
 
 ## 学习目标
 
-- 理解 `reference/` 目录中不同资料组的角色，而不是只记单本书名。
-- 学会为一个章节只选一组最小资料集，而不是并行打开大量相近资料。
-- 学会区分现代主参考、项目实践补充、架构专题和历史对照材料。
-- 建立“判断主题 -> 选主参考 -> 选补充参考 -> 回官方核边界 -> 重写正文”的稳定闭环。
+- 理解参考资料应按问题类型选择，而不是按书名堆积。
+- 学会区分主参考、补充参考和官方核对材料的不同角色。
+- 学会为不同主题选择最小资料集，而不是并行打开大量同类资料。
+- 建立“发现缺口 -> 选资料 -> 回到实践”的稳定补充学习节奏。
 
 ## 前置知识
 
-- 已完成本书主线阅读，或至少已经知道各部分的大致主题。
-- 愿意把资料选择也当成写作和学习的一部分，而不是临时决定。
+- 已完成本书主线阅读，或至少已经知道自己最薄弱的是哪一部分。
+- 愿意把资料选择也当成学习设计的一部分，而不是临时搜索。
 
 ## 正文
 
-### 1. 先看清 `reference/` 的整体结构
+### 1. 先判断自己缺的是什么，再决定补什么资料
 
-当前 `reference/` 目录以 PDF 和 EPUB 为主，还混有少量 HTML、TXT、ZIP、AZW3 和 MOBI 文件。实际分布是：185 份 PDF、13 份 EPUB、22 份 TXT、4 份 HTML、4 份 ZIP，外加极少量其他格式。这个规模已经足以说明一个事实：它不是一套需要逐本顺读的“个人书单”，而是一座需要分层使用的本地资料库。
+资料选择最容易出错的地方，就是一上来先问“哪本最好”，而不是先问“我到底卡在哪”。如果你现在最容易卡在 Activity、Fragment、生命周期、项目结构和 Android Studio 工作流上，那么缺口多半在平台基础和工具链；如果你已经能写出页面，却总在状态、数据流和边界划分上犹豫，问题往往已经进入数据层和架构；如果你做到了工程后期，却在测试、CI/CD、签名、发布和安全边界上不稳，那么应优先补工程实践和发布，而不是继续刷 UI 入门书。
 
-这些文件里既有现代 Android 开发教材，也有早期 Java 时代的入门书、用户手册、Dummies 系列、历史版 Android Studio 教材和少量安全专题资料。它们的价值并不相同。继续把它们视为同一层级，只会让读者在“应该先看哪本”这件事上不断犹豫。
+一旦先把问题类型说清楚，资料范围就会明显缩小。真正有效的补充学习，总是从“当前缺口”出发，而不是从“目录里还有很多书没看”出发。
 
-因此，使用 `reference/` 的第一原则不是“再多读一些”，而是先判断这次正在解决什么问题。是平台基础、UI 组织、架构扩展、安全边界，还是旧项目迁移？问题类型一旦明确，资料范围会立刻缩小。
+### 2. 主参考、补充参考和官方核对材料要分工
 
-### 2. 基础主线资料，负责稳定叙事
+一轮稳定的补充阅读，通常只需要三层材料。第一层是主参考，负责把一个主题讲成连续叙事；第二层是补充参考，负责补一个案例、另一种实现视角，或者更现代的工程组织方式；第三层是官方文档，它不负责代替教材叙事，而是负责核对平台边界、规则变化和当前推荐做法。
 
-如果主题属于 Android 概述、开发环境、第一个应用、项目结构、生命周期和常见组件，那么最值得优先打开的是基础主线资料。这一层里，最核心的两组是：
+这个分工非常重要。主参考让你不至于只看到零散知识点，补充参考防止你只会一种写法，官方文档则负责纠正时效性最强的事实。如果三者都混在一起，阅读很快就会变成平行对照，反而更难形成稳定判断。
+
+### 3. 平台基础和页面主线，优先看连续教材
+
+如果你当前的问题集中在基础篇和 UI 前半段，更适合作为主参考的通常是这些材料：
 
 - `Android Programming: The Big Nerd Ranch Guide, 5th Edition`
 - `Android Studio Narwhal Essentials`
-
-Big Nerd Ranch 的 EPUB 目录非常能说明它为什么适合担任基础主线。它在开头就连续安排了 “Learning Android”“The Necessary Tools”“Your First Android Application”“Interactive User Interfaces”“The Activity Lifecycle” 这些主题，说明它的强项是把基础平台、最小应用和页面行为组织成一条连续教学路径，而不是把概念拆散。
-
-Narwhal 系列的价值则更靠近当前工具链与平台约束。它更适合用来核对 Android Studio、SDK、构建、设备调试、通知、发布流程和一些较新的平台边界。换句话说，Big Nerd Ranch 更像稳定的主讲材料，Narwhal 更像当前工具链的现代补充。
-
-如果一个章节主要在回答“这个平台能力为什么存在”“最小链路怎样跑通”“这一层工具各自负责什么”，就不该同时打开很多现代 Android 总论。先让基础主线教材承担连续叙事，再用 Narwhal 或少量官方文档核对版本边界，通常已经足够。
-
-### 3. UI 与项目实践资料，负责把做法落地
-
-当主题转到布局、常用组件、交互、Compose、导航、Material、列表和项目练习时，资料选择应明显切换。更适合担任主参考的通常是：
-
 - `Real-World Android by Tutorials`
 - `Tiny Android Projects Using Kotlin`
-- `Android Accessibility by Tutorials`
-- `Kickstart Modern Android Development With Jetpack And Kotlin`
 - `Jetpack Compose 1.7 Essentials`
 
-这一组资料的共同价值，不在于替代官方文档，而在于它们更擅长把“概念”推进到“可运行页面”和“较完整项目结构”。例如 Compose 主题更需要状态驱动、页面拆分和真实项目组织；交互与组件主题更需要看到控件如何在一个完整页面里协同；可访问性主题则需要把语义、反馈和布局判断放回真实界面中理解。
+其中，Big Nerd Ranch 更适合建立平台基础和组件主线，Narwhal 更适合补工具链、构建、设备调试和较新的发布流程，Real-World Android by Tutorials 与 Tiny Android Projects 更适合把页面、列表、交互和项目结构放回真实案例里理解，Compose 相关材料则更适合在你已经建立 View 体系基础后，补声明式 UI、状态驱动和现代页面组织。
 
-因此，UI 章节最不该做的，就是把很多书同时摊开，最后把正文写成组件说明拼盘。更稳的做法是：先判断这一章缺的是页面结构、交互反馈、Compose 心智模型，还是完整项目练习，再从这一组里选一份主参考和一份补充参考。
+如果你只是想补“首个应用为什么这样组织”“Fragment 和 Navigation 如何配合”“Compose 为什么总和状态绑在一起”，这几类材料已经足够，不必同时打开更多同主题资料。
 
-### 4. 架构与工程扩展资料，负责解释长期复杂度
+### 4. 架构、并发和工程实践，优先看边界型资料
 
-只要章节已经进入 Repository、UseCase、模块化、依赖方向、Clean Architecture 和设计模式，通用 Android 教材就不再是最合适的主源。此时更应该切换到：
+只要主题开始进入 Repository、UseCase、模块化、依赖方向、协程作用域、Flow、状态管理和工程治理，通用入门教材通常就不再是最合适的主参考。此时更值得优先使用的是：
 
 - `Clean Android Architecture`
 - `Scalable Android Applications in Kotlin and Jetpack Compose`
 - `Ultimate Android Design Patterns`
+- `Mastering Kotlin for Android 14`
+- `Thriving in Android Development Using Kotlin`
 
-这些资料关心的不是“某个 API 会不会用”，而是“边界怎么收”“依赖为什么要朝内”“模块为什么这样划分”“页面状态和数据层怎样长期协作”。这正是应用在规模扩大后最容易失控的部分。
+这组材料更关心长期复杂度如何收束，而不是某个 API 会不会调用。它们特别适合帮助你理解：为什么 Repository 不是机械透传，为什么状态和副作用要分开，为什么模块化首先是在治理边界，为什么协程和 Flow 一定要落回页面状态和数据层中理解。
 
-因此，架构章节的主参考应该明显更专业。只要正文已经开始讨论 Repository 为何不是机械透传、UseCase 是否真的需要、模块到底按技术层还是按功能域拆分，那么继续把通用入门书当主参考，信息就会开始发散。更好的方式，是让架构专题资料负责主线，再用现代 Android 通用教材补足 API 或项目语境。
+如果你读完正文后依然觉得“概念我知道，但项目里怎么落地总不稳”，通常不是因为资料不够多，而是因为主参考还停留在入门层，没有切到这类边界型材料。
 
-### 5. 安全与发布资料，不能再交给泛化教材
+### 5. 权限、安全和发布，要更强调官方核对
 
-安全与发布是另一组特别容易被“泛化教材”带过去、却很难真正讲透的主题。对这些主题，本地资料里最值得优先使用的是：
+权限、通知、后台能力、签名、Google Play 发布和安全边界这些主题，和普通概念型章节不完全一样。它们不仅需要教材解释，还高度依赖当前平台规则。因此这类主题的更稳组合通常是：一本现代 Android Studio 或工程教材打底，再用安全专题材料补充风险视角，最后回官方文档核对时效性最强的事实。
 
-- `Android Security - Attacks and Defenses`
-- `The Android Malware Handbook: Detection and Analysis by Human and Machine`
-- `Android Studio Narwhal Essentials`
+例如发布主题可以先读 Narwhal 一类材料理解流程，再回官方文档核对目标 API、测试轨道和商店规则；权限和组件暴露则可以先用 `Android Security - Attacks and Defenses` 建立风险意识，再回官方文档确认今天的推荐入口、权限模型和替代方案。对这些章节来说，教材帮你建立判断框架，官方资料负责确认“今天仍然成立”的边界。
 
-`Android Security - Attacks and Defenses` 的 EPUB 目录本身就能说明它的使用位置。它不仅覆盖 Android architecture 和 application architecture，还单独展开了 Android security model、pen testing、reverse engineering、browser security 和 future threat landscape。这意味着它特别适合为“权限、组件暴露、WebView、文件边界、日志与输入信任”这类章节提供安全视角。
+### 6. 历史资料的价值，在于解释旧项目而不是指导新项目
 
-`Android Malware Handbook` 更适合作为补充参考。它能帮助我们从攻击面、恶意样本和风险收缩角度重新看组件导出、权限滥用和数据暴露，但它不适合直接替代基础教材成为入门章节主线。
+`reference/` 目录里保留了不少较早期的 Android 资料。这些材料不是完全没用，但它们更适合承担历史对照角色，例如解释旧项目里为什么会大量使用 Java、旧式存储、早期 Fragment 模式、手工线程切换或今天已经不再推荐的权限写法。
 
-发布主题则更适合回到 Narwhal 或同类现代 Android Studio 教材，因为签名、AAB、发布流程、版本维护和 Play 交付这些内容，更依赖工具链和当前流程，而不是安全专题资料本身。
+如果你的目标是理解遗留项目、做迁移说明、或者判断一个老方案为什么今天显得别扭，这类资料很有帮助。但如果你正在构建新项目主线，就不应再让这些材料反过来主导当前默认结论。它们最适合回答“以前为什么这样”，而不是“今天首先该怎样做”。
 
-### 6. 历史资料的作用，是解释演进，不是提供主线
+### 7. 一个更稳的补充学习闭环
 
-`reference/` 里还有一大批早期资料，例如 2008-2015 年间的 Android 入门书、Dummies 系列、旧版 Java Android 教材、早期 Android Studio 指南和用户手册。它们当然不是毫无价值，但它们的价值主要在三个地方：
+真正有效的资料使用方式，通常可以压成下面这条闭环：
 
-- 解释旧项目里为什么会出现今天看来不够现代的写法。
-- 补充平台演进背景，帮助读者识别 API 历史包袱。
-- 在迁移说明、对照说明和代码考古时提供历史上下文。
+1. 先写清楚自己当前卡住的是哪个主题，例如页面状态、Repository 边界或 Play 发布。
+2. 选一份主参考，先把这个主题的连续叙事补上。
+3. 再选一份补充参考，只补案例、结构或另一种视角，不额外加第三本同类材料。
+4. 对涉及平台规则、权限、版本行为和发布要求的内容，再回官方文档核对一次。
+5. 最后回到本书正文、自己的项目或最小练习，把这轮补充真正落到实践里。
 
-它们不适合继续作为新项目默认实践的主源。只要正文今天在推荐 Kotlin、AndroidX、Jetpack、现代权限模型、WorkManager 或 Compose，就不应再让这些历史资料反向主导结论。更成熟的做法，是把它们放回“历史视角”而不是“当前主线”。
+只要这五步能稳定重复，资料就会越用越聚焦。反过来，如果一开始就平行打开很多来源，学习通常会越来越散，最后留下的只是“看过很多”，而不是“理解更稳”。
 
-### 7. 按本书结构选择主参考，比按书名选择更稳
+### 8. 按本书目录回查时，可以这样选
 
-真正稳定的资料使用方式，不是记住“哪本书好”，而是先判断当前章节处在全书的哪一部分。按本书结构看，大致可以这样回到主参考：
+如果你是顺着本书目录回查某一部分内容，可以用更简单的对应关系：
 
-- 基础篇：优先 Big Nerd Ranch，补 Narwhal 与少量官方文档。
-- UI 开发：优先 Real-World Android by Tutorials、Kickstart、Compose 相关资料，补 Accessibility 与官方 codelab。
-- 数据与网络：优先 Big Nerd Ranch、Real-World Android by Tutorials 和现代架构资料，必要时回官方网络与数据层文档核边界。
+- 基础篇：优先 Big Nerd Ranch，补 Narwhal 和少量官方文档。
+- UI 开发：优先 Real-World Android by Tutorials、Tiny Android Projects、Compose 相关材料。
+- 数据与网络：优先现代 Kotlin/Android 实践资料，必要时补 Big Nerd Ranch 和官方数据层文档。
 - 架构篇：优先 Clean Android Architecture 与 Scalable Android Applications。
-- 并发篇：优先现代 Kotlin/Android 实践资料，补 Big Nerd Ranch 和官方协程文档。
-- 系统组件篇：优先 Big Nerd Ranch、Narwhal 与安全资料。
-- 工程实践与发布：优先 Narwhal、Scalable Android Applications，以及安全专题资料。
-- 综合项目篇：优先 Tiny Android Projects、Real-World Android by Tutorials 和架构资料。
+- 并发篇：优先协程与现代 Android 实践材料，再回官方协程文档核对边界。
+- 系统组件篇：优先基础主线教材与安全视角材料。
+- 工程实践与发布：优先 Narwhal、Scalable Android Applications 和官方发布文档。
+- 综合项目篇：优先项目型材料和架构材料，不必再回到纯概念教材。
 
-这样选的好处是：你不是被单本书牵着走，而是在用章节需求倒推资料角色。正文也会因此更像一条教学路径，而不是“我最近看到了哪些资料”的堆叠。
+这份对应关系的作用，是帮你快速缩小范围，而不是替代你自己的判断。真正应被优先保留的，始终是“这次要解决什么问题”。
 
-### 8. 真正可执行的做法，是每章只选一组最小资料集
+### 9. 实践任务
 
-一章最稳定的资料组合通常只有三层：
+起点条件：
 
-1. 一份主参考，负责连续叙事。
-2. 一份补充参考，负责补案例、结构或另一种实现视角。
-3. 一次官方核对，负责确认平台边界、权限要求、版本行为或发布规则。
+- 已经完成本书至少一个部分的学习，并准备补自己最薄弱的主题。
 
-只要超过这个范围，正文就很容易出现重复定义、近义改写和结构松动。资料并不是越多越稳，反而越容易把写作者拉回“摘抄和折中”。
+步骤：
 
-例如模块化章节完全可以让 `Scalable Android Applications in Kotlin and Jetpack Compose` 担任主参考，让 `Clean Android Architecture` 负责补依赖方向，再回官方文档核对 modularization 和 architecture recommendations。安全章节则可以让 `Android Security - Attacks and Defenses` 担任主参考，让 `Android Malware Handbook` 补攻击面视角，最后回官方安全最佳实践确认当前边界。
+1. 先写下你当前最不稳的一个主题，例如生命周期、模块化、协程取消或发布准备。
+2. 从 `reference/` 中只选一份主参考和一份补充参考，不额外再加第三本同类材料。
+3. 写下这两份材料各自负责解决什么问题，避免它们功能重叠。
+4. 如果主题依赖当前平台规则，再列出一份需要回官方核对的边界清单。
+5. 补完阅读后，回到本书对应章节或自己的项目，完成一个最小练习或一次结构复盘。
 
-### 9. 整理正文时，资料导读不应反复挤进章内主体
+预期结果：
 
-这轮正文整理暴露出的一个共性问题是：很多章节一边讲概念，一边补充讲“这部分资料该怎么学”。适度提醒没有问题，但如果每章都重复展开，就会让正文从教材慢慢变成编者按合集。更稳的做法是：
+- 读者会开始按问题选资料，而不是按资料数量选安全感。
+- 读者会更容易建立稳定的补充学习节奏。
+- `reference/` 会真正变成可用资料库，而不是浏览压力来源。
 
-- 章节主体只负责概念、示例、实践任务和误区。
-- 资料使用方法统一收束到本附录。
-- 章节里只保留一两段与当前主题直接相关的学习路径提示。
+自检方式：
 
-这样处理之后，章节会更聚焦，附录则真正承担起资料地图的角色。读者需要扩展阅读时，统一回附录判断主参考，而不是在每一章里重新看一遍“如何读资料”。
+- 读者应能说清主参考和补充参考各自负责什么。
+- 读者应能解释为什么某些主题必须回官方文档核对边界。
+- 读者应能在补充阅读后，用一个最小实践验证自己是否真的理解更深了。
 
-### 10. 后续学习真正要形成的是“选材闭环”
+调试提示：
 
-后续学习最怕的不是慢，而是散。真正有效的闭环通常是这样的：
+- 如果同一主题一次打开三四本相近资料，通常说明选材还不够克制。
+- 如果一直在看资料却没有回到代码、练习或章节复盘，说明学习闭环还没建立。
+- 如果总想靠旧教程确认今天的发布、权限和规则问题，优先回官方文档核对。
 
-1. 先判断当前卡住的是哪个主题。
-2. 再按本章给出的分组，选一份主参考和一份补充参考。
-3. 在官方文档中只核对当前章节真正依赖的边界事实。
-4. 回到本书正文或自己的项目，做一次真正落地。
-5. 如果仍有缺口，再追加下一轮资料，而不是一开始就并行打开很多来源。
+### 10. 常见误区
 
-只要这个闭环建立起来，`reference/` 就不再是静态文件夹，而会真正成为这本书持续演进的写作基础。
+- 把 `reference/` 当成必须逐本看完的书单。
+- 遇到不懂的主题就同时打开很多同类资料。
+- 让历史资料继续主导今天的新项目结论。
+- 只补阅读，不做最小实践或结构复盘。
 
-### 11. `reference/` 全量资料到章节的对应清单
-
-以下映射覆盖当前 `reference/` 目录下 60 个顶层资料目录。它的目的不是要求某一章把同类资料全部读完，而是先明确这些资料各自更适合流向全书的哪一部分正文，以及它们在写作时应该扮演主参考、补充参考、专题资料还是历史对照材料。
-
-- 基础篇与平台入门主线：`Android Programming - The Big Nerd Ranch Guide, 5th Edition`、`Android Programming, 5th Edition - The Big Nerd Ranch Guide`、`Android Programming with Kotlin for Professionals`、`Android Programming Tutorials, 3rd Edition - (Malestrom)`、`Griffiths D. Head First Android Development 3ed 2021`、`Head First Android Development - A Brain-Friendly Guide, 3rd Edition`、`Oreilly Head First Android Development 1st Edition`、`The Busy Coder’s Guide To Android Development (Final Version)`、`Polk M. Coding Android Apps 2024`。这些资料更适合流向基础篇、系统组件篇和早期 UI 章节。
-- 开发环境、Android Studio 与工程起步：`Bin U. Mastering Android Studio. A Beginner's Guide 2022`、`Smyth N. Android Studio Electric Eel Essentials. Java Edition 2023`、`Smyth N. Android Studio Flamingo Essentials. Java Edition 2023`、`Smyth N. Android Studio Hedgehog Essentials. Kotlin Edition...2023`、`Smyth N. Android Studio Iguana Essentials. Kotlin Edition...2024`、`Smyth N. Android Studio Jellyfish Essentials. Java Edition...2024`、`Smyth N. Android Studio Jellyfish Essentials. Kotlin Edition...2024`、`Smyth N. Android Studio Koala Essentials. Developing Android Apps...2024`、`Smyth N. Android Studio Ladybug Essentials. Java Edition...2024`、`Smyth N. Android Studio Narwhal Essentials. Java Edition....2025`、`Kumar P. Building Android Projects with Kotlin 2023`。这些资料优先进入开发环境、首个应用、项目结构、构建、发布和工具链相关正文。
-- Kotlin 与现代 Android 通用实践：`Wangereka H. Mastering Kotlin for Android 14. Build powerful Android apps...2024`、`Socorro G. Thriving in Android Development Using Kotlin...2024`、`Hussain F. Kotlin Unleashed...the Power of Modern Android Development...2023`、`Drevyn E. Kotlin 2.0 Crash Course. Build,test,and secure Android...web apps 2025`、`Codwell H. Kotlin Development. Complete Guide Create 45 Android Apps 2025`、`Kickstart Modern Android Development With Jetpack And Kotlin - Enhance Your Applications By Integrating`。这一组更适合流向数据、网络、并发、架构和现代 Kotlin 编程实践章节。
-- UI、交互、列表、可访问性与页面级实践：`Costeira R. Real-World Android by Tutorials...Kotlin 2ed 2022`、`Gonda V. Android Accessibility by Tutorials 2ed 2022`、`Panjuta D., Nwokike L. Tiny Android Projects Using Kotlin 2024`。这一组更适合流向布局、常用组件、事件处理、RecyclerView、Material、项目实战和交互可用性相关正文。
-- Compose 与现代设计系统：`Jetpack Compose 1.4 Essentials - Developing Android Apps with Jetpack Compose 1.4, Android`、`Smyth N. Jetpack Compose 1.7 Essentials. Developing Android Apps...2025`、`Smyth N. Android Studio Meerkat Essentials. Compose Edition...2025`、`Vainigli L. Ultimate Android Design Patterns 2025`。这一组更适合流向 Compose、Material 设计、状态驱动 UI 和现代页面结构章节。
-- 数据层、架构、模块化与设计模式：`Clean Android Architecture - Take a layered approach to writing`、`Bennett M. Scalable Android Applications in Kotlin...2025`、`Vainigli L. Ultimate Android Design Patterns 2025`。这一组优先流向 MVVM、Repository、UseCase、Hilt、模块化、工程实践和综合项目样例章节。
-- 系统组件、安全、测试与发布：`Android Security - Attacks And Defenses`、`Hermans K. Mastering Android Security. A Comprehensive Guide...2023`、`Han Q. The Android Malware Handbook. Detection and Analysis...2024`、`The Android Malware Handbook_ Detection and Analysis by Human and Machine PDF`、`Niu W. Android Malware Detection and Adversarial Methods 2024`、`Learning Android Application Testing (2015) (Pdf, Epub & Mobi) Gooner`。这一组优先流向权限、Intent、Service、ContentProvider、安全基础、测试、日志调试、发布与维护章节。
-- 专题扩展与跨平台材料：`Bluetooth Low Energy in Android Java - Your Guide to Programming the Internet of Things`、`Arduino + Android Projects for the Evil Genius - Control Arduino with Your Smartphone or Tablet`、`Colubri A. Processing for Android.Create..Applications Using Processing 2ed 2023`、`Millie K. Java For Android Game Development 2024`、`Payne R. Flutter App Development. How to Write for IOS and Android at Once 2024`、`Android App Inventor for the Absolute Beginner`。这些资料不应主导全书主线，但适合作为 BLE、硬件互联、图形、游戏和跨平台对照的扩展材料。
-- 历史对照、用户手册与非主线资料：`Android 3 SDK Programming for Dummies`、`Android Application Development Cookbook, 2nd Edition`、`Android eBooks`、`Android eBooks Collection 2012 [Team Nanban]tmrg`、`Android Phones For Dummies`、`Android Smartphones for Dummies`、`Android User Manual - Issue 6 2025`、`Android User Manual 24ed 2025`、`Collier M. Android Smartphones For Seniors For Dummies 2ed 2025`、`Java and Android Application Development for Dummies eBook Set`、`Java Programming for Android Developers For Dummies by Barry Burd`、`Java Programming for Android Developers For Dummies, 2nd Edition`、`PCL. The Complete Android User Manual 18ed 2023`。这一组更适合作为历史背景、旧项目考古、术语辨识和用户侧视角参考，而不应直接主导现代 Android 正文结论。
-- 如果按本书目录再回看一遍，基础篇优先吸收“基础主线 + Android Studio”两组；UI 开发优先吸收“UI 页面实践 + Compose 与设计系统”；数据、网络、并发优先吸收“Kotlin 通用实践 + 架构资料”；系统组件、工程实践、发布优先吸收“系统组件、安全、测试与发布”；综合项目篇则从“页面级实践 + 架构资料 + 专题扩展”里挑最小资料集即可。
-- 这份清单的真正作用，是让后续章节扩写遵循同一条规则：每章先选主参考，再选补充参考，再回官方文档核边界，而不是把所有同类资料同时摊开。只有这样，`reference/` 目录里的“全量资料”才会真正进入对应正文，而不是继续停留在目录层面。
 ## 小结
 
-本地 `reference/` 的价值，不在于它收集了很多文件，而在于它已经足够构成一张清晰的资料地图。只要先分清基础主线、项目实践、架构扩展、安全发布和历史对照这几层，再按章节需求选一组最小资料集，正文整理就会明显更稳，后续学习也会从“继续找资料”转向“围绕问题使用资料”。
+参考资料真正要解决的，不是“再给你更多内容”，而是帮助你在遇到学习缺口时更快回到正确入口。只要先分清问题类型，再用“主参考 + 补充参考 + 官方核对”的最小组合去补充学习，资料就会成为正文之外的稳定支撑，而不是额外负担。
 
 ## 练习题
 
-1. 打开 `reference/` 目录，先按“基础主线”“项目实践”“架构扩展”“安全发布”“历史对照”五组做一次归类，再说明你最不确定的三份资料为什么难以归类。
-2. 任选本书一章，写出它的主参考、补充参考和需要核对的官方边界各是什么，并说明为什么不再额外加入第三本同类教材。
-3. 找一份明显偏旧的 Android 资料，说明它今天仍然适合解释什么历史问题，又为什么不适合继续充当现代正文的主源。
+1. 选本书中你最薄弱的一章，写出它对应的一份主参考、一份补充参考，以及为什么暂时不再加入第三份同类资料。
+2. 以权限、发布或通知为例，说明为什么这类主题不能只依赖旧教材或单一本地资料，而必须回官方文档核对边界。
+3. 找一个你过去曾经“资料越看越乱”的主题，复盘当时的问题是选材过多、问题没定义清楚，还是缺少实践闭环。
 
 ## 参考资料
 
-- 本地参考资料：Bryan Sills、Brian Gardner、Kristin Marsicano、Chris Stewart，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》EPUB/PDF。
-- 本地参考资料：Neil Smyth，《Android Studio Narwhal Essentials: Java Edition》(2025)，以及 `Hedgehog`、`Iguana`、`Jellyfish` 等同系列资料。
-- 本地参考资料：Harun Wangereka，《Mastering Kotlin for Android 14》(2024)。
-- 本地参考资料：Gabriel Socorro，《Thriving in Android Development Using Kotlin》(2024)。
-- 本地参考资料：Kickstart Modern Android Development With Jetpack And Kotlin (2024)。
+- 本地参考资料：Bryan Sills、Brian Gardner、Kristin Marsicano、Chris Stewart，《Android Programming: The Big Nerd Ranch Guide, 5th Edition》。
+- 本地参考资料：Neil Smyth，《Android Studio Narwhal Essentials: Java Edition》(2025)。
 - 本地参考资料：Damilola Panjuta、Linda Nwokike，《Tiny Android Projects Using Kotlin》(2024)。
 - 本地参考资料：Real-World Android by Tutorials (2022)。
-- 本地参考资料：Android Accessibility by Tutorials, 2nd Edition (2022)。
 - 本地参考资料：Clean Android Architecture。
-- 本地参考资料：Scalable Android Applications in Kotlin and Jetpack Compose (2025)。
-- 本地参考资料：Ultimate Android Design Patterns (2025)。
+- 本地参考资料：Matt Bennett，《Scalable Android Applications in Kotlin and Jetpack Compose》(2025)。
 - 本地参考资料：Android Security - Attacks and Defenses。
-- 本地参考资料：The Android Malware Handbook: Detection and Analysis by Human and Machine。
+- Android architecture recommendations: <https://developer.android.com/topic/architecture/recommendations>
+- Build your first app overview: <https://developer.android.com/training/basics/firstapp>
+- Publish your app: <https://developer.android.com/studio/publish/>

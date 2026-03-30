@@ -44,6 +44,8 @@
 
 ### 3. 远程优先、本地优先、离线优先分别意味着什么
 
+![缓存策略对比图](../media/04-network/cache-strategy-compare.svg)
+
 这三个词经常被混用，但在实践中差异很大。
 
 远程优先的核心是：页面尽量以服务端最新数据为准，本地更多只是短期加速或兜底。它适合对实时性要求很高的数据，例如某些价格、库存或强一致状态。
@@ -282,4 +284,6 @@ class ArticleListViewModel(
 - Build an offline-first app：<https://developer.android.com/topic/architecture/data-layer/offline-first>
 - Recommendations for Android architecture：<https://developer.android.com/topic/architecture/recommendations>
 - Room：<https://developer.android.com/training/data-storage/room>
+
+
 

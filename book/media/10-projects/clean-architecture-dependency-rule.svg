@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="430" viewBox="0 0 940 430" role="img" aria-labelledby="title desc">
+  <title id="title">Clean Architecture 依赖方向图</title>
+  <desc id="desc">展示 Presentation、Domain、Data 之间的依赖方向以及外层实现细节如何指向内层边界。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1d4ed8"/>
+    </marker>
+    <style>
+      .bg { fill: #eff6ff; }
+      .card { fill: #ffffff; stroke: #1d4ed8; stroke-width: 2.2; rx: 16; ry: 16; }
+      .soft { fill: #dbeafe; stroke: #2563eb; stroke-width: 2; rx: 16; ry: 16; }
+      .accent { fill: #ecfccb; stroke: #4d7c0f; stroke-width: 2; rx: 16; ry: 16; }
+      .note { fill: #fff7ed; stroke: #c2410c; stroke-width: 2; rx: 16; ry: 16; }
+      .label { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 24px; fill: #1f2937; font-weight: 700; }
+      .small { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 18px; fill: #1d4ed8; font-weight: 700; }
+      .tiny { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 16px; fill: #475569; }
+      .line { stroke: #1d4ed8; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #4d7c0f; stroke-width: 2.4; fill: none; stroke-dasharray: 10 8; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="940" height="430"/>
+  <text class="label" x="40" y="50">Clean Architecture 不是层数模板，而是依赖方向纪律</text>
+  <rect class="soft" x="70" y="144" width="170" height="110"/>
+  <text class="small" x="104" y="182">Presentation</text>
+  <text class="tiny" x="92" y="210">View / ViewModel / UiState</text>
+  <rect class="accent" x="386" y="124" width="170" height="150"/>
+  <text class="small" x="440" y="162">Domain</text>
+  <text class="tiny" x="414" y="190">UseCase / Repository 接口</text>
+  <text class="tiny" x="414" y="216">稳定业务规则与模型</text>
+  <rect class="soft" x="700" y="144" width="170" height="110"/>
+  <text class="small" x="756" y="182">Data</text>
+  <text class="tiny" x="722" y="210">RepositoryImpl / mapper / cache</text>
+  <rect class="note" x="700" y="308" width="170" height="76"/>
+  <text class="tiny" x="718" y="338">Retrofit / Room / DataStore</text>
+  <text class="tiny" x="736" y="362">都属于外层实现细节</text>
+  <path class="line" d="M 240 198 L 386 198"/>
+  <text class="tiny" x="282" y="180">页面依赖业务动作</text>
+  <path class="line" d="M 700 198 L 556 198"/>
+  <text class="tiny" x="584" y="180">数据实现依赖内层边界</text>
+  <path class="dash" d="M 786 308 L 786 254"/>
+  <text class="tiny" x="642" y="408">关键纪律：外层实现可以替换，内层业务规则不应反向依赖 Retrofit、Room 或 UI 框架</text>
+</svg>

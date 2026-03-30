@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="460" viewBox="0 0 980 460" role="img" aria-labelledby="title desc">
+  <title id="title">缓存策略对比图</title>
+  <desc id="desc">对比远程优先、本地优先和离线优先三种缓存策略的读取主线、无网表现和适用场景。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c2d12"/>
+    </marker>
+    <style>
+      .bg { fill: #fff7ed; }
+      .panel { fill: #ffffff; stroke: #9a3412; stroke-width: 2; rx: 16; ry: 16; }
+      .soft { fill: #ffedd5; stroke: #c2410c; stroke-width: 2; rx: 16; ry: 16; }
+      .accent { fill: #eff6ff; stroke: #2563eb; stroke-width: 2; rx: 16; ry: 16; }
+      .trusted { fill: #ecfccb; stroke: #4d7c0f; stroke-width: 2; rx: 16; ry: 16; }
+      .title { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 24px; font-weight: 700; fill: #1f2937; }
+      .head { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 18px; font-weight: 700; fill: #9a3412; }
+      .tiny { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 15px; fill: #475569; }
+      .line { stroke: #9a3412; stroke-width: 2.8; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #2563eb; stroke-width: 2.4; fill: none; stroke-dasharray: 8 6; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="980" height="460"/>
+  <text class="title" x="40" y="48">缓存策略没有高低之分，关键在于页面先信谁、无网时还能做什么</text>
+
+  <rect class="panel" x="42" y="92" width="276" height="308"/>
+  <text class="head" x="124" y="126">远程优先</text>
+  <rect class="soft" x="68" y="150" width="86" height="48"/>
+  <text class="tiny" x="94" y="180">页面</text>
+  <rect class="soft" x="188" y="150" width="86" height="48"/>
+  <text class="tiny" x="214" y="180">接口</text>
+  <rect class="accent" x="128" y="228" width="86" height="48"/>
+  <text class="tiny" x="154" y="258">本地</text>
+  <path class="line" d="M 154 174 L 188 174"/>
+  <path class="dash" d="M 231 198 L 171 228"/>
+  <text class="tiny" x="72" y="310">页面先等远程结果，再决定是否写回本地</text>
+  <text class="tiny" x="72" y="336">无网时往往只剩错误页或空白页</text>
+  <text class="tiny" x="72" y="362">适合：强实时、强一致的数据</text>
+
+  <rect class="panel" x="352" y="92" width="276" height="308"/>
+  <text class="head" x="434" y="126">本地优先</text>
+  <rect class="trusted" x="378" y="150" width="86" height="48"/>
+  <text class="tiny" x="404" y="180">页面</text>
+  <rect class="trusted" x="498" y="150" width="86" height="48"/>
+  <text class="tiny" x="524" y="180">本地</text>
+  <rect class="soft" x="438" y="228" width="86" height="48"/>
+  <text class="tiny" x="464" y="258">接口</text>
+  <path class="line" d="M 464 174 L 498 174"/>
+  <path class="dash" d="M 481 228 L 541 198"/>
+  <text class="tiny" x="382" y="310">页面先读本地，再决定是否触发刷新</text>
+  <text class="tiny" x="382" y="336">无网时仍能展示旧内容</text>
+  <text class="tiny" x="382" y="362">适合：新闻、资料页、普通内容流</text>
+
+  <rect class="panel" x="662" y="92" width="276" height="308"/>
+  <text class="head" x="744" y="126">离线优先</text>
+  <rect class="trusted" x="688" y="150" width="86" height="48"/>
+  <text class="tiny" x="714" y="180">页面</text>
+  <rect class="trusted" x="808" y="150" width="86" height="48"/>
+  <text class="tiny" x="834" y="180">本地</text>
+  <rect class="soft" x="748" y="228" width="86" height="48"/>
+  <text class="tiny" x="774" y="258">同步</text>
+  <path class="line" d="M 774 174 L 808 174"/>
+  <path class="dash" d="M 791 228 L 851 198"/>
+  <text class="tiny" x="692" y="310">核心读取能力默认建立在本地之上</text>
+  <text class="tiny" x="692" y="336">网络恢复后再把新事实同步回本地</text>
+  <text class="tiny" x="692" y="362">适合：离线可读、离线可恢复的核心场景</text>
+
+  <text class="tiny" x="40" y="434">判断口诀：先问“无网时用户还能不能继续完成核心任务”，再决定页面最先应该信远程还是本地</text>
+</svg>

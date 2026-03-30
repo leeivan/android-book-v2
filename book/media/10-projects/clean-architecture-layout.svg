@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="450" viewBox="0 0 940 450" role="img" aria-labelledby="title desc">
+  <title id="title">Clean Architecture 目录与模块组织图</title>
+  <desc id="desc">展示单功能的 presentation-domain-data 组织如何上升为 feature 和 core 模块结构。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0f766e"/>
+    </marker>
+    <style>
+      .bg { fill: #f0fdfa; }
+      .card { fill: #ffffff; stroke: #0f766e; stroke-width: 2.2; rx: 16; ry: 16; }
+      .soft { fill: #ccfbf1; stroke: #0f766e; stroke-width: 2; rx: 16; ry: 16; }
+      .accent { fill: #ecfccb; stroke: #4d7c0f; stroke-width: 2; rx: 16; ry: 16; }
+      .label { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 24px; fill: #1f2937; font-weight: 700; }
+      .small { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 18px; fill: #0f766e; font-weight: 700; }
+      .tiny { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 16px; fill: #475569; }
+      .line { stroke: #0f766e; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="940" height="450"/>
+  <text class="label" x="40" y="50">目录结构真正想保护的，是边界能否继续长成模块边界</text>
+  <rect class="soft" x="60" y="110" width="248" height="220"/>
+  <text class="small" x="114" y="148">单功能内部组织</text>
+  <text class="tiny" x="92" y="182">presentation/</text>
+  <text class="tiny" x="128" y="208">NewsViewModel.kt</text>
+  <text class="tiny" x="128" y="234">NewsUiState.kt</text>
+  <text class="tiny" x="92" y="268">domain/</text>
+  <text class="tiny" x="128" y="294">Article.kt / UseCase / Repository</text>
+  <text class="tiny" x="92" y="328">data/</text>
+  <text class="tiny" x="128" y="354">Api / Dao / RepositoryImpl / mapper</text>
+  <rect class="accent" x="390" y="110" width="230" height="220"/>
+  <text class="small" x="446" y="148">进一步长成 feature</text>
+  <text class="tiny" x="422" y="182">feature:news</text>
+  <text class="tiny" x="458" y="208">presentation-domain-data</text>
+  <text class="tiny" x="422" y="248">feature:bookmark</text>
+  <text class="tiny" x="458" y="274">presentation-domain-data</text>
+  <text class="tiny" x="422" y="314">每个 feature 自己接住局部复杂度</text>
+  <rect class="card" x="700" y="110" width="170" height="220"/>
+  <text class="small" x="748" y="148">共享 core</text>
+  <text class="tiny" x="728" y="182">core:network</text>
+  <text class="tiny" x="728" y="208">core:database</text>
+  <text class="tiny" x="728" y="234">core:designsystem</text>
+  <text class="tiny" x="728" y="260">core:common</text>
+  <text class="tiny" x="714" y="302">沉稳定、跨 feature 复用的能力</text>
+  <path class="line" d="M 308 220 L 390 220"/>
+  <path class="line" d="M 620 220 L 700 220"/>
+  <text class="tiny" x="60" y="404">关键纪律：目录名不重要，重要的是 Presentation 只依赖 Domain，Data 通过接口接住外层实现，core 不要重新变成大杂烩</text>
+</svg>

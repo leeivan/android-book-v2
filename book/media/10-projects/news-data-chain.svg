@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="430" viewBox="0 0 940 430" role="img" aria-labelledby="title desc">
+  <title id="title">新闻应用数据主线图</title>
+  <desc id="desc">展示新闻应用中远程请求、本地缓存和页面状态之间的主数据流。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c2d12"/>
+    </marker>
+    <style>
+      .bg { fill: #fff7ed; }
+      .card { fill: #ffffff; stroke: #9a3412; stroke-width: 2.2; rx: 16; ry: 16; }
+      .soft { fill: #ffedd5; stroke: #c2410c; stroke-width: 2; rx: 16; ry: 16; }
+      .accent { fill: #ecfccb; stroke: #4d7c0f; stroke-width: 2; rx: 16; ry: 16; }
+      .note { fill: #eff6ff; stroke: #2563eb; stroke-width: 2; rx: 16; ry: 16; }
+      .label { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 24px; fill: #1f2937; font-weight: 700; }
+      .small { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 18px; fill: #9a3412; font-weight: 700; }
+      .tiny { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 16px; fill: #475569; }
+      .line { stroke: #9a3412; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #4d7c0f; stroke-width: 2.4; fill: none; stroke-dasharray: 10 8; marker-end: url(#arrow); }
+      .blue { stroke: #2563eb; stroke-width: 2.4; fill: none; stroke-dasharray: 10 8; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="940" height="430"/>
+  <text class="label" x="40" y="50">新闻应用主线：远程刷新，本地承接，页面只消费可信结果</text>
+  <rect class="soft" x="58" y="134" width="170" height="100"/>
+  <text class="small" x="106" y="172">NewsApi</text>
+  <text class="tiny" x="88" y="198">只负责向服务端取最新内容</text>
+  <rect class="card" x="302" y="114" width="194" height="140"/>
+  <text class="small" x="348" y="152">NewsRepository</text>
+  <text class="tiny" x="336" y="180">决定何时 refresh</text>
+  <text class="tiny" x="334" y="206">保留本地字段，协调远端与本地</text>
+  <text class="tiny" x="336" y="232">不把原始 HTTP 结果直接交给页面</text>
+  <rect class="accent" x="568" y="118" width="192" height="132"/>
+  <text class="small" x="624" y="156">Room / Dao</text>
+  <text class="tiny" x="602" y="184">缓存文章与本地状态</text>
+  <text class="tiny" x="590" y="210">bookmarked、readLater 等事实留在这里</text>
+  <rect class="note" x="568" y="292" width="192" height="88"/>
+  <text class="small" x="612" y="328" fill="#2563eb">Flow</text>
+  <text class="tiny" x="592" y="354">持续把本地变化发给页面层</text>
+  <rect class="soft" x="796" y="118" width="112" height="80"/>
+  <text class="small" x="820" y="152">列表页</text>
+  <text class="tiny" x="812" y="178">NewsListUiState</text>
+  <rect class="soft" x="796" y="220" width="112" height="80"/>
+  <text class="small" x="820" y="254">详情页</text>
+  <text class="tiny" x="810" y="280">DetailUiState</text>
+  <path class="line" d="M 228 184 L 302 184"/>
+  <text class="tiny" x="238" y="168">拉取最新内容</text>
+  <path class="line" d="M 496 184 L 568 184"/>
+  <text class="tiny" x="512" y="168">写回本地并合并字段</text>
+  <path class="dash" d="M 664 250 L 664 292"/>
+  <text class="tiny" x="684" y="278">本地变化</text>
+  <path class="blue" d="M 760 324 L 796 158"/>
+  <path class="blue" d="M 760 336 L 796 260"/>
+  <text class="tiny" x="770" y="334">页面只观察本地</text>
+  <text class="tiny" x="58" y="406">关键纪律：在线时远程负责刷新，本地负责承接；离线时页面仍然只消费本地可信结果</text>
+</svg>

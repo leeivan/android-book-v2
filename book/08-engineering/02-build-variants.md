@@ -31,6 +31,8 @@
 
 ### 2. 先把三层概念分开：build type、product flavor、build variant
 
+![构建变体矩阵图](../media/08-engineering/build-variant-matrix.svg)
+
 教材里很多人记不住这些名词，不是因为它们太难，而是因为总是直接背定义，没有放回实际场景。
 
 `build type` 更像“构建行为层”。它决定这个包是为了调试、测试还是正式发布而构建的。可调试、代码压缩、签名策略、日志开关，这些通常属于这一层。
@@ -272,4 +274,5 @@ androidComponents {
 - Build variants in Android Studio：<https://developer.android.com/studio/build/build-variants>
 - Build your app from the command line：<https://developer.android.com/build/building-cmdline>
 - Gradle User Manual：<https://docs.gradle.org/current/userguide/userguide.html>
+
 

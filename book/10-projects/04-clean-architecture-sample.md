@@ -32,6 +32,8 @@ Clean Architecture 想解决的正是这种局面。它的价值不在于画出�
 
 ### 2. 它的核心不是“有几层”，而是“依赖朝哪里指”
 
+![Clean Architecture 依赖方向图](../media/10-projects/clean-architecture-dependency-rule.svg)
+
 教材里最值得记住的，不是 Presentation、Domain、Data 这几个名字本身，而是一个更根本的判断：越靠近业务核心的代码，越不应该依赖越靠外、越容易变化的实现细节。UI、数据库、网络库、序列化注解、页面框架、系统 API 都属于外层实现细节；业务规则、业务动作和面向业务的模型则应该更靠内。
 
 这就是经典的 Dependency Rule。依赖箭头应该从外向内指，而不是从内向外反咬实现细节。UI 可以依赖 UseCase，UseCase 可以依赖仓库接口，数据层再去实现这些接口并接住 Retrofit、Room 或 DataStore。这样一来，外层可以换技术方案，内层业务规则却不需要跟着动。
@@ -136,6 +138,8 @@ class RefreshHeadlinesUseCase(
 随后由数据层实现 `ArticleRepository`，把 Retrofit、Room、mapper 和缓存策略都留在外层。这样业务层看到的是“我需要一个能够刷新和观察文章的边界”，而不是“我必须依赖某个带着网络库细节的类”。
 
 ### 7. 一个更像真实项目的目录组织
+
+![Clean Architecture 目录与模块组织图](../media/10-projects/clean-architecture-layout.svg)
 
 Clean Architecture 真正落地时，通常会和 MVVM、依赖注入、模块化一起工作。一个新闻应用的结构可以像下面这样：
 
@@ -304,4 +308,5 @@ Clean Architecture 真正要保护的，不是某张教科书架构图，而是�
 - Recommendations for Android architecture: <https://developer.android.com/topic/architecture/recommendations>
 - Guide to app modularization: <https://developer.android.com/topic/modularization>
 - Now in Android: <https://github.com/android/nowinandroid>
+
 

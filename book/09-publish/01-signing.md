@@ -28,6 +28,8 @@ Android 要求所有应用都必须签名，不是为了给开发者增加一道
 
 ### 2. 先把四种容易混淆的概念分开
 
+![签名密钥角色图](../media/09-publish/signing-key-roles.svg)
+
 很多签名问题都不是出在不会点按钮，而是从一开始就把不同角色的密钥混在了一起。下面这四个概念必须分清。
 
 调试签名只服务开发阶段。本地运行、连接调试器、快速安装，都依赖它，但它不承担正式身份。正式发布签名则不同，它决定的是用户已安装版本未来还能否被同一条链路升级。
@@ -185,3 +187,4 @@ keystore.local.properties
 - 参考并整理自本地 EPUB：`Android Security - Attacks and Defenses`，密钥、凭证与发布链路中的敏感资产管理相关内容。
 - Sign your app: <https://developer.android.com/studio/publish/app-signing>
 - Prepare your app for release: <https://developer.android.com/studio/publish/preparing>
+

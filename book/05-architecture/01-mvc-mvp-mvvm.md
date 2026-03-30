@@ -611,6 +611,12 @@ fun TabletArticlePane(uiState: ArticlePaneUiState, onSelectArticle: (Long) -> Un
 - 只讨论类图，不讨论状态流向和生命周期边界。
 - 把所有复杂度从页面搬到另一个类里，误以为完成了分层。
 
+## 练习题
+
+1. 概念理解题：`MVC`、`MVP`、`MVVM` 在 Android 里最核心的差别，为什么不只是“类名不同”，而是页面复杂度被谁承接？
+2. 编码实现题：选一个现有页面，把其中的显示逻辑、事件处理、状态持有和数据协调分别标到 `MVC` / `MVP` / `MVVM` 更可能落到的位置。
+3. 拓展思考题：如果一个页面当前明显是胖 Activity / Fragment，你会优先往 `MVVM` 演进，还是先做更小范围的职责切分？为什么？
+
 ## 小结
 
 `MVC`、`MVP`、`MVVM` 真正讨论的不是名词优劣，而是页面复杂度如何被拆开。对 Android 来说，`MVC` 最容易让页面控制层膨胀，`MVP` 试图把控制逻辑移走，但仍要和生命周期反复周旋，而 `MVVM` 则更容易借助 `ViewModel`、状态流和单向数据流形成稳定结构。理解这条演进线，后面讨论 `ViewModel`、`Repository` 和 `UseCase` 时，才不会只是记住一堆类名。

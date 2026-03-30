@@ -140,7 +140,7 @@ class ReminderActivity : ComponentActivity() {
         if (granted) {
             publishReminder("task-42", "提交周报")
         } else {
-            reminderViewModel.onNotificationsPermissionDenied()
+            onNotificationsPermissionDenied("提交周报")
         }
     }
 
@@ -160,6 +160,14 @@ class ReminderActivity : ComponentActivity() {
 
     private fun publishReminder(taskId: String, title: String) {
         ReminderNotifier(this).showTaskDue(taskId, title)
+    }
+
+    private fun onNotificationsPermissionDenied(title: String) {
+        Toast.makeText(
+            this,
+            "未开启通知权限，$title 的提醒不会出现在系统通知栏。",
+            Toast.LENGTH_SHORT,
+        ).show()
     }
 }
 
@@ -235,7 +243,17 @@ class ReplyMessageReceiver : BroadcastReceiver() {
             ?: return
 
         val conversationId = intent.getStringExtra(EXTRA_CONVERSATION_ID) ?: return
-        messageRepository.sendQuickReply(conversationId, replyText)
+
+        val request = OneTimeWorkRequestBuilder<SendQuickReplyWorker>()
+            .setInputData(
+                workDataOf(
+                    EXTRA_CONVERSATION_ID to conversationId,
+                    KEY_REPLY_TEXT to replyText,
+                ),
+            )
+            .build()
+
+        WorkManager.getInstance(context).enqueue(request)
     }
 }
 ```
@@ -497,6 +515,12 @@ class ReminderNotifier(
 - 忽略点击路径和上下文恢复。
 - 在 Android 13 及以上仍然假设通知默认可用。
 - 把前台服务通知和普通提醒混成同一种产品语义。
+
+## 练习题
+
+1. 概念理解题：为什么通知渠道本质上是在设计“用户如何控制打扰”，而不只是给开发者多加一个配置项？
+2. 编码实现题：为一个提醒或下载场景实现完整通知链路，至少包含渠道创建、权限判断、点击返回路径，以及一个明确的动作按钮。
+3. 拓展思考题：如果同一应用同时有聊天消息、下载进度和前台服务三类通知，你会如何划分渠道、重要性和通知样式，才能既不互相干扰，又能保留正确上下文？
 
 ## 小结
 

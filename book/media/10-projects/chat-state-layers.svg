@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="440" viewBox="0 0 940 440" role="img" aria-labelledby="title desc">
+  <title id="title">聊天应用状态分层图</title>
+  <desc id="desc">展示聊天应用中的消息数据、页面状态和连接状态三条独立状态线。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed"/>
+    </marker>
+    <style>
+      .bg { fill: #faf5ff; }
+      .card { fill: #ffffff; stroke: #6d28d9; stroke-width: 2.2; rx: 16; ry: 16; }
+      .soft { fill: #f3e8ff; stroke: #7c3aed; stroke-width: 2; rx: 16; ry: 16; }
+      .accent { fill: #ecfccb; stroke: #4d7c0f; stroke-width: 2; rx: 16; ry: 16; }
+      .warn { fill: #fff7ed; stroke: #c2410c; stroke-width: 2; rx: 16; ry: 16; }
+      .label { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 24px; fill: #1f2937; font-weight: 700; }
+      .small { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 18px; fill: #6d28d9; font-weight: 700; }
+      .tiny { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 16px; fill: #475569; }
+      .line { stroke: #6d28d9; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #4d7c0f; stroke-width: 2.4; fill: none; stroke-dasharray: 10 8; marker-end: url(#arrow); }
+      .alert { stroke: #c2410c; stroke-width: 2.4; fill: none; stroke-dasharray: 8 6; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="940" height="440"/>
+  <text class="label" x="40" y="50">聊天案例的复杂度，来自三条状态线同时活着</text>
+  <rect class="accent" x="60" y="112" width="238" height="176"/>
+  <text class="small" x="126" y="150">消息数据</text>
+  <text class="tiny" x="90" y="180">conversationId、authorId、text、attachments</text>
+  <text class="tiny" x="90" y="206">PENDING / SENT / FAILED</text>
+  <text class="tiny" x="90" y="232">localId 与 serverId 的对齐</text>
+  <text class="tiny" x="90" y="258">消息时间线与重试入口</text>
+  <rect class="soft" x="350" y="92" width="242" height="216"/>
+  <text class="small" x="420" y="130">页面状态</text>
+  <text class="tiny" x="382" y="160">draft、附件面板、加载更多</text>
+  <text class="tiny" x="382" y="186">是否滚动到底部、输入框是否合法</text>
+  <text class="tiny" x="382" y="212">是否显示“对方正在输入”</text>
+  <text class="tiny" x="382" y="238">当前错误提示与局部交互反馈</text>
+  <rect class="warn" x="646" y="112" width="234" height="176"/>
+  <text class="small" x="714" y="150" fill="#c2410c">连接状态</text>
+  <text class="tiny" x="676" y="180">socket 是否可用、是否正在重连</text>
+  <text class="tiny" x="676" y="206">是否需要补拉历史消息</text>
+  <text class="tiny" x="676" y="232">前后台切换后的同步恢复</text>
+  <text class="tiny" x="676" y="258">未读计数与通知协作</text>
+  <rect class="card" x="350" y="344" width="242" height="60"/>
+  <text class="tiny" x="388" y="380">Repository / ViewModel 负责把三条状态线接起来，但不把它们揉成一坨</text>
+  <path class="line" d="M 298 200 L 350 200"/>
+  <text class="tiny" x="304" y="184">消息流驱动渲染</text>
+  <path class="alert" d="M 592 200 L 646 200"/>
+  <text class="tiny" x="600" y="184">连接影响同步</text>
+  <path class="dash" d="M 470 308 L 470 344"/>
+  <text class="tiny" x="490" y="332">页面事件进入结构化处理</text>
+  <text class="tiny" x="60" y="424">关键纪律：不要用一个模糊的大 UiState 同时承载消息事实、草稿上下文和连接恢复语义</text>
+</svg>

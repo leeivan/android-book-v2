@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="430" viewBox="0 0 940 430" role="img" aria-labelledby="title desc">
+  <title id="title">Todo 状态分层图</title>
+  <desc id="desc">展示 Todo 项目中任务实体、页面状态和提醒调度状态之间的边界。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0f766e"/>
+    </marker>
+    <style>
+      .bg { fill: #f0fdfa; }
+      .card { fill: #ffffff; stroke: #0f766e; stroke-width: 2.2; rx: 16; ry: 16; }
+      .soft { fill: #ccfbf1; stroke: #0f766e; stroke-width: 2; rx: 16; ry: 16; }
+      .accent { fill: #ecfccb; stroke: #4d7c0f; stroke-width: 2; rx: 16; ry: 16; }
+      .warn { fill: #fff7ed; stroke: #c2410c; stroke-width: 2; rx: 16; ry: 16; }
+      .label { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 24px; fill: #1f2937; font-weight: 700; }
+      .small { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 18px; fill: #0f766e; font-weight: 700; }
+      .tiny { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 16px; fill: #475569; }
+      .line { stroke: #0f766e; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #4d7c0f; stroke-width: 2.4; fill: none; stroke-dasharray: 10 8; marker-end: url(#arrow); }
+      .alert { stroke: #c2410c; stroke-width: 2.4; fill: none; stroke-dasharray: 8 6; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="940" height="430"/>
+  <text class="label" x="40" y="50">Todo：业务事实、页面状态、调度状态必须分层</text>
+  <rect class="accent" x="60" y="110" width="230" height="156"/>
+  <text class="small" x="120" y="148">任务实体</text>
+  <text class="tiny" x="92" y="178">TaskEntity / Task</text>
+  <text class="tiny" x="92" y="204">title、note、isDone、dueAt</text>
+  <text class="tiny" x="92" y="230">保存用户真正关心的业务事实</text>
+  <rect class="soft" x="356" y="90" width="236" height="196"/>
+  <text class="small" x="430" y="128">页面状态</text>
+  <text class="tiny" x="388" y="158">TodoListUiState / TodoEditUiState</text>
+  <text class="tiny" x="388" y="184">首次加载、筛选条件、表单合法性</text>
+  <text class="tiny" x="388" y="210">当前是新建还是编辑</text>
+  <text class="tiny" x="388" y="236">是否刚保存成功、是否显示错误提示</text>
+  <rect class="warn" x="656" y="110" width="228" height="156"/>
+  <text class="small" x="714" y="148" fill="#c2410c">调度状态</text>
+  <text class="tiny" x="688" y="178">ReminderScheduler / WorkRequest</text>
+  <text class="tiny" x="688" y="204">系统当前如何安排提醒任务</text>
+  <text class="tiny" x="688" y="230">何时重排、何时取消、何时触发通知</text>
+  <rect class="card" x="356" y="326" width="236" height="64"/>
+  <text class="tiny" x="390" y="365">Repository 负责把业务事实与调度动作接起来</text>
+  <path class="line" d="M 290 188 L 356 188"/>
+  <text class="tiny" x="302" y="172">实体变化驱动页面</text>
+  <path class="alert" d="M 592 188 L 656 188"/>
+  <text class="tiny" x="606" y="172">提醒事实触发调度</text>
+  <path class="dash" d="M 474 286 L 474 326"/>
+  <text class="tiny" x="494" y="314">保存 / 更新 / 取消提醒</text>
+  <text class="tiny" x="60" y="408">关键纪律：不要把页面瞬时状态或 WorkManager 调度细节直接塞回 TaskEntity</text>
+</svg>

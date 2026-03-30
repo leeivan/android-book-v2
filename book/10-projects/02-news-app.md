@@ -34,6 +34,7 @@
 
 ### 3. 把“远程 -> 本地 -> 页面”立成主线
 
+![新闻应用数据主线图](../media/10-projects/news-data-chain.svg)
 新闻应用最值得建立的认知，是页面不应该直接以远程响应作为长期数据来源。更稳妥的方式是：远程接口负责拿到最新内容，本地数据库负责保存和输出可消费的数据，ViewModel 再把这些数据整理成页面状态。也就是说，真正稳定的主线不是“接口 -> 页面”，而是“远程 -> 本地 -> 页面”。
 
 这样做的好处有三层。第一，离线时页面依旧有内容来源，不会因为一次失败就整屏空白。第二，列表页和详情页可以共享同一份内容基础，不需要各自维护一套互不相认的数据。第三，系统回收页面、用户旋转设备或重新进入应用时，恢复的依据不再只是内存中的临时对象，而是一个更稳定的本地可信来源。
@@ -244,3 +245,5 @@ class NewsFeedViewModel(
 - 参考并改写自：`Clean Android Architecture`，Repository、缓存协作与内容型应用边界相关章节。
 - Offline-first architecture: <https://developer.android.com/topic/architecture/data-layer/offline-first>
 - Now in Android: <https://github.com/android/nowinandroid>
+
+

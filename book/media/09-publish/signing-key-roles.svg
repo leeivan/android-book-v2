@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="440" viewBox="0 0 980 440" role="img" aria-labelledby="title desc">
+  <title id="title">签名密钥角色图</title>
+  <desc id="desc">展示调试签名、上传密钥、应用签名密钥和 Google Play 分发之间的关系。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1d4ed8"/>
+    </marker>
+    <style>
+      .bg { fill: #eff6ff; }
+      .panel { fill: #ffffff; stroke: #1d4ed8; stroke-width: 2; rx: 16; ry: 16; }
+      .soft { fill: #dbeafe; stroke: #2563eb; stroke-width: 2; rx: 16; ry: 16; }
+      .accent { fill: #ecfccb; stroke: #4d7c0f; stroke-width: 2; rx: 16; ry: 16; }
+      .warn { fill: #fff7ed; stroke: #c2410c; stroke-width: 2; rx: 16; ry: 16; }
+      .title { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 24px; font-weight: 700; fill: #1f2937; }
+      .head { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 18px; font-weight: 700; fill: #1d4ed8; }
+      .tiny { font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 15px; fill: #475569; }
+      .line { stroke: #1d4ed8; stroke-width: 2.8; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #c2410c; stroke-width: 2.4; fill: none; stroke-dasharray: 8 6; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="980" height="440"/>
+  <text class="title" x="40" y="48">签名不是一个按钮，而是一条长期身份链：开发、上传、分发、升级各用不同角色</text>
+
+  <rect class="soft" x="52" y="116" width="186" height="116"/>
+  <text class="head" x="98" y="152">调试签名</text>
+  <text class="tiny" x="80" y="182">只服务本地开发和调试安装</text>
+  <text class="tiny" x="80" y="208">不能承担正式升级身份</text>
+
+  <rect class="panel" x="292" y="116" width="186" height="116"/>
+  <text class="head" x="338" y="152">上传密钥</text>
+  <text class="tiny" x="320" y="182">团队 / CI 日常上传 AAB 使用</text>
+  <text class="tiny" x="320" y="208">泄露后通常可以轮换</text>
+
+  <rect class="accent" x="532" y="98" width="196" height="152"/>
+  <text class="head" x="570" y="134">应用签名密钥</text>
+  <text class="tiny" x="558" y="164">长期正式身份</text>
+  <text class="tiny" x="558" y="190">Google Play 分发给用户时真正使用</text>
+  <text class="tiny" x="558" y="216">决定未来版本能否继续升级</text>
+
+  <rect class="warn" x="782" y="116" width="150" height="116"/>
+  <text class="head" x="826" y="152" fill="#c2410c">用户设备</text>
+  <text class="tiny" x="804" y="182">只认正式身份链</text>
+  <text class="tiny" x="804" y="208">升级包必须来自同一身份</text>
+
+  <path class="line" d="M 478 174 L 532 174"/>
+  <text class="tiny" x="488" y="158">上传到 Play</text>
+  <path class="line" d="M 728 174 L 782 174"/>
+  <text class="tiny" x="738" y="158">分发给用户</text>
+  <path class="dash" d="M 238 174 L 292 174"/>
+  <text class="tiny" x="206" y="270">关键纪律：调试签名不要碰正式链路，日常流程尽量只接触上传密钥，长期身份由应用签名密钥承接</text>
+</svg>

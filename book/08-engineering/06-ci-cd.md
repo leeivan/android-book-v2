@@ -124,6 +124,8 @@ jobs:
 
 ### 9. 一个更现实的 Android 发布链路，通常是分层的
 
+![Android CI/CD 分层流水线图](../media/08-engineering/android-ci-cd-pipeline.svg)
+
 对大多数团队来说，最健康的发布链路不会是“每次合并都直接上正式版本”，而通常会分层：
 
 - 普通提交：验证构建、快速检查和关键单元测试。
@@ -314,3 +316,4 @@ CI/CD 真正要解决的，不是“有没有一条看起来现代的流水线�
 - GitHub Actions documentation: <https://docs.github.com/actions>
 - Build and test with CI: <https://developer.android.com/build>
 - Distribute and release overview: <https://developer.android.com/distribute>
+
